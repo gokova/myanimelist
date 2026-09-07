@@ -1,0 +1,17 @@
+naming:
+  FunctionNaming:
+    active: true
+    # Allows Compose functions starting with uppercase (e.g. MyComposable)
+    ignoreAnnotated: ['Composable']
+
+style:
+  MagicNumber:
+    active: true
+    ignorePropertyDeclaration: true
+    ignoreAnnotation: true
+    ignoreEnums: true
+    ignoreNumbers: ['-1', '0', '1', '2']
+    ignoreExtensionFunctions: true
+    # Common Jetpack Compose color magic numbers
+    ignoreLocalVariableDeclaration: true
+    ignoreConstantDeclaration: true
