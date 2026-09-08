@@ -15,3 +15,16 @@ style:
     # Common Jetpack Compose color magic numbers
     ignoreLocalVariableDeclaration: true
     ignoreConstantDeclaration: true
+  ForbiddenComment:
+    active: true
+    severity: warning
+    comments: ['TODO:', 'FIXME:', 'STOPSHIP:']
+  UnusedPrivateMember:
+    active: true
+    ignoreAnnotated: ['Preview', 'StandardPreviews']
+
+
+build:
+  weights:
+    ForbiddenComment: 0
+
