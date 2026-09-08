@@ -1,3 +1,9 @@
 <resources>
     <string name="app_name">My Anime List</string>
+    <string name="main_app_bar_title">MAL</string>
+    <string name="main_avatar_content_description">User profile</string>
+    <string name="logout_dialog_title">Log Out</string>
+    <string name="logout_dialog_message">Are you sure you want to log out of your MyAnimeList account?</string>
+    <string name="logout_dialog_confirm">Log Out</string>
+    <string name="logout_dialog_cancel">Cancel</string>
 </resources>
