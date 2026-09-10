@@ -17,6 +17,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -58,17 +60,17 @@ fun MainScreen(onLogoutConfirm: () -> Unit = {}) {
         ) {
             composable<MyListRoute> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("My List Screen")
+                    Text(stringResource(R.string.screen_my_list_placeholder))
                 }
             }
             composable<TasteRoute> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("My Taste Screen")
+                    Text(stringResource(R.string.screen_taste_placeholder))
                 }
             }
             composable<RecommendationsRoute> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Recommendations Screen")
+                    Text(stringResource(R.string.screen_recommendations_placeholder))
                 }
             }
         }
@@ -87,8 +89,10 @@ fun AppBottomBar(navController: NavHostController) {
         topLevelDestinations.forEach { destination ->
             val selected =
                 currentDestination?.hierarchy?.any {
-                    it.route?.contains(destination.route::class.qualifiedName.toString()) == true
+                    it.hasRoute(destination.routeClass)
                 } == true
+
+            val label = stringResource(destination.labelTextId)
 
             NavigationBarItem(
                 selected = selected,
@@ -102,10 +106,10 @@ fun AppBottomBar(navController: NavHostController) {
                 icon = {
                     Icon(
                         imageVector = if (selected) destination.selectedIcon else destination.unselectedIcon,
-                        contentDescription = destination.label,
+                        contentDescription = label,
                     )
                 },
-                label = { Text(destination.label) },
+                label = { Text(label) },
                 colors =
                     NavigationBarItemDefaults.colors(
                         selectedIconColor = MaterialTheme.colorScheme.onPrimary,

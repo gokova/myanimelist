@@ -45,6 +45,7 @@ dependencies {
     // Coroutines & Lifecycle
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.runtime.compose)
 
     // Network & Serialization
     implementation(libs.okhttp)
