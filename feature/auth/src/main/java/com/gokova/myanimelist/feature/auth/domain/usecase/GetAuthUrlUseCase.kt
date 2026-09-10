@@ -1,13 +1,12 @@
 package com.gokova.myanimelist.feature.auth.domain.usecase
 
-import android.net.Uri
-import com.gokova.myanimelist.feature.auth.domain.authenticator.MalAuthenticator
+import com.gokova.myanimelist.feature.auth.domain.repository.AuthRepository
 import javax.inject.Inject
 
 class GetAuthUrlUseCase
     @Inject
     constructor(
-        private val authenticator: MalAuthenticator,
+        private val authRepository: AuthRepository,
     ) {
-        suspend operator fun invoke(): Uri = authenticator.getAuthorizationUrl()
+        suspend operator fun invoke(): String = authRepository.getAuthorizationUrl()
     }

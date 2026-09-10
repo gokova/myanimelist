@@ -44,6 +44,7 @@ dependencies {
     implementation(project(":core:network"))
     implementation(project(":core:ui"))
     implementation(project(":feature:auth"))
+    implementation(project(":feature:mylist"))
 
     // Platform Dependencies
     implementation(platform(libs.androidx.compose.bom))
@@ -75,6 +76,7 @@ dependencies {
 
     // Unit Testing
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
 
     // Android Instrumentation Testing
     androidTestImplementation(platform(libs.androidx.compose.bom))

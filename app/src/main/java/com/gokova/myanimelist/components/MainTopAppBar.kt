@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import com.gokova.myanimelist.R
 import com.gokova.myanimelist.core.ui.preview.StandardPreviews
 import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
+import com.gokova.myanimelist.core.ui.theme.spacing
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,18 +48,26 @@ fun MainTopAppBar(
             Box(
                 modifier =
                     Modifier
-                        .padding(end = 16.dp)
-                        .size(40.dp)
+                        .padding(end = MaterialTheme.spacing.small)
+                        .size(MaterialTheme.spacing.minTouchTarget)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
                         .clickable(onClick = onAvatarClick),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = stringResource(R.string.main_avatar_content_description),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Box(
+                    modifier =
+                        Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = stringResource(R.string.main_avatar_content_description),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         },
         colors =

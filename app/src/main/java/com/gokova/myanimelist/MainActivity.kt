@@ -1,5 +1,6 @@
 package com.gokova.myanimelist
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -13,6 +14,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -21,6 +24,7 @@ import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
 import com.gokova.myanimelist.feature.auth.AuthScreen
 import com.gokova.myanimelist.navigation.AuthRoute
 import com.gokova.myanimelist.navigation.MainRoute
+import com.gokova.myanimelist.navigation.rememberOAuthRedirectHandler
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -31,17 +35,19 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
+            val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
             MyAnimeListTheme {
-                if (isLoggedIn == null) {
-                    // Show a splash or loading screen while DataStore is loading
-                    LoadingScreen()
-                } else {
-                    AppNavigation(
-                        isLoggedIn = isLoggedIn == true,
-                        onLogout = viewModel::logout,
-                    )
+                when (val state = uiState) {
+                    is MainUiState.Loading -> {
+                        LoadingScreen()
+                    }
+                    is MainUiState.Authenticated -> {
+                        AppNavigation(
+                            isLoggedIn = state.isLoggedIn,
+                            onLogout = viewModel::logout,
+                        )
+                    }
                 }
             }
         }
@@ -54,6 +60,9 @@ fun AppNavigation(
     onLogout: () -> Unit,
 ) {
     val navController = rememberNavController()
+    val context = LocalContext.current
+    val redirectHandler = rememberOAuthRedirectHandler()
+    val redirectResult by redirectHandler.redirectResult
 
     LaunchedEffect(isLoggedIn) {
         if (!isLoggedIn) {
@@ -70,6 +79,12 @@ fun AppNavigation(
     ) {
         composable<AuthRoute> {
             AuthScreen(
+                redirectResult = redirectResult,
+                onRedirectResultConsumed = redirectHandler::consumeResult,
+                onNavigateToOAuthUrl = { url ->
+                    val intent = Intent(Intent.ACTION_VIEW, url.toUri())
+                    context.startActivity(intent)
+                },
                 onAuthSuccess = {
                     navController.navigate(MainRoute) {
                         popUpTo(AuthRoute) { inclusive = true }

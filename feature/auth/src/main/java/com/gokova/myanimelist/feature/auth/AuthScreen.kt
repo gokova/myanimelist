@@ -1,6 +1,5 @@
 package com.gokova.myanimelist.feature.auth
 
-import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -15,74 +14,58 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gokova.myanimelist.core.ui.preview.StandardPreviews
 import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
 
 @Composable
 fun AuthScreen(
-    viewModel: AuthViewModel = hiltViewModel(),
+    onNavigateToOAuthUrl: (String) -> Unit,
     onAuthSuccess: () -> Unit,
+    redirectResult: OAuthRedirectResult? = null,
+    onRedirectResultConsumed: () -> Unit = {},
+    viewModel: AuthViewModel = hiltViewModel(),
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
-    val activity = context as? androidx.activity.ComponentActivity
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    LaunchedEffect(uiState) {
-        if (uiState is AuthUiState.Success) {
-            onAuthSuccess()
-        }
-    }
-
-    LaunchedEffect(activity?.intent) {
-        val uri = activity?.intent?.data
-        android.util.Log.d("AuthScreen", "LaunchedEffect intent triggered with uri: $uri")
-        if (uri != null && uri.scheme == "com.gokova.myanimelist") {
-            val code = uri.getQueryParameter("code")
-            android.util.Log.d("AuthScreen", "Intercepted code in LaunchedEffect: $code")
-            if (code != null) {
-                viewModel.handleAuthorizationCode(code)
-                activity.intent.data = null
+    LaunchedEffect(redirectResult) {
+        val result = redirectResult ?: return@LaunchedEffect
+        onRedirectResultConsumed()
+        when (result) {
+            is OAuthRedirectResult.Success -> {
+                viewModel.handleAuthorizationCode(result.code, result.state)
+            }
+            is OAuthRedirectResult.Error -> {
+                viewModel.handleRedirectError(result.error)
             }
         }
     }
 
-    androidx.compose.runtime.DisposableEffect(activity) {
-        val listener =
-            androidx.core.util.Consumer<Intent> { intent ->
-                val uri = intent.data
-                android.util.Log.d("AuthScreen", "DisposableEffect listener triggered with uri: $uri")
-                if (uri != null && uri.scheme == "com.gokova.myanimelist") {
-                    val code = uri.getQueryParameter("code")
-                    android.util.Log.d("AuthScreen", "Intercepted code in listener: $code")
-                    if (code != null) {
-                        viewModel.handleAuthorizationCode(code)
-                        intent.data = null
-                    }
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is AuthUiEvent.OpenOAuthUrl -> {
+                    onNavigateToOAuthUrl(event.url)
+                }
+                is AuthUiEvent.AuthSuccess -> {
+                    onAuthSuccess()
                 }
             }
-        activity?.addOnNewIntentListener(listener)
-        onDispose {
-            activity?.removeOnNewIntentListener(listener)
         }
     }
 
     AuthScreenContent(
         uiState = uiState,
-        onLoginClick = {
-            val intent = Intent(Intent.ACTION_VIEW, viewModel.generateAuthUrl())
-            context.startActivity(intent)
-        },
+        onLoginClick = viewModel::onLoginClicked,
     )
 }
 
@@ -162,7 +145,7 @@ private fun AuthActionArea(
             if (uiState is AuthUiState.Error) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = uiState.message,
+                    text = stringResource(id = uiState.messageResId),
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -176,8 +159,16 @@ class AuthUiStatePreviewProvider : PreviewParameterProvider<AuthUiState> {
         sequenceOf(
             AuthUiState.Idle,
             AuthUiState.Loading,
-            AuthUiState.Error("Security verification failed. Please try again."),
+            AuthUiState.Error(R.string.feature_auth_error_verification_failed),
         )
+
+    override fun getDisplayName(index: Int): String? =
+        when (index) {
+            0 -> "Idle"
+            1 -> "Loading"
+            2 -> "Error"
+            else -> null
+        }
 }
 
 @StandardPreviews

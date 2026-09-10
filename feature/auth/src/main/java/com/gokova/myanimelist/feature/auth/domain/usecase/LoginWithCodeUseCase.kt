@@ -1,12 +1,15 @@
 package com.gokova.myanimelist.feature.auth.domain.usecase
 
-import com.gokova.myanimelist.feature.auth.domain.authenticator.MalAuthenticator
+import com.gokova.myanimelist.feature.auth.domain.repository.AuthRepository
 import javax.inject.Inject
 
 class LoginWithCodeUseCase
     @Inject
     constructor(
-        private val authenticator: MalAuthenticator,
+        private val authRepository: AuthRepository,
     ) {
-        suspend operator fun invoke(code: String): Result<Unit> = authenticator.authenticate(code)
+        suspend operator fun invoke(
+            code: String,
+            state: String? = null,
+        ): Result<Unit> = authRepository.authenticate(code, state)
     }
