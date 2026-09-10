@@ -180,6 +180,7 @@ Access via `MaterialTheme.spacing` (from `com.gokova.myanimelist.core.ui.theme.s
     *   Label: `labelLarge`, always visible or labeled clearly on selection.
 *   **Tablet (Navigation Rail):**
     *   Screens with width \(\ge 600.dp\) transition from bottom bar to a vertical Navigation Rail on the start edge.
+    *   Rail items must be icon-only (omitting text labels) with localized `contentDescription`s to avoid text wrapping and visual clutter in landscape and tablet layouts.
 
 ### 4.4 Dialogs & Bottom Sheets
 *   **Shape:** `MaterialTheme.shapes.extraLarge` (`32.dp`). Bottom sheets round only `topStart` and `topEnd`.
@@ -222,6 +223,8 @@ All screens must be verified against WCAG AA requirements:
 3.  **Landscape & Large Screens:**
     *   Compact (\(< 600.dp\)): Bottom Navigation Bar, single column lists.
     *   Medium & Expanded (\(\ge 600.dp\)): Navigation Rail, adaptive grid (2 to 4 columns for anime cards).
+    *   **Grid Cell Sizing:** When using `GridCells.Adaptive`, set `minSize = 240.dp` (never \(\ge 300.dp\)) to ensure that screens at the \(600.dp\) breakpoint with an \(80.dp\) Navigation Rail and margins (\(\sim 488.dp\) available width) reliably render 2 columns instead of collapsing into 1 column.
+    *   **Configuration Awareness:** Always calculate window size from `LocalWindowInfo.current.containerSize` converted with `LocalDensity.current` rather than `Configuration.screenWidthDp` to avoid stale configuration and preview rendering issues.
 
 ---
 
@@ -234,3 +237,5 @@ All UI components and screens must include preview coverage using the standard m
     *   Phone Light & Dark under 1.5x Accessibility font scale
     *   Phone Landscape orientation
 *   **Preview Parameters:** Use `PreviewParameterProvider` to inject test states (e.g., Idle, Loading, Error, Content) rather than creating separate preview functions for each state.
+*   **Descriptive Parameter Names:** Always override `getDisplayName(index: Int)` in `PreviewParameterProvider` implementations to return human-readable names (e.g., `"Loaded"`, `"Empty"`, `"Watching"`) rather than default indices (`uiState 0`, `uiState 1`).
+*   **Stateless Previews:** Screens must expose a public stateless composable accepting state and lambdas so `@StandardPreviews` never instantiates Hilt ViewModel factories or relies on an Activity context.

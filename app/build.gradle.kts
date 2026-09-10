@@ -44,6 +44,7 @@ dependencies {
     implementation(project(":core:network"))
     implementation(project(":core:ui"))
     implementation(project(":feature:auth"))
+    implementation(project(":feature:mylist"))
 
     // Platform Dependencies
     implementation(platform(libs.androidx.compose.bom))

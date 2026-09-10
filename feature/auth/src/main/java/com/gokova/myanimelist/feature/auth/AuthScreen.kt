@@ -161,6 +161,14 @@ class AuthUiStatePreviewProvider : PreviewParameterProvider<AuthUiState> {
             AuthUiState.Loading,
             AuthUiState.Error(R.string.feature_auth_error_verification_failed),
         )
+
+    override fun getDisplayName(index: Int): String? =
+        when (index) {
+            0 -> "Idle"
+            1 -> "Loading"
+            2 -> "Error"
+            else -> null
+        }
 }
 
 @StandardPreviews

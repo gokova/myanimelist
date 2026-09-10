@@ -1,0 +1,35 @@
+<resources>
+    <string name="my_list_tab_all">All</string>
+    <string name="my_list_tab_watching">Watching</string>
+    <string name="my_list_tab_completed">Completed</string>
+    <string name="my_list_tab_on_hold">On Hold</string>
+    <string name="my_list_tab_dropped">Dropped</string>
+    <string name="my_list_tab_plan_to_watch">Plan to Watch</string>
+    <plurals name="my_list_entries_count">
+        <item quantity="one">%d Entry</item>
+        <item quantity="other">%d Entries</item>
+    </plurals>
+    <string name="my_list_sort_by">Sort: %s</string>
+    <string name="my_list_sort_score">Highest Score</string>
+    <string name="my_list_sort_title">Title (A-Z)</string>
+    <string name="my_list_sort_updated_at">Recently Updated</string>
+    <string name="my_list_episodes_format">%1$d / %2$s ep</string>
+    <string name="my_list_episodes_unknown">"\?\?"</string>
+    <string name="my_list_status_watching">Watching</string>
+    <string name="my_list_status_completed">Completed</string>
+    <string name="my_list_status_on_hold">On Hold</string>
+    <string name="my_list_status_dropped">Dropped</string>
+    <string name="my_list_status_plan_to_watch">Plan to Watch</string>
+    <string name="my_list_empty_title">No anime in this category</string>
+    <string name="my_list_empty_description">Items in your MyAnimeList account will appear here.</string>
+    <string name="my_list_sync_now">Sync Now</string>
+    <string name="my_list_syncing_message">Syncing your anime list…</string>
+    <string name="my_list_sync_failed_message">Sync failed: showing cached data</string>
+    <string name="my_list_retry">Retry</string>
+    <string name="my_list_score_unrated">-</string>
+    <string name="my_list_poster_content_description">Poster image for %s</string>
+    <string name="my_list_sort_menu_description">Sort anime list</string>
+    <string name="my_list_airing_status_airing">Airing</string>
+    <string name="my_list_airing_status_finished">Finished</string>
+    <string name="my_list_airing_status_not_yet_aired">Not Yet Aired</string>
+</resources>

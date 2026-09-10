@@ -117,6 +117,9 @@ Rules:
 - Always cleanly close network responses and I/O resources (e.g., using `.use { ... }`).
 - **Atomic Multi-Field Persistence:** When persisting related data (e.g., storing auth tokens while clearing transient PKCE verifiers and CSRF states), execute them in a single atomic transaction (e.g., inside a single `dataStore.edit { ... }` block or Room `@Transaction`) to prevent partial or corrupted state.
 - **Type-Safe URL Construction:** Never construct URLs with query parameters via manual string concatenation. Always use `HttpUrl.toHttpUrl().newBuilder()` or Retrofit to guarantee correct character escaping and encoding.
+- **API Contract Verification:** Always verify the exact wire format and JSON field names against the official API documentation before implementing network DTOs and mappers. Never guess field names (e.g., MAL API `users/{user_id}/animelist` returns `list_status`, not `my_list_status`). Write unit tests locking in serialization contracts.
+- **Resilient Network & Rate Limiting:** Remote data sources must pace requests politely (e.g., 500ms delay between paginated requests), follow URL-based pagination (`paging.next`) when provided by the API contract, and retry on transient network errors including both `IOException` and `HttpException` (for HTTP 429 and 5xx) using exponential backoff. Never catch or swallow `CancellationException`.
+- **Safe Database Migrations:** Never use `.fallbackToDestructiveMigration(true)` in Room configuration—always provide safe migrations or let missing migrations fail fast during development rather than silently destroying user offline data.
 
 ---
 
@@ -127,6 +130,7 @@ The domain layer contains pure business logic.
 Rules:
 - **Zero Android Framework Dependencies:** The domain layer must NEVER import `android.*` packages (e.g., `android.net.Uri`, `android.content.Context`). Domain contracts must use platform-neutral types (e.g., `String` for URLs).
 - **Zero Framework Leakage:** Domain must not depend on Retrofit, Room, or Jetpack Compose.
+- **No Presentation Callbacks in Domain:** Never pass UI callbacks (e.g., `onSyncStarted: () -> Unit`) into repository or use case methods. Operations with intermediate statuses or progress must return reactive streams like `Flow<DomainStatus>` (e.g., `Flow<SyncStatus>`), preserving clean unidirectional data flow.
 - Domain contains: Models, Repository interfaces, and Use Cases.
 - Use cases should represent a single business action (e.g., `GetAuthUrlUseCase`, `LoginWithCodeUseCase`, `LogoutUseCase`, `ObserveAuthStateUseCase`).
 
@@ -149,6 +153,8 @@ Rules:
 - **Never Block Main Thread:** Never call `runBlocking` inside ViewModels or Composable handlers. All asynchronous work must be executed via `viewModelScope.launch` using suspend functions.
 - **No Direct Data/Infra in ViewModels:** ViewModels must strictly interact with Domain Use Cases. Never inject `DataStore`, `AuthPreferences`, Room DAOs, or Retrofit services directly into ViewModels.
 - Avoid passing ViewModels deep into the UI hierarchy; hoist state and pass lambdas.
+- **Stateful vs. Stateless Screen Split:** Always split screens into an internal/private stateful composable (which injects the ViewModel via Hilt) and a public stateless composable (which only receives state and event callbacks). Previews must render the stateless composable to avoid `HiltViewModelFactory` preview crashes.
+- **Configuration-Aware Window Sizing:** Never use `LocalConfiguration.current.screenWidthDp` to derive responsive layout branching. Always use `LocalWindowInfo.current.containerSize` converted with `LocalDensity.current` to ensure window size calculations are configuration-aware and preview-safe.
 
 ---
 
@@ -165,6 +171,7 @@ Rules:
 - Adhere to the **"Soft & Modern"** design guidelines in `docs/DESIGN.md` (Pastel Blue palette, rounded shapes, tonal depth without harsh shadows).
 - **Strict Localization:** You MUST extract all user-facing strings to `strings.xml`. Hardcoding strings in Compose functions, ViewModels, or preview providers is strictly forbidden.
 - **Visual Previews:** Always apply `@StandardPreviews` to composable UI components for responsive and accessible preview validation.
+- **Descriptive Preview Parameters:** Override `getDisplayName(index: Int)` on all `PreviewParameterProvider` classes with human-readable descriptions (e.g., `"Watching"`, `"Empty"`, `"Syncing"`) instead of relying on default indexed labels.
 - Keep composables modular, small, and stateless where possible.
 
 ---
@@ -173,6 +180,7 @@ Rules:
 
 - **Avoid Ad-Hoc Logging:** Do not leave `android.util.Log` statements in production code.
 - **Never Log Sensitive Data:** Never log access tokens, refresh tokens, credentials, or user-identifying data.
+- **Strict Token & Header Redaction:** OkHttp logging interceptors must redact sensitive headers (`redactHeader("Authorization")`, `redactHeader("Cookie")`) and use `HttpLoggingInterceptor.Level.BASIC` for authentication/token exchange clients so tokens are never exposed in logcat.
 - **OAuth & CSRF Security:** Always implement PKCE (with cryptographically secure verifiers) and validate high-entropy CSRF `state` parameters on OAuth callback redirects.
 
 ---
@@ -200,10 +208,12 @@ Rules:
 - Domain Use Cases and ViewModels must have accompanying unit tests using `kotlinx-coroutines-test` and test fakes.
 - Test fakes must implement interface contracts cleanly without throwing arbitrary exceptions.
 - **Lifecycle & Edge Case Testing:** Unit test transient flows including cancellations (e.g., user denying permissions/OAuth), one-time event consumption, and navigation resets (e.g., logging out then logging back in).
+- **Minimum SDK Compatibility (`minSdk = 24`):** Always maintain compatibility with Android API level 24. Do not use API 26+ Java 8 APIs (`java.time.*`, `java.util.function.*`, `java.util.stream.*`) without core library desugaring. For date and timestamp parsing, use Java 7-compatible utilities (`java.text.SimpleDateFormat` with UTC/Locale, or `kotlin.time.Duration`).
 - **Static Analysis & Formatting Compliance:** All code MUST pass:
   - `./gradlew test` (100% tests pass)
   - `./gradlew detekt` (0 violations, strictly respecting the 100-character line length limit)
   - `./gradlew ktlintCheck` (100% compliant formatting)
+  - `./gradlew lintDebug` (0 NewApi or critical lint errors)
 
 ---
 

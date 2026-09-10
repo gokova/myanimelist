@@ -15,8 +15,10 @@ import androidx.compose.ui.unit.dp
 @Immutable
 data class Spacing(
     val none: Dp = 0.dp,
+    val micro: Dp = 2.dp,
     val extraSmall: Dp = 4.dp,
     val small: Dp = 8.dp,
+    val iconSmall: Dp = 12.dp,
     val medium: Dp = 16.dp,
     val large: Dp = 24.dp,
     val extraLarge: Dp = 32.dp,
@@ -26,6 +28,9 @@ data class Spacing(
     val screenHorizontal: Dp = 24.dp,
     val minTouchTarget: Dp = 48.dp,
     val cardPadding: Dp = 16.dp,
+    val badgePaddingHorizontal: Dp = 6.dp,
+    val badgePaddingVertical: Dp = 2.dp,
+    val progressBarHeight: Dp = 6.dp,
 )
 
 val LocalSpacing = staticCompositionLocalOf { Spacing() }

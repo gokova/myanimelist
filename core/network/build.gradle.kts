@@ -39,7 +39,9 @@ dependencies {
 
     // Network & Serialization
     implementation(libs.retrofit)
+    implementation(libs.retrofit.converter.kotlinx.serialization)
     implementation(libs.okhttp)
+    implementation(libs.okhttp.logging)
     implementation(libs.kotlinx.serialization.json)
 
     // Dependency Injection (Hilt)
