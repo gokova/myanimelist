@@ -14,15 +14,14 @@ interface AuthPreferences {
         refreshToken: String,
     )
 
-    suspend fun saveCodeVerifier(verifier: String)
-
-    suspend fun clearCodeVerifier()
-
-    suspend fun saveOAuthState(state: String)
-
-    suspend fun clearOAuthState()
-
     suspend fun clearTokens()
+
+    suspend fun saveOAuthSession(
+        verifier: String,
+        state: String,
+    )
+
+    suspend fun clearOAuthSession()
 
     suspend fun warmCache()
 

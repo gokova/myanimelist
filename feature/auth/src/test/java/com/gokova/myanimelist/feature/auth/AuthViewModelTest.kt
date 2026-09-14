@@ -51,7 +51,7 @@ class AuthViewModelTest {
     }
 
     @Test
-    fun `onLoginClicked emits OpenOAuthUrl event and stays Idle`() =
+    fun `onLoginClicked emits OpenOAuthUrl event and stays Loading`() =
         runTest {
             val repository = FakeAuthRepository()
             val expectedUrl = "https://myanimelist.net/v1/oauth2/authorize?code_challenge=test"
@@ -74,7 +74,7 @@ class AuthViewModelTest {
 
             assertTrue(receivedEvent is AuthUiEvent.OpenOAuthUrl)
             assertEquals(expectedUrl, (receivedEvent as AuthUiEvent.OpenOAuthUrl).url)
-            assertEquals(AuthUiState.Idle, viewModel.uiState.value)
+            assertEquals(AuthUiState.Loading, viewModel.uiState.value)
 
             job.cancel()
         }

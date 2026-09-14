@@ -8,6 +8,7 @@ ktlint = "14.2.0"
 
 # Core & Lifecycle
 coreKtx = "1.19.0"
+browser = "1.10.0"
 lifecycleRuntimeKtx = "2.11.0"
 coroutines = "1.11.0"
 
@@ -40,6 +41,7 @@ detektComposeRules = "0.6.6"
 [libraries]
 # Core AndroidX
 androidx-compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
+androidx-browser = { group = "androidx.browser", name = "browser", version.ref = "browser" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }
 androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycleRuntimeKtx" }

@@ -42,19 +42,16 @@ private class FakeAuthPreferences : AuthPreferences {
         stateFlow.value = null
     }
 
-    override suspend fun saveCodeVerifier(verifier: String) {
+    override suspend fun saveOAuthSession(
+        verifier: String,
+        state: String,
+    ) {
         verifierFlow.value = verifier
-    }
-
-    override suspend fun clearCodeVerifier() {
-        verifierFlow.value = null
-    }
-
-    override suspend fun saveOAuthState(state: String) {
         stateFlow.value = state
     }
 
-    override suspend fun clearOAuthState() {
+    override suspend fun clearOAuthSession() {
+        verifierFlow.value = null
         stateFlow.value = null
     }
 
@@ -130,10 +127,30 @@ class AuthRepositoryImplTest {
                     oAuthConfig = oAuthConfig,
                 )
 
-            preferences.saveOAuthState("expected_state")
-            preferences.saveCodeVerifier("mock_verifier")
+            preferences.saveOAuthSession(verifier = "mock_verifier", state = "expected_state")
 
             val result = repository.authenticate(code = "any_code", state = "mismatched_state")
+
+            assertTrue(result.isFailure)
+            assertNull(preferences.oauthState.first())
+            assertNull(preferences.codeVerifier.first())
+        }
+
+    @Test
+    fun `authenticate returns failure when savedState is null`() =
+        runTest {
+            val repository =
+                AuthRepositoryImpl(
+                    authPreferences = preferences,
+                    pkceGenerator = pkceGenerator,
+                    oAuthClient = MalOAuthClient(OkHttpClient(), oAuthConfig),
+                    oAuthConfig = oAuthConfig,
+                )
+
+            // Orphaned verifier with null saved state
+            preferences.verifierFlow.value = "mock_verifier"
+
+            val result = repository.authenticate(code = "any_code", state = "any_state")
 
             assertTrue(result.isFailure)
             assertNull(preferences.oauthState.first())
@@ -151,7 +168,9 @@ class AuthRepositoryImplTest {
                     oAuthConfig = oAuthConfig,
                 )
 
-            val result = repository.authenticate("any_code")
+            preferences.stateFlow.value = "matching_state"
+
+            val result = repository.authenticate(code = "any_code", state = "matching_state")
 
             assertTrue(result.isFailure)
         }
@@ -190,8 +209,7 @@ class AuthRepositoryImplTest {
                     oAuthConfig = oAuthConfig,
                 )
 
-            preferences.saveCodeVerifier("mock_verifier")
-            preferences.saveOAuthState("mock_state")
+            preferences.saveOAuthSession(verifier = "mock_verifier", state = "mock_state")
 
             val result = repository.authenticate(code = "valid_code", state = "mock_state")
 
@@ -214,8 +232,7 @@ class AuthRepositoryImplTest {
                 )
 
             preferences.saveTokens("token_a", "token_b")
-            preferences.saveCodeVerifier("verifier_a")
-            preferences.saveOAuthState("state_a")
+            preferences.saveOAuthSession(verifier = "verifier_a", state = "state_a")
 
             repository.logout()
 

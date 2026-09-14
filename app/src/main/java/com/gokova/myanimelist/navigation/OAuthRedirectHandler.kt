@@ -1,15 +1,8 @@
 package com.gokova.myanimelist.navigation
 
 import android.content.Intent
-import androidx.activity.ComponentActivity
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalContext
-import androidx.core.util.Consumer
 import com.gokova.myanimelist.feature.auth.OAuthRedirectResult
 
 /**
@@ -53,6 +46,14 @@ class OAuthRedirectHandler(
         return true
     }
 
+    fun handleCancellation() {
+        _redirectResult.value =
+            OAuthRedirectResult.Error(
+                error = "access_denied",
+                description = "Authentication cancelled",
+            )
+    }
+
     fun consumeResult() {
         _redirectResult.value = null
     }
@@ -61,30 +62,6 @@ class OAuthRedirectHandler(
         const val EXPECTED_SCHEME = "com.gokova.myanimelist"
         const val EXPECTED_HOST = "oauth2redirect"
     }
-}
-
-@Composable
-fun rememberOAuthRedirectHandler(): OAuthRedirectHandler {
-    val handler = remember { OAuthRedirectHandler() }
-    val context = LocalContext.current
-    val activity = context as? ComponentActivity
-
-    LaunchedEffect(activity?.intent) {
-        handler.handleIntent(activity?.intent)
-    }
-
-    DisposableEffect(activity) {
-        val listener =
-            Consumer<Intent> { intent ->
-                handler.handleIntent(intent)
-            }
-        activity?.addOnNewIntentListener(listener)
-        onDispose {
-            activity?.removeOnNewIntentListener(listener)
-        }
-    }
-
-    return handler
 }
 
 internal fun extractOAuthResult(

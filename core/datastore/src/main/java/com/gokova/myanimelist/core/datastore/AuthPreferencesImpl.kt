@@ -105,30 +105,6 @@ class AuthPreferencesImpl
             cachedRefreshToken.set(refreshToken)
         }
 
-        override suspend fun saveCodeVerifier(verifier: String) {
-            context.dataStore.edit { prefs ->
-                prefs[KEY_CODE_VERIFIER] = encrypt(verifier)
-            }
-        }
-
-        override suspend fun clearCodeVerifier() {
-            context.dataStore.edit { prefs ->
-                prefs.remove(KEY_CODE_VERIFIER)
-            }
-        }
-
-        override suspend fun saveOAuthState(state: String) {
-            context.dataStore.edit { prefs ->
-                prefs[KEY_OAUTH_STATE] = encrypt(state)
-            }
-        }
-
-        override suspend fun clearOAuthState() {
-            context.dataStore.edit { prefs ->
-                prefs.remove(KEY_OAUTH_STATE)
-            }
-        }
-
         override suspend fun clearTokens() {
             context.dataStore.edit { prefs ->
                 prefs.remove(KEY_ACCESS_TOKEN)
@@ -139,6 +115,25 @@ class AuthPreferencesImpl
             // Clear in-memory cache only AFTER DataStore removal successfully completes
             cachedAccessToken.set(null)
             cachedRefreshToken.set(null)
+        }
+
+        override suspend fun saveOAuthSession(
+            verifier: String,
+            state: String,
+        ) {
+            val encryptedVerifier = encrypt(verifier)
+            val encryptedState = encrypt(state)
+            context.dataStore.edit { prefs ->
+                prefs[KEY_CODE_VERIFIER] = encryptedVerifier
+                prefs[KEY_OAUTH_STATE] = encryptedState
+            }
+        }
+
+        override suspend fun clearOAuthSession() {
+            context.dataStore.edit { prefs ->
+                prefs.remove(KEY_CODE_VERIFIER)
+                prefs.remove(KEY_OAUTH_STATE)
+            }
         }
 
         override suspend fun warmCache() {

@@ -27,8 +27,7 @@ class AuthRepositoryImpl
             val challenge = pkceGenerator.generateCodeChallenge(verifier)
             val state = pkceGenerator.generateState()
 
-            authPreferences.saveCodeVerifier(verifier)
-            authPreferences.saveOAuthState(state)
+            authPreferences.saveOAuthSession(verifier = verifier, state = state)
 
             return oAuthConfig.authorizeUrl
                 .toHttpUrl()
@@ -47,9 +46,8 @@ class AuthRepositoryImpl
             state: String?,
         ): Result<Unit> {
             val savedState = authPreferences.oauthState.first()
-            if (savedState != null && savedState != state) {
-                authPreferences.clearOAuthState()
-                authPreferences.clearCodeVerifier()
+            if (savedState == null || savedState != state) {
+                authPreferences.clearOAuthSession()
                 return Result.failure(SecurityException("OAuth state mismatch / CSRF detected"))
             }
 
