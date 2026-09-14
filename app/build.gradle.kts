@@ -45,6 +45,7 @@ dependencies {
     implementation(project(":core:ui"))
     implementation(project(":feature:auth"))
     implementation(project(":feature:mylist"))
+    implementation(project(":feature:taste"))
 
     // Platform Dependencies
     implementation(platform(libs.androidx.compose.bom))
