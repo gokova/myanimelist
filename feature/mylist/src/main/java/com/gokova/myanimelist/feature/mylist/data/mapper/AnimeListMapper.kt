@@ -1,6 +1,8 @@
 package com.gokova.myanimelist.feature.mylist.data.mapper
 
 import com.gokova.myanimelist.core.database.entity.AnimeEntity
+import com.gokova.myanimelist.core.database.entity.GenreEntity
+import com.gokova.myanimelist.core.database.entity.StudioEntity
 import com.gokova.myanimelist.core.database.entity.UserAnimeListEntity
 import com.gokova.myanimelist.core.database.model.UserAnimeListItem
 import com.gokova.myanimelist.core.network.model.AnimeListEntryDto
@@ -13,6 +15,8 @@ object AnimeListMapper {
     fun toAnimeEntity(dto: AnimeListEntryDto): AnimeEntity {
         val node = dto.node
         val englishTitle = node.alternativeTitles?.en?.takeIf { it.isNotBlank() }
+        val genres = node.genres?.map { GenreEntity(id = it.id, name = it.name) }
+        val studios = node.studios?.map { StudioEntity(id = it.id, name = it.name) }
         return AnimeEntity(
             id = node.id,
             title = node.title,
@@ -25,6 +29,16 @@ object AnimeListMapper {
             startSeasonYear = node.startSeason?.year,
             startSeasonSeason = node.startSeason?.season,
             meanScore = node.mean,
+            genres = genres,
+            studios = studios,
+            source = node.source,
+            synopsis = node.synopsis,
+            rating = node.rating,
+            rank = node.rank,
+            popularity = node.popularity,
+            numListUsers = node.numListUsers,
+            averageEpisodeDuration = node.averageEpisodeDuration,
+            nsfw = node.nsfw,
         )
     }
 

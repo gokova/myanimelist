@@ -42,6 +42,44 @@ data class AnimeNodeDto(
     val startSeason: StartSeasonDto? = null,
     @SerialName("mean")
     val mean: Double? = null,
+    @SerialName("genres")
+    val genres: List<GenreDto>? = null,
+    @SerialName("studios")
+    val studios: List<StudioDto>? = null,
+    @SerialName("source")
+    val source: String? = null,
+    @SerialName("synopsis")
+    val synopsis: String? = null,
+    @SerialName("rating")
+    val rating: String? = null,
+    @SerialName("rank")
+    val rank: Int? = null,
+    @SerialName("popularity")
+    val popularity: Int? = null,
+    @SerialName("num_list_users")
+    val numListUsers: Int? = null,
+    @SerialName("average_episode_duration")
+    val averageEpisodeDuration: Int? = null,
+    @SerialName("nsfw")
+    val nsfw: String? = null,
+)
+
+@OptIn(kotlinx.serialization.InternalSerializationApi::class)
+@Serializable
+data class GenreDto(
+    @SerialName("id")
+    val id: Int,
+    @SerialName("name")
+    val name: String,
+)
+
+@OptIn(kotlinx.serialization.InternalSerializationApi::class)
+@Serializable
+data class StudioDto(
+    @SerialName("id")
+    val id: Int,
+    @SerialName("name")
+    val name: String,
 )
 
 @OptIn(kotlinx.serialization.InternalSerializationApi::class)

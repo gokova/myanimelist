@@ -1,14 +1,18 @@
 package com.gokova.myanimelist.feature.mylist.data.mapper
 
 import com.gokova.myanimelist.core.database.entity.AnimeEntity
+import com.gokova.myanimelist.core.database.entity.GenreEntity
+import com.gokova.myanimelist.core.database.entity.StudioEntity
 import com.gokova.myanimelist.core.database.entity.UserAnimeListEntity
 import com.gokova.myanimelist.core.database.model.UserAnimeListItem
 import com.gokova.myanimelist.core.network.model.AlternativeTitlesDto
 import com.gokova.myanimelist.core.network.model.AnimeListEntryDto
 import com.gokova.myanimelist.core.network.model.AnimeNodeDto
+import com.gokova.myanimelist.core.network.model.GenreDto
 import com.gokova.myanimelist.core.network.model.MyListStatusDto
 import com.gokova.myanimelist.core.network.model.PictureDto
 import com.gokova.myanimelist.core.network.model.StartSeasonDto
+import com.gokova.myanimelist.core.network.model.StudioDto
 import com.gokova.myanimelist.feature.mylist.domain.model.AiringStatus
 import com.gokova.myanimelist.feature.mylist.domain.model.UserAnimeStatus
 import org.junit.Assert.assertEquals
@@ -17,7 +21,7 @@ import org.junit.Test
 
 class AnimeListMapperTest {
     @Test
-    fun `toAnimeEntity maps DTO correctly extracting English title`() {
+    fun `toAnimeEntity maps DTO correctly extracting English title and catalog fields`() {
         val dto =
             AnimeListEntryDto(
                 node =
@@ -35,6 +39,16 @@ class AnimeListMapperTest {
                         numEpisodes = 25,
                         startSeason = StartSeasonDto(year = 2013, season = "spring"),
                         mean = 8.54,
+                        genres = listOf(GenreDto(id = 1, name = "Action")),
+                        studios = listOf(StudioDto(id = 43, name = "Wit Studio")),
+                        source = "manga",
+                        synopsis = "Centuries ago, mankind was nearly slaughtered...",
+                        rating = "r",
+                        rank = 100,
+                        popularity = 1,
+                        numListUsers = 3500000,
+                        averageEpisodeDuration = 1440,
+                        nsfw = "white",
                     ),
             )
 
@@ -51,6 +65,39 @@ class AnimeListMapperTest {
         assertEquals(2013, entity.startSeasonYear)
         assertEquals("spring", entity.startSeasonSeason)
         assertEquals(8.54, entity.meanScore ?: 0.0, 0.001)
+        assertEquals(listOf(GenreEntity(id = 1, name = "Action")), entity.genres)
+        assertEquals(listOf(StudioEntity(id = 43, name = "Wit Studio")), entity.studios)
+        assertEquals("manga", entity.source)
+        assertEquals("Centuries ago, mankind was nearly slaughtered...", entity.synopsis)
+        assertEquals("r", entity.rating)
+        assertEquals(100, entity.rank)
+        assertEquals(1, entity.popularity)
+        assertEquals(3500000, entity.numListUsers)
+        assertEquals(1440, entity.averageEpisodeDuration)
+        assertEquals("white", entity.nsfw)
+    }
+
+    @Test
+    fun `toAnimeEntity handles null optional catalog metadata fields`() {
+        val dto =
+            AnimeListEntryDto(
+                node = AnimeNodeDto(id = 456L, title = "Minimal Anime"),
+            )
+
+        val entity = AnimeListMapper.toAnimeEntity(dto)
+
+        assertEquals(456L, entity.id)
+        assertEquals("Minimal Anime", entity.title)
+        assertNull(entity.genres)
+        assertNull(entity.studios)
+        assertNull(entity.source)
+        assertNull(entity.synopsis)
+        assertNull(entity.rating)
+        assertNull(entity.rank)
+        assertNull(entity.popularity)
+        assertNull(entity.numListUsers)
+        assertNull(entity.averageEpisodeDuration)
+        assertNull(entity.nsfw)
     }
 
     @Test
