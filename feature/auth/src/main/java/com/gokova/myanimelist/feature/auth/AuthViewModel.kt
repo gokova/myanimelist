@@ -53,7 +53,6 @@ class AuthViewModel
                 try {
                     val authUrl = getAuthUrlUseCase()
                     _events.send(AuthUiEvent.OpenOAuthUrl(authUrl))
-                    _uiState.value = AuthUiState.Idle
                 } catch (e: CancellationException) {
                     throw e
                 } catch (

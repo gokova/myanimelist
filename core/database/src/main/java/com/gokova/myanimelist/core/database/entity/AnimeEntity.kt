@@ -27,4 +27,24 @@ data class AnimeEntity(
     val startSeasonSeason: String?,
     @ColumnInfo(name = "mean_score")
     val meanScore: Double?,
+    @ColumnInfo(name = "genres")
+    val genres: List<GenreEntity>? = null,
+    @ColumnInfo(name = "studios")
+    val studios: List<StudioEntity>? = null,
+    @ColumnInfo(name = "source")
+    val source: String? = null,
+    @ColumnInfo(name = "synopsis")
+    val synopsis: String? = null,
+    @ColumnInfo(name = "rating")
+    val rating: String? = null,
+    @ColumnInfo(name = "rank")
+    val rank: Int? = null,
+    @ColumnInfo(name = "popularity")
+    val popularity: Int? = null,
+    @ColumnInfo(name = "num_list_users")
+    val numListUsers: Int? = null,
+    @ColumnInfo(name = "average_episode_duration")
+    val averageEpisodeDuration: Int? = null,
+    @ColumnInfo(name = "nsfw")
+    val nsfw: String? = null,
 )

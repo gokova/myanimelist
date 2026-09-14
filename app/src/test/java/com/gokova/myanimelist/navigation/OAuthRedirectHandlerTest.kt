@@ -133,4 +133,16 @@ class OAuthRedirectHandlerTest {
             manager.redirectResult.value,
         )
     }
+
+    @Test
+    fun `handleCancellation sets Error with access_denied and description`() {
+        manager.handleCancellation()
+
+        val expected =
+            OAuthRedirectResult.Error(
+                error = "access_denied",
+                description = "Authentication cancelled",
+            )
+        assertEquals(expected, manager.redirectResult.value)
+    }
 }

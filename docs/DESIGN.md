@@ -81,6 +81,10 @@ The dark theme avoids pure blacks (`#000000`), using rich dark gray-blue (`#1A1C
 | `outline` | `#8E9099` | — | — | Outlined buttons, input borders |
 | `outlineVariant` | `#43474E` | — | — | Subtle card borders, dividers |
 
+#### Theme Cohesion Across Modes
+*   **Color Harmony:** The dark theme must echo the playful, soft pastel aesthetic of the light theme rather than shifting to disconnected hue temperatures (e.g., muddy greens). When presenting accented data visualizations (such as bubble charts or category tags), dark theme container colors should harmonize with their light theme counterparts.
+*   **Tonal Hierarchy on Elevated Surfaces:** Bottom sheets and dialogs use `surface` as their container. Child elements inside elevated sheets (such as list cards or item rows) must use a distinct background (such as `surfaceContainerLow`, `surfaceVariant`, or subtle borders) so cards do not blend invisibly into the sheet surface in dark mode.
+
 ### 3.2 Semantic Status Colors (Anime Tracking)
 To ensure accessibility, status chips and badges must **never** place white text over soft/pastel colors. Always pair containers with high-contrast foreground text/icons:
 
@@ -187,6 +191,9 @@ Access via `MaterialTheme.spacing` (from `com.gokova.myanimelist.core.ui.theme.s
 *   **Surface & Elevation:** `MaterialTheme.colorScheme.surface` with subtle `tonalElevation = 6.dp`.
 *   **Scrim:** Semi-transparent `MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f)`.
 *   **Button Ordering:** Cancel action on the left/start, Primary confirmation on the right/end.
+*   **Height Constraints:** Bounded bottom sheets should cap at `~75%` to `80%` of screen container height (`Modifier.heightIn(max = containerHeight * 0.75f)`) to preserve visual context of the underlying screen.
+*   **Nested Scroll Physics Isolation:** When hosting a scrollable container (`LazyColumn`) inside a bottom sheet, always attach a `NestedScrollConnection` that consumes unhandled `onPostFling` velocity and pre-scroll upwards overscroll to prevent velocity leakage into the bottom sheet's draggable state (which can cause infinite bounce/jitter loops).
+*   **Preview Simulation:** Branch on `LocalInspectionMode.current` to render an inline simulated overlay (scrim + card container + drag handle) during preview mode so both collapsed and expanded states can be statically verified.
 
 ### 4.5 Future Anime Cards & Media Components
 *   **Anime Poster Aspect Ratio:** Standard `2:3` ratio (e.g., `width = 120.dp, height = 180.dp`).
@@ -213,6 +220,14 @@ All screens must be verified against WCAG AA requirements:
 5.  **TalkBack & Content Descriptions:**
     *   All interactive icon buttons must have localized `contentDescription` strings.
     *   Decorative images should pass `contentDescription = null`.
+6.  **Canvas & Chart Accessibility:**
+    *   Custom-drawn canvas graphics (e.g., packed bubble charts, custom graphs) are invisible to accessibility services by default.
+    *   Every interactive or data-bearing element on a canvas must be represented by a semantics node or virtual accessibility overlay (`Box.semantics { role = Role.Button; ... }`).
+    *   Group canvas items with `isTraversalGroup = true` to ensure TalkBack navigates items in a predictable linear order.
+    *   Expose canvas items as `customActions` on the canvas container so TalkBack users can easily cycle through and select items via the local context menu.
+    *   Always format countable metrics and quantities using Android `<plurals>` resources via `pluralStringResource(...)` instead of hardcoded English strings.
+7.  **Visual Alignment for Missing / Unrated Metrics:**
+    *   When displaying metrics in list rows (such as user ratings), reserve the exact same visual slot (e.g., Star icon with "—") for items with missing or unrated values rather than removing the slot, preventing jagged horizontal misalignments between rows.
 
 ---
 
@@ -224,7 +239,7 @@ All screens must be verified against WCAG AA requirements:
     *   Compact (\(< 600.dp\)): Bottom Navigation Bar, single column lists.
     *   Medium & Expanded (\(\ge 600.dp\)): Navigation Rail, adaptive grid (2 to 4 columns for anime cards).
     *   **Grid Cell Sizing:** When using `GridCells.Adaptive`, set `minSize = 240.dp` (never \(\ge 300.dp\)) to ensure that screens at the \(600.dp\) breakpoint with an \(80.dp\) Navigation Rail and margins (\(\sim 488.dp\) available width) reliably render 2 columns instead of collapsing into 1 column.
-    *   **Configuration Awareness:** Always calculate window size from `LocalWindowInfo.current.containerSize` converted with `LocalDensity.current` rather than `Configuration.screenWidthDp` to avoid stale configuration and preview rendering issues.
+    *   **Configuration Awareness:** Always calculate window size from `LocalWindowInfo.current.containerSize` converted with `LocalDensity.current` (for both width and height) rather than `Configuration.screenWidthDp` or `screenHeightDp` to avoid stale configuration and preview rendering issues.
 
 ---
 
@@ -239,3 +254,4 @@ All UI components and screens must include preview coverage using the standard m
 *   **Preview Parameters:** Use `PreviewParameterProvider` to inject test states (e.g., Idle, Loading, Error, Content) rather than creating separate preview functions for each state.
 *   **Descriptive Parameter Names:** Always override `getDisplayName(index: Int)` in `PreviewParameterProvider` implementations to return human-readable names (e.g., `"Loaded"`, `"Empty"`, `"Watching"`) rather than default indices (`uiState 0`, `uiState 1`).
 *   **Stateless Previews:** Screens must expose a public stateless composable accepting state and lambdas so `@StandardPreviews` never instantiates Hilt ViewModel factories or relies on an Activity context.
+*   **Inspection Mode Overlays:** Use `LocalInspectionMode.current` to render simulated overlays for transient containers like bottom sheets and dialogs so their expanded states can be visually inspected within static previews.

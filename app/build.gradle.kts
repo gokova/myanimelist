@@ -45,11 +45,13 @@ dependencies {
     implementation(project(":core:ui"))
     implementation(project(":feature:auth"))
     implementation(project(":feature:mylist"))
+    implementation(project(":feature:taste"))
 
     // Platform Dependencies
     implementation(platform(libs.androidx.compose.bom))
 
     // AndroidX & Core
+    implementation(libs.androidx.browser)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
 

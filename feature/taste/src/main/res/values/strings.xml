@@ -1,0 +1,41 @@
+<resources>
+    <string name="taste_tab_genres">Genres</string>
+    <string name="taste_tab_themes">Themes</string>
+
+    <string name="taste_empty_list_title">No Anime Found</string>
+    <string name="taste_empty_list_subtitle">Your anime list is empty. Add anime to your list to see your taste breakdown!</string>
+
+    <string name="taste_empty_eligible_title">Not Enough Data</string>
+    <string name="taste_empty_eligible_subtitle">You need at least 3 anime in a genre or theme to unlock its bubble. Keep exploring!</string>
+
+    <string name="taste_recenter_cd">Re-center chart</string>
+    <plurals name="taste_chart_description">
+        <item quantity="one">Packed bubble chart with %d bubble</item>
+        <item quantity="other">Packed bubble chart with %d bubbles</item>
+    </plurals>
+    <plurals name="taste_bubble_description">
+        <item quantity="one">%1$s, %2$d anime</item>
+        <item quantity="other">%1$s, %2$d anime</item>
+    </plurals>
+    <plurals name="taste_bubble_description_with_score">
+        <item quantity="one">%1$s, %2$d anime, average score %3$.1f</item>
+        <item quantity="other">%1$s, %2$d anime, average score %3$.1f</item>
+    </plurals>
+    <string name="taste_bubble_action">Select %1$s</string>
+
+    <plurals name="taste_bottom_sheet_entries">
+        <item quantity="one">%d anime</item>
+        <item quantity="other">%d anime</item>
+    </plurals>
+    <string name="taste_bottom_sheet_avg_score">Avg. Score: %1$.1f</string>
+    <string name="taste_bottom_sheet_unrated">Not rated</string>
+    <string name="taste_score_format">★ %1$d</string>
+    <string name="taste_score_unrated">★ -</string>
+    <string name="taste_episodes_format">%1$d / %2$s ep</string>
+
+    <string name="taste_status_watching">Watching</string>
+    <string name="taste_status_completed">Completed</string>
+    <string name="taste_status_on_hold">On Hold</string>
+    <string name="taste_status_dropped">Dropped</string>
+    <string name="taste_status_plan_to_watch">Plan to Watch</string>
+</resources>

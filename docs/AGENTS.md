@@ -154,7 +154,9 @@ Rules:
 - **No Direct Data/Infra in ViewModels:** ViewModels must strictly interact with Domain Use Cases. Never inject `DataStore`, `AuthPreferences`, Room DAOs, or Retrofit services directly into ViewModels.
 - Avoid passing ViewModels deep into the UI hierarchy; hoist state and pass lambdas.
 - **Stateful vs. Stateless Screen Split:** Always split screens into an internal/private stateful composable (which injects the ViewModel via Hilt) and a public stateless composable (which only receives state and event callbacks). Previews must render the stateless composable to avoid `HiltViewModelFactory` preview crashes.
-- **Configuration-Aware Window Sizing:** Never use `LocalConfiguration.current.screenWidthDp` to derive responsive layout branching. Always use `LocalWindowInfo.current.containerSize` converted with `LocalDensity.current` to ensure window size calculations are configuration-aware and preview-safe.
+- **Configuration-Aware Window Sizing:** Never use `LocalConfiguration.current.screenWidthDp` or `screenHeightDp` to derive responsive layout branching or sheet constraints. Always use `LocalWindowInfo.current.containerSize` converted with `LocalDensity.current` to ensure window size calculations are configuration-aware and preview-safe.
+- **ModalBottomSheet Nested Scroll Fling Jitter Prevention:** When hosting a scrollable container (`LazyColumn`, `LazyVerticalGrid`) inside a `ModalBottomSheet` (especially with bounded height or `skipPartiallyExpanded = true`), residual velocity from fast upward or downward flings leaks into the parent sheet's `AnchoredDraggableState`, triggering an infinite bouncing/jitter physics loop. You MUST attach a `NestedScrollConnection` on the scrollable container that consumes unhandled `onPostFling` velocity (`override suspend fun onPostFling(...) = available`) and pre-scroll upwards overscroll (`available.y < 0f` when already at `firstVisibleItemIndex == 0 && firstVisibleItemScrollOffset == 0`).
+- **Dialog & BottomSheet Previews via Simulated Overlays:** Because Jetpack Compose `ModalBottomSheet` and `Dialog` run in separate native window overlays that Android Studio static previews cannot render, inspect `LocalInspectionMode.current`. If `true`, render a simulated inline composable overlay (a scrim `Box` + `Surface` card + `BottomSheetDefaults.DragHandle()` + content) so both expanded and closed states are visible and testable in `@Preview`.
 
 ---
 
@@ -173,6 +175,9 @@ Rules:
 - **Visual Previews:** Always apply `@StandardPreviews` to composable UI components for responsive and accessible preview validation.
 - **Descriptive Preview Parameters:** Override `getDisplayName(index: Int)` on all `PreviewParameterProvider` classes with human-readable descriptions (e.g., `"Watching"`, `"Empty"`, `"Syncing"`) instead of relying on default indexed labels.
 - Keep composables modular, small, and stateless where possible.
+- **Canvas & Chart Accessibility:** Low-level `Canvas` drawing is invisible to screen readers. Never settle for a single high-level `contentDescription` on the canvas. Always overlay virtual semantic touch nodes (`Box.semantics { role = Role.Button; onClick = ... }`) with `isTraversalGroup = true`, register `customActions` on the canvas for cycling through items, and ensure every visual data element is navigable and operable via TalkBack.
+- **Strict Localization for Plurals & Quantities:** Never concatenate strings with counts (e.g., `"$count anime"`). Always declare Android plural resources (`<plurals>`) and use `pluralStringResource(...)` to ensure correct grammatical pluralization across all languages.
+- **Consistent UI Alignment for Missing / Unrated States:** When displaying items with optional or missing values (such as an unrated anime score), reserve the exact same UI slot (e.g., Star icon with "—") rather than omitting the icon or shifting sibling elements, ensuring clean vertical and horizontal alignment across list items.
 
 ---
 
@@ -214,6 +219,12 @@ Rules:
   - `./gradlew detekt` (0 violations, strictly respecting the 100-character line length limit)
   - `./gradlew ktlintCheck` (100% compliant formatting)
   - `./gradlew lintDebug` (0 NewApi or critical lint errors)
+- **NEVER Suppress `ForbiddenComment`:** The project Detekt configuration deliberately treats TODO and FIXME comments as non-blocking warnings so that technical debt remains visible in static analysis reports. Never add `@Suppress("ForbiddenComment")`.
+- **Detekt Structural Rules & Modularity:** Comply strictly with Detekt metrics:
+  - Composable functions must not exceed 60 lines (`LongMethod`).
+  - Source files must not exceed 10 functions (`TooManyFunctions`). Split helper composables, preview providers, and accessibility overlays into dedicated component files.
+  - Parameter lists must not exceed 6 parameters (`LongParameterList`).
+- **Zero Trailing Whitespace:** Git commits must never introduce trailing whitespace or empty line formatting anomalies. Always verify changes with `git diff --check` prior to finalizing.
 
 ---
 

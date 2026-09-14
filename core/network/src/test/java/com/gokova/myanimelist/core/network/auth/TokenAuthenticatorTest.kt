@@ -39,19 +39,16 @@ private class FakeAuthPreferences : AuthPreferences {
         stateFlow.value = null
     }
 
-    override suspend fun saveCodeVerifier(verifier: String) {
+    override suspend fun saveOAuthSession(
+        verifier: String,
+        state: String,
+    ) {
         verifierFlow.value = verifier
-    }
-
-    override suspend fun clearCodeVerifier() {
-        verifierFlow.value = null
-    }
-
-    override suspend fun saveOAuthState(state: String) {
         stateFlow.value = state
     }
 
-    override suspend fun clearOAuthState() {
+    override suspend fun clearOAuthSession() {
+        verifierFlow.value = null
         stateFlow.value = null
     }
 

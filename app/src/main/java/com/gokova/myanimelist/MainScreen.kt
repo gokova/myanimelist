@@ -44,6 +44,7 @@ import com.gokova.myanimelist.core.ui.preview.StandardPreviews
 import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
 import com.gokova.myanimelist.core.ui.theme.spacing
 import com.gokova.myanimelist.feature.mylist.presentation.MyListScreen
+import com.gokova.myanimelist.feature.taste.presentation.TasteScreen
 import com.gokova.myanimelist.navigation.MyListRoute
 import com.gokova.myanimelist.navigation.RecommendationsRoute
 import com.gokova.myanimelist.navigation.TasteRoute
@@ -105,12 +106,7 @@ private fun MainNavHost(
             MyListScreen()
         }
         composable<TasteRoute> {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(stringResource(R.string.screen_taste_placeholder))
-            }
+            TasteScreen()
         }
         composable<RecommendationsRoute> {
             Box(
