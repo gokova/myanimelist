@@ -102,4 +102,4 @@ jobs:
           echo "FIREBASE_APP_DISTRIBUTION_RELEASE_NOTES=$NOTES" >> local.properties
 
       - name: Build and Upload to Firebase App Distribution
-        run: ./gradlew appDistributionUploadRelease
+        run: ./gradlew assembleRelease appDistributionUploadRelease
