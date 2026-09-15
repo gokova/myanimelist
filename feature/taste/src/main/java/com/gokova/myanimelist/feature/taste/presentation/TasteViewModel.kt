@@ -2,6 +2,7 @@ package com.gokova.myanimelist.feature.taste.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gokova.myanimelist.core.domain.logging.AppLog
 import com.gokova.myanimelist.feature.taste.domain.model.TasteBubble
 import com.gokova.myanimelist.feature.taste.domain.model.TasteType
 import com.gokova.myanimelist.feature.taste.domain.usecase.ObserveTasteAnalyticsUseCase
@@ -46,7 +47,9 @@ class TasteViewModel
             )
 
         fun onTypeSelected(type: TasteType) {
+            AppLog.ui.i { "User selected taste type: ${type.name}" }
             if (selectedType.value != type) {
+                AppLog.viewModel.d { "Switching selectedType to ${type.name} and resetting bubble" }
                 selectedType.value = type
                 selectedBubble.value = null
                 recenterTrigger.value++
@@ -54,14 +57,19 @@ class TasteViewModel
         }
 
         fun onBubbleSelected(bubble: TasteBubble) {
+            AppLog.ui.i {
+                "User selected bubble: '${bubble.name}' (count=${bubble.count})"
+            }
             selectedBubble.value = bubble
         }
 
         fun onDismissBottomSheet() {
+            AppLog.ui.i { "User dismissed taste bottom sheet" }
             selectedBubble.value = null
         }
 
         fun onRecenterClicked() {
+            AppLog.ui.i { "User clicked recenter chart" }
             recenterTrigger.value++
         }
 

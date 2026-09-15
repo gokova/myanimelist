@@ -2,6 +2,7 @@ package com.gokova.myanimelist.feature.mylist.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gokova.myanimelist.core.domain.logging.AppLog
 import com.gokova.myanimelist.feature.mylist.R
 import com.gokova.myanimelist.feature.mylist.domain.model.ListFilterCategory
 import com.gokova.myanimelist.feature.mylist.domain.model.SortOption
@@ -71,18 +72,22 @@ class MyListViewModel
         }
 
         fun onCategorySelected(category: ListFilterCategory) {
+            AppLog.ui.i { "User selected filter category: ${category.name}" }
             selectedCategory.value = category
         }
 
         fun onSortOptionSelected(sort: SortOption) {
+            AppLog.ui.i { "User selected sort option: ${sort.name}" }
             selectedSort.value = sort
         }
 
         fun onRefresh() {
+            AppLog.ui.i { "User triggered pull-to-refresh" }
             triggerSync(isPullToRefresh = true, force = true)
         }
 
         fun onRetrySync() {
+            AppLog.ui.i { "User triggered retry sync" }
             triggerSync(isPullToRefresh = false, force = true)
         }
 
@@ -90,13 +95,22 @@ class MyListViewModel
             isPullToRefresh: Boolean,
             force: Boolean,
         ) {
-            if (isSyncing.value || isRefreshing.value) return
+            AppLog.viewModel.d {
+                "triggerSync called with isPullToRefresh=$isPullToRefresh, force=$force"
+            }
+            if (isSyncing.value || isRefreshing.value) {
+                AppLog.viewModel.d { "Sync already in progress; ignoring duplicate request" }
+                return
+            }
 
             viewModelScope.launch {
                 try {
                     syncUserAnimeListUseCase(force = force).collect { status ->
                         when (status) {
                             SyncStatus.Started -> {
+                                AppLog.viewModel.i {
+                                    "Anime list sync started (pullToRefresh=$isPullToRefresh)"
+                                }
                                 if (isPullToRefresh) {
                                     isRefreshing.value = true
                                 } else {
@@ -108,11 +122,20 @@ class MyListViewModel
                                     ),
                                 )
                             }
-                            SyncStatus.Completed, SyncStatus.SkippedCooldown -> {
+                            SyncStatus.Completed -> {
+                                AppLog.viewModel.i { "Anime list sync completed successfully" }
+                                isSyncing.value = false
+                                isRefreshing.value = false
+                            }
+                            SyncStatus.SkippedCooldown -> {
+                                AppLog.viewModel.d { "Anime list sync skipped due to cooldown" }
                                 isSyncing.value = false
                                 isRefreshing.value = false
                             }
                             is SyncStatus.Failure -> {
+                                AppLog.viewModel.e(status.error) {
+                                    "Anime list sync failed: ${status.error.message}"
+                                }
                                 isSyncing.value = false
                                 isRefreshing.value = false
                                 eventChannel.send(

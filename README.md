@@ -80,11 +80,33 @@ The project enforces a **Feature-based Multi-Module** architecture to establish 
 *   Android SDK 35 (`minSdk = 24`, `targetSdk = 35`)
 
 ### Configuration
+
+#### 1. MyAnimeList API Client ID
 1. Register an application on the [MyAnimeList API portal](https://myanimelist.net/apiconfig) to obtain a Client ID.
 2. Add your Client ID to your root `local.properties` file:
    ```properties
    MAL_CLIENT_ID=your_client_id_here
    ```
+
+#### 2. Firebase & Crashlytics Setup (Optional)
+This repository is configured with **Graceful Degradation**:
+* **Running without Firebase**: If `app/google-services.json` is missing, the app builds and runs normally with Firebase plugins disabled. Unclassified tags and debug logs will be directed to local Logcat via Timber.
+* **Running with Firebase**:
+  1. Create a Firebase project on the [Firebase Console](https://console.firebase.google.com/).
+  2. Add an Android app with package name `com.gokova.myanimelist`.
+  3. Download `google-services.json` and place it in the `app/` folder.
+  4. Build the app—Firebase Crashlytics will automatically be activated for release builds.
+
+#### 3. Release Keystore Signing (Optional)
+By default, release builds fall back to signing with the debug keystore. To sign with a dedicated keystore, configure your `local.properties`:
+```properties
+RELEASE_KEYSTORE_PATH=release.keystore
+RELEASE_KEYSTORE_PASSWORD=your_keystore_password
+RELEASE_KEY_ALIAS=your_key_alias
+RELEASE_KEY_PASSWORD=your_key_password
+```
+
+---
 
 ### Verification & Testing
 Run the following Gradle commands to verify code quality and execute tests:
@@ -101,6 +123,9 @@ Run the following Gradle commands to verify code quality and execute tests:
 
 # Build debug APK
 ./gradlew assembleDebug
+
+# Build and sign release APK
+./gradlew assembleRelease
 ```
 
 ---

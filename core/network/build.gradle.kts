@@ -35,6 +35,7 @@ android {
 
 dependencies {
     // Project Modules
+    implementation(project(":core:domain"))
     implementation(project(":core:datastore"))
 
     // Network & Serialization
