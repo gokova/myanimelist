@@ -1,5 +1,8 @@
 package com.gokova.myanimelist.core.domain.taxonomy
 
+import com.gokova.myanimelist.core.domain.logging.AppLog
+import java.util.concurrent.ConcurrentHashMap
+
 val GENRE_NAMES: Set<String> =
     setOf(
         "Action",
@@ -65,15 +68,25 @@ fun isGenre(name: String): Boolean = GENRE_NAMES.contains(name)
 
 fun isTheme(name: String): Boolean = THEME_NAMES.contains(name)
 
+private val reportedUnknownTags: MutableSet<String> = ConcurrentHashMap.newKeySet()
+
 fun classifyTag(name: String): TagType =
     when {
         GENRE_NAMES.contains(name) -> TagType.GENRE
         THEME_NAMES.contains(name) -> TagType.THEME
         else -> {
-            // TODO: Log unclassified genre/theme tag to Crashlytics/Timber when logging library is added
+            if (reportedUnknownTags.add(name)) {
+                AppLog.domain.w(UnclassifiedTaxonomyTagException(name)) {
+                    "Unclassified genre/theme tag: '$name' (falling back to THEME)"
+                }
+            }
             TagType.THEME
         }
     }
+
+internal fun clearReportedUnknownTags() {
+    reportedUnknownTags.clear()
+}
 
 fun <T> Iterable<T>.partitionGenresAndThemes(nameSelector: (T) -> String): Pair<List<T>, List<T>> {
     val genres = mutableListOf<T>()

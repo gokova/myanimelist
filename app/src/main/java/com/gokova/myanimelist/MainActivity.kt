@@ -14,15 +14,18 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.gokova.myanimelist.core.domain.logging.AppLog
 import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
 import com.gokova.myanimelist.feature.auth.AuthScreen
 import com.gokova.myanimelist.navigation.AuthRoute
@@ -37,9 +40,13 @@ class MainActivity : ComponentActivity() {
 
     private val authTabLauncher =
         AuthTabIntent.registerActivityResultLauncher(this) { result ->
+            AppLog.ui.i { "OAuth custom tab returned result code: ${result.resultCode}" }
             when (result.resultCode) {
                 AuthTabIntent.RESULT_OK -> {
                     result.resultUri?.let { uri ->
+                        AppLog.ui.d {
+                            "OAuth redirect received scheme=${uri.scheme} host=${uri.host}"
+                        }
                         redirectHandler.handleUri(
                             scheme = uri.scheme,
                             host = uri.host,
@@ -48,9 +55,11 @@ class MainActivity : ComponentActivity() {
                     }
                 }
                 AuthTabIntent.RESULT_CANCELED -> {
+                    AppLog.ui.i { "OAuth authentication canceled by user" }
                     redirectHandler.handleCancellation()
                 }
                 else -> {
+                    AppLog.ui.w { "OAuth unexpected result code: ${result.resultCode}" }
                     redirectHandler.handleCancellation()
                 }
             }
@@ -87,10 +96,12 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun launchOAuth(url: String) {
+        AppLog.ui.i { "Initiating OAuth custom tab launch" }
         val uri = url.toUri()
         val packageName = CustomTabsClient.getPackageName(this, null)
         val isAuthTabSupported =
             packageName != null && CustomTabsClient.isAuthTabSupported(this, packageName)
+        AppLog.ui.d { "OAuth tab supported: $isAuthTabSupported" }
 
         if (isAuthTabSupported) {
             val builder = AuthTabIntent.Builder()
@@ -120,8 +131,20 @@ fun AppNavigation(
     val navController = rememberNavController()
     val redirectResult by redirectHandler.redirectResult
 
+    DisposableEffect(navController) {
+        val listener =
+            NavController.OnDestinationChangedListener { _, destination, _ ->
+                AppLog.ui.i { "Navigated to destination: ${destination.route}" }
+            }
+        navController.addOnDestinationChangedListener(listener)
+        onDispose {
+            navController.removeOnDestinationChangedListener(listener)
+        }
+    }
+
     LaunchedEffect(isLoggedIn) {
         if (!isLoggedIn) {
+            AppLog.ui.i { "User not logged in, redirecting to AuthRoute" }
             navController.navigate(AuthRoute) {
                 popUpTo(MainRoute) { inclusive = true }
                 launchSingleTop = true
@@ -139,6 +162,7 @@ fun AppNavigation(
                 onRedirectResultConsumed = redirectHandler::consumeResult,
                 onNavigateToOAuthUrl = onLaunchOAuth,
                 onAuthSuccess = {
+                    AppLog.ui.i { "Authentication succeeded, navigating to MainRoute" }
                     navController.navigate(MainRoute) {
                         popUpTo(AuthRoute) { inclusive = true }
                     }

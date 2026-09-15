@@ -40,6 +40,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.gokova.myanimelist.components.LogoutConfirmationDialog
 import com.gokova.myanimelist.components.MainTopAppBar
+import com.gokova.myanimelist.core.domain.logging.AppLog
 import com.gokova.myanimelist.core.ui.preview.StandardPreviews
 import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
 import com.gokova.myanimelist.core.ui.theme.spacing
@@ -58,10 +59,14 @@ fun MainScreen(onLogoutConfirm: () -> Unit = {}) {
     if (showLogoutDialog) {
         LogoutConfirmationDialog(
             onConfirm = {
+                AppLog.ui.i { "User confirmed logout in dialog" }
                 showLogoutDialog = false
                 onLogoutConfirm()
             },
-            onDismiss = { showLogoutDialog = false },
+            onDismiss = {
+                AppLog.ui.i { "User dismissed logout dialog" }
+                showLogoutDialog = false
+            },
         )
     }
 
@@ -78,6 +83,9 @@ fun MainScreen(onLogoutConfirm: () -> Unit = {}) {
     MainContent(
         selectedRouteClass = selectedRouteClass,
         onNavigateToDestination = { destination ->
+            AppLog.ui.i {
+                "User selected tab: ${destination.routeClass.simpleName}"
+            }
             navController.navigate(destination.route) {
                 popUpTo(navController.graph.findStartDestination().id) {
                     saveState = true
@@ -86,7 +94,10 @@ fun MainScreen(onLogoutConfirm: () -> Unit = {}) {
                 restoreState = true
             }
         },
-        onAvatarClick = { showLogoutDialog = true },
+        onAvatarClick = {
+            AppLog.ui.i { "User clicked avatar (opening logout confirmation)" }
+            showLogoutDialog = true
+        },
     ) {
         MainNavHost(navController = navController)
     }

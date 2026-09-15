@@ -20,6 +20,9 @@ android {
 }
 
 dependencies {
+    // Project Modules
+    implementation(project(":core:domain"))
+
     // Room Database
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)

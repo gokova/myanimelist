@@ -1,5 +1,6 @@
 package com.gokova.myanimelist.core.network.di
 
+import com.gokova.myanimelist.core.domain.logging.AppLog
 import com.gokova.myanimelist.core.network.BuildConfig
 import com.gokova.myanimelist.core.network.api.MalApiService
 import com.gokova.myanimelist.core.network.auth.AuthInterceptor
@@ -30,7 +31,9 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideHttpLoggingInterceptor(): HttpLoggingInterceptor =
-        HttpLoggingInterceptor().apply {
+        HttpLoggingInterceptor { message ->
+            AppLog.network.d { message }
+        }.apply {
             redactHeader("Authorization")
             redactHeader("Cookie")
             level =
@@ -45,7 +48,9 @@ object NetworkModule {
     @Singleton
     @Unauthenticated
     fun provideUnauthenticatedLoggingInterceptor(): HttpLoggingInterceptor =
-        HttpLoggingInterceptor().apply {
+        HttpLoggingInterceptor { message ->
+            AppLog.network.d { message }
+        }.apply {
             redactHeader("Authorization")
             redactHeader("Cookie")
             level =
