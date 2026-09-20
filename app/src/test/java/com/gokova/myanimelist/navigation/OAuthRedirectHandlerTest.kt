@@ -32,7 +32,11 @@ class OAuthRedirectHandlerTest {
             )
 
         assertTrue(handled)
-        val expected = OAuthRedirectResult.Success(code = "auth_code_12345", state = "csrf_state_xyz")
+        val expected =
+            OAuthRedirectResult.Success(
+                code = "auth_code_12345",
+                state = "csrf_state_xyz",
+            )
         assertEquals(expected, manager.redirectResult.value)
     }
 

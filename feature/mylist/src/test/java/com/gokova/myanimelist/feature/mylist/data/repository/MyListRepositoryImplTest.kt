@@ -203,6 +203,8 @@ class MyListRepositoryImplTest {
 
         override fun observeAllUserAnime(): Flow<List<UserAnimeListItem>> = allItemsFlow
 
+        override suspend fun getAllUserAnime(): List<UserAnimeListItem> = allItemsFlow.value
+
         override fun observeUserAnimeByStatus(status: String): Flow<List<UserAnimeListItem>> = allItemsFlow
 
         override suspend fun upsertAnimes(animes: List<AnimeEntity>) {

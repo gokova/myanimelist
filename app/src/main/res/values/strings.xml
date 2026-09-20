@@ -9,9 +9,4 @@
     <string name="nav_my_list">My List</string>
     <string name="nav_my_taste">My Taste</string>
     <string name="nav_recommendations">Recommendations</string>
-
-    <!-- Placeholder Screens -->
-    <string name="screen_my_list_placeholder">My List Screen</string>
-    <string name="screen_taste_placeholder">My Taste Screen</string>
-    <string name="screen_recommendations_placeholder">Recommendations Screen</string>
 </resources>

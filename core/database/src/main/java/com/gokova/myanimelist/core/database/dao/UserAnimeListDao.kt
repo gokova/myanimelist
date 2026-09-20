@@ -17,6 +17,10 @@ interface UserAnimeListDao {
     fun observeAllUserAnime(): Flow<List<UserAnimeListItem>>
 
     @Transaction
+    @Query("SELECT * FROM user_anime_list")
+    suspend fun getAllUserAnime(): List<UserAnimeListItem>
+
+    @Transaction
     @Query("SELECT * FROM user_anime_list WHERE status = :status")
     fun observeUserAnimeByStatus(status: String): Flow<List<UserAnimeListItem>>
 
