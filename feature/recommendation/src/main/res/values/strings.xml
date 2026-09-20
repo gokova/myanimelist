@@ -1,0 +1,25 @@
+<resources>
+    <string name="recommendation_tab_genres">Genres</string>
+    <string name="recommendation_tab_themes">Themes</string>
+
+    <string name="recommendation_empty_insufficient_title">More Anime Needed</string>
+    <string name="recommendation_empty_insufficient_subtitle">Add at least 5 anime to your list so we can discover your unique taste and recommend matches.</string>
+
+    <string name="recommendation_calculating_title">Calculating Recommendations</string>
+    <string name="recommendation_calculating_subtitle">Our background engine evaluates top all-time and seasonal anime against your taste profile. This might take a few moments.</string>
+    <string name="recommendation_btn_calculate_now">Calculate Now</string>
+    <string name="recommendation_btn_refresh">Recalculate</string>
+
+    <plurals name="recommendations_count">
+        <item quantity="one">%d Recommendation</item>
+        <item quantity="other">%d Recommendations</item>
+    </plurals>
+
+    <string name="recommendation_rank_format">#%1$d</string>
+    <string name="recommendation_match_format">%1$d%% Match</string>
+    <string name="recommendation_score_format">★ %1$.1f</string>
+    <string name="recommendation_score_unrated">★ —</string>
+    <string name="recommendation_episodes_format">%1$d ep</string>
+    <string name="recommendation_episodes_unknown">\? ep</string>
+    <string name="recommendation_metadata_separator"> • </string>
+</resources>

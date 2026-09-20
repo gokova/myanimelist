@@ -238,7 +238,7 @@ All screens must be verified against WCAG AA requirements:
 3.  **Landscape & Large Screens:**
     *   Compact (\(< 600.dp\)): Bottom Navigation Bar, single column lists.
     *   Medium & Expanded (\(\ge 600.dp\)): Navigation Rail, adaptive grid (2 to 4 columns for anime cards).
-    *   **Grid Cell Sizing:** When using `GridCells.Adaptive`, set `minSize = 240.dp` (never \(\ge 300.dp\)) to ensure that screens at the \(600.dp\) breakpoint with an \(80.dp\) Navigation Rail and margins (\(\sim 488.dp\) available width) reliably render 2 columns instead of collapsing into 1 column.
+    *   **Grid Cell Sizing:** When using `GridCells.Adaptive`, use `minSize = 300.dp` for rich horizontal cards (e.g. recommendation cards with horizontal poster, badge rows, and tags) to ensure phone landscape and tablet displays fit 2 spacious columns without forcing elements to wrap, while standard compact vertical poster grids can use `minSize = 240.dp`.
     *   **Configuration Awareness:** Always calculate window size from `LocalWindowInfo.current.containerSize` converted with `LocalDensity.current` (for both width and height) rather than `Configuration.screenWidthDp` or `screenHeightDp` to avoid stale configuration and preview rendering issues.
 
 ---

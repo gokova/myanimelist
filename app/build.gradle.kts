@@ -152,6 +152,7 @@ dependencies {
     implementation(project(":feature:auth"))
     implementation(project(":feature:mylist"))
     implementation(project(":feature:taste"))
+    implementation(project(":feature:recommendation"))
 
     // Logging
     implementation(libs.timber)
@@ -183,7 +184,12 @@ dependencies {
     // Dependency Injection (Hilt)
     implementation(libs.hilt.android)
     implementation(libs.androidx.hilt.navigation.compose)
+    implementation(libs.androidx.hilt.work)
     ksp(libs.hilt.compiler)
+    ksp(libs.androidx.hilt.compiler)
+
+    // Background Processing
+    implementation(libs.androidx.work.runtime.ktx)
 
     // Debugging Tooling
     debugImplementation(libs.androidx.compose.ui.tooling)

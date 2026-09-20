@@ -1,6 +1,8 @@
 package com.gokova.myanimelist
 
 import android.app.Application
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.Configuration
 import com.gokova.myanimelist.core.domain.logging.AppLog
 import com.gokova.myanimelist.logging.CrashlyticsTree
 import com.gokova.myanimelist.logging.TimberLogger
@@ -8,9 +10,22 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import dagger.hilt.android.HiltAndroidApp
 import timber.log.Timber
+import javax.inject.Inject
 
 @HiltAndroidApp
-class MyAnimeListApplication : Application() {
+class MyAnimeListApplication :
+    Application(),
+    Configuration.Provider {
+    @Inject
+    lateinit var workerFactory: HiltWorkerFactory
+
+    override val workManagerConfiguration: Configuration
+        get() =
+            Configuration
+                .Builder()
+                .setWorkerFactory(workerFactory)
+                .build()
+
     override fun onCreate() {
         super.onCreate()
 

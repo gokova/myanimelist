@@ -3,6 +3,7 @@ package com.gokova.myanimelist.core.database.di
 import android.content.Context
 import androidx.room.Room
 import com.gokova.myanimelist.core.database.AppDatabase
+import com.gokova.myanimelist.core.database.dao.RecommendationDao
 import com.gokova.myanimelist.core.database.dao.UserAnimeListDao
 import dagger.Module
 import dagger.Provides
@@ -24,10 +25,14 @@ object DatabaseModule {
                 context,
                 AppDatabase::class.java,
                 "mal_database",
-            ).addMigrations(AppDatabase.MIGRATION_1_2)
+            ).addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3)
             .build()
 
     @Provides
     @Singleton
     fun provideUserAnimeListDao(database: AppDatabase): UserAnimeListDao = database.userAnimeListDao()
+
+    @Provides
+    @Singleton
+    fun provideRecommendationDao(database: AppDatabase): RecommendationDao = database.recommendationDao()
 }

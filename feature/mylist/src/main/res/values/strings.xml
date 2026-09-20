@@ -9,7 +9,6 @@
         <item quantity="one">%d Entry</item>
         <item quantity="other">%d Entries</item>
     </plurals>
-    <string name="my_list_sort_by">Sort: %s</string>
     <string name="my_list_sort_score">Highest Score</string>
     <string name="my_list_sort_title">Title (A-Z)</string>
     <string name="my_list_sort_updated_at">Recently Updated</string>
