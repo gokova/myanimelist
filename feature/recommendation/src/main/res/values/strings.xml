@@ -43,4 +43,5 @@
     <string name="recommendation_episodes_format">%1$d ep</string>
     <string name="recommendation_episodes_unknown">\? ep</string>
     <string name="recommendation_metadata_separator"> • </string>
+    <string name="recommendation_zoom_poster_description">Zoom poster for %s</string>
 </resources>

@@ -2,6 +2,7 @@ package com.gokova.myanimelist.feature.recommendation.presentation.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +23,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.PreviewParameter
@@ -44,6 +48,7 @@ import com.gokova.myanimelist.feature.recommendation.domain.model.NewSeasonAnime
 fun NewSeasonCard(
     anime: NewSeasonAnime,
     modifier: Modifier = Modifier,
+    onPosterClick: (() -> Unit)? = null,
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -64,8 +69,9 @@ fun NewSeasonCard(
             horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium),
         ) {
             PosterThumbnail(
-                imageUrl = anime.imageUrl,
+                imageUrl = anime.thumbnailUrl,
                 title = anime.displayTitle,
+                onPosterClick = onPosterClick,
             )
 
             Column(
@@ -102,20 +108,39 @@ private fun PosterThumbnail(
     imageUrl: String?,
     title: String,
     modifier: Modifier = Modifier,
+    onPosterClick: (() -> Unit)? = null,
 ) {
+    val clickableModifier =
+        if (onPosterClick != null) {
+            Modifier.clickable(
+                role = Role.Button,
+                onClick = onPosterClick,
+            )
+        } else {
+            Modifier
+        }
+    val contentDesc =
+        if (onPosterClick != null) {
+            stringResource(R.string.recommendation_zoom_poster_description, title)
+        } else {
+            title
+        }
+
     Box(
         modifier =
             modifier
                 .width(80.dp)
                 .height(120.dp)
                 .clip(MaterialTheme.shapes.small)
-                .background(MaterialTheme.colorScheme.surfaceVariant),
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .semantics { this.contentDescription = contentDesc }
+                .then(clickableModifier),
         contentAlignment = Alignment.Center,
     ) {
         if (!imageUrl.isNullOrBlank()) {
             AsyncImage(
                 model = imageUrl,
-                contentDescription = title,
+                contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxWidth().height(120.dp),
             )
@@ -353,7 +378,8 @@ class NewSeasonAnimePreviewParameterProvider : PreviewParameterProvider<NewSeaso
                 animeId = 30230L,
                 displayTitle = "Diamond no Ace: Second Season",
                 subtitleTitle = "Daiya no Ace: Second Season",
-                imageUrl = null,
+                thumbnailUrl = null,
+                largeImageUrl = null,
                 mediaType = "TV",
                 releaseSeason = "2015 Spring",
                 airingStatus = "finished_airing",

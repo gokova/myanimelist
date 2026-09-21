@@ -31,9 +31,9 @@ class TasteViewModelTest {
         override fun observeUserAnimeRecords(): Flow<List<UserAnimeRecord>> =
             flowOf(
                 listOf(
-                    UserAnimeRecord(1, "A1", null, "completed", 9, 12, 12, listOf("Action")),
-                    UserAnimeRecord(2, "A2", null, "completed", 8, 12, 12, listOf("Action")),
-                    UserAnimeRecord(3, "A3", null, "completed", 7, 12, 12, listOf("Action")),
+                    UserAnimeRecord(1, "A1", null, null, "completed", 9, 12, 12, listOf("Action")),
+                    UserAnimeRecord(2, "A2", null, null, "completed", 8, 12, 12, listOf("Action")),
+                    UserAnimeRecord(3, "A3", null, null, "completed", 7, 12, 12, listOf("Action")),
                 ),
             )
     }

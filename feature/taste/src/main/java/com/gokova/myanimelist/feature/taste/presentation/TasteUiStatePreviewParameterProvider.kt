@@ -8,9 +8,9 @@ import com.gokova.myanimelist.feature.taste.domain.model.TasteType
 class TasteUiStatePreviewParameterProvider : PreviewParameterProvider<TasteUiState> {
     private val sampleAnime =
         listOf(
-            TasteAnimeItem(1, "Attack on Titan", null, 10, "completed", 25, 25),
-            TasteAnimeItem(2, "Fullmetal Alchemist: Brotherhood", null, 9, "completed", 64, 64),
-            TasteAnimeItem(3, "Demon Slayer", null, 8, "watching", 26, 15),
+            TasteAnimeItem(1, "Attack on Titan", null, null, 10, "completed", 25, 25),
+            TasteAnimeItem(2, "Fullmetal Alchemist: Brotherhood", null, null, 9, "completed", 64, 64),
+            TasteAnimeItem(3, "Demon Slayer", null, null, 8, "watching", 26, 15),
         )
 
     private val sampleGenreBubbles =

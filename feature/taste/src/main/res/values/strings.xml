@@ -38,4 +38,5 @@
     <string name="taste_status_on_hold">On Hold</string>
     <string name="taste_status_dropped">Dropped</string>
     <string name="taste_status_plan_to_watch">Plan to Watch</string>
+    <string name="taste_zoom_poster_description">Zoom poster for %s</string>
 </resources>
