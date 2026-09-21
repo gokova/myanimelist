@@ -52,6 +52,27 @@ class RecommendationUiStatePreviewParameterProvider :
             ),
         )
 
+    private val sampleNewSeason =
+        listOf(
+            com.gokova.myanimelist.feature.recommendation.domain.model.NewSeasonAnime(
+                animeId = 30230L,
+                displayTitle = "Diamond no Ace: Second Season",
+                subtitleTitle = "Daiya no Ace: Second Season",
+                imageUrl = null,
+                mediaType = "TV",
+                releaseSeason = "2015 Spring",
+                airingStatus = "finished_airing",
+                score = 8.42,
+                totalEpisodes = 51,
+                parentAnimeId = 18689L,
+                parentTitle = "Diamond no Ace",
+                relationType = "sequel",
+                relationTypeFormatted = "Sequel",
+                startSeasonYear = 2015,
+                startSeasonSeason = "spring",
+            ),
+        )
+
     override val values: Sequence<RecommendationUiState> =
         sequenceOf(
             RecommendationUiState.Success(
@@ -62,16 +83,23 @@ class RecommendationUiStatePreviewParameterProvider :
                 selectedType = RecommendationType.THEME,
                 recommendations = sampleAnime,
             ),
-            RecommendationUiState.EmptyInsufficientData,
-            RecommendationUiState.Calculating,
-            RecommendationUiState.Loading,
+            RecommendationUiState.Success(
+                selectedType = RecommendationType.NEW_SEASONS,
+                newSeasons = sampleNewSeason,
+            ),
+            RecommendationUiState.EmptyInsufficientData(),
+            RecommendationUiState.EmptyAllCaughtUp(),
+            RecommendationUiState.Calculating(),
+            RecommendationUiState.Loading(),
         )
 
     override fun getDisplayName(index: Int): String? =
         when (index) {
             INDEX_GENRES -> "Genre Recommendations"
             INDEX_THEMES -> "Theme Recommendations"
+            INDEX_NEW_SEASONS -> "New Seasons"
             INDEX_INSUFFICIENT_DATA -> "Insufficient Data"
+            INDEX_ALL_CAUGHT_UP -> "All Caught Up"
             INDEX_CALCULATING -> "Calculating"
             INDEX_LOADING -> "Loading"
             else -> null
@@ -80,8 +108,10 @@ class RecommendationUiStatePreviewParameterProvider :
     companion object {
         private const val INDEX_GENRES = 0
         private const val INDEX_THEMES = 1
-        private const val INDEX_INSUFFICIENT_DATA = 2
-        private const val INDEX_CALCULATING = 3
-        private const val INDEX_LOADING = 4
+        private const val INDEX_NEW_SEASONS = 2
+        private const val INDEX_INSUFFICIENT_DATA = 3
+        private const val INDEX_ALL_CAUGHT_UP = 4
+        private const val INDEX_CALCULATING = 5
+        private const val INDEX_LOADING = 6
     }
 }

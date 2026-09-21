@@ -37,6 +37,15 @@ interface RecommendationDao {
     @Query("SELECT anime_id FROM user_anime_list")
     suspend fun getUserAnimeIds(): List<Long>
 
+    @Query(
+        """
+        SELECT anime_id FROM user_anime_list
+        UNION
+        SELECT anime_id FROM new_season_animes
+        """,
+    )
+    suspend fun getExcludedCandidateAnimeIds(): List<Long>
+
     @Transaction
     @Query(
         """
@@ -60,6 +69,7 @@ interface RecommendationDao {
         DELETE FROM animes
         WHERE id IN (:animeIds)
           AND id NOT IN (SELECT anime_id FROM user_anime_list)
+          AND id NOT IN (SELECT anime_id FROM new_season_animes)
         """,
     )
     suspend fun deleteNonUserData(animeIds: List<Long>): Int

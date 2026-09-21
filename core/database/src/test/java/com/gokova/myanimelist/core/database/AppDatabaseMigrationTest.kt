@@ -82,4 +82,37 @@ class AppDatabaseMigrationTest {
         )
         assertTrue(executedStatements[5].contains("index_recommendation_candidates_anime_id"))
     }
+
+    @Test
+    fun `migration 3 to 4 has correct version boundaries`() {
+        assertEquals(3, AppDatabase.MIGRATION_3_4.startVersion)
+        assertEquals(4, AppDatabase.MIGRATION_3_4.endVersion)
+    }
+
+    @Test
+    fun `migration 3 to 4 creates new_season_animes table and indices`() {
+        val executedStatements = mutableListOf<String>()
+
+        val fakeDatabase =
+            Proxy.newProxyInstance(
+                SupportSQLiteDatabase::class.java.classLoader,
+                arrayOf(SupportSQLiteDatabase::class.java),
+            ) { _, method, args ->
+                if (method.name == "execSQL" && args != null && args.isNotEmpty()) {
+                    executedStatements.add(args[0] as String)
+                }
+                null
+            } as SupportSQLiteDatabase
+
+        AppDatabase.MIGRATION_3_4.migrate(fakeDatabase)
+
+        assertEquals(3, executedStatements.size)
+        assertTrue(executedStatements[0].contains("CREATE TABLE IF NOT EXISTS `new_season_animes`"))
+        assertTrue(executedStatements[0].contains("FOREIGN KEY(`anime_id`) REFERENCES `animes`(`id`)"))
+        assertTrue(
+            executedStatements[0].contains("FOREIGN KEY(`parent_anime_id`) REFERENCES `animes`(`id`)"),
+        )
+        assertTrue(executedStatements[1].contains("index_new_season_animes_anime_id"))
+        assertTrue(executedStatements[2].contains("index_new_season_animes_parent_anime_id"))
+    }
 }

@@ -60,6 +60,8 @@ class RecommendationRepositoryImplTest {
 
         override suspend fun clearCandidates(): Int = 0
 
+        override suspend fun getExcludedCandidateAnimeIds(): List<Long> = emptyList()
+
         override suspend fun deleteNonUserData(animeIds: List<Long>): Int = 0
     }
 

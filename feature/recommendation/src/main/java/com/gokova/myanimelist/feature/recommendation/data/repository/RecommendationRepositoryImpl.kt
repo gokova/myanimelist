@@ -29,6 +29,8 @@ class RecommendationRepositoryImpl
                         recommendationDao.observeRecommendationsByGenre()
                     RecommendationType.THEME ->
                         recommendationDao.observeRecommendationsByTheme()
+                    RecommendationType.NEW_SEASONS ->
+                        kotlinx.coroutines.flow.flowOf(emptyList())
                 }
             return sourceFlow.map { list ->
                 list.map { RecommendationMapper.toDomain(it) }

@@ -6,9 +6,11 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.gokova.myanimelist.core.database.converter.AnimeTypeConverters
+import com.gokova.myanimelist.core.database.dao.NewSeasonDao
 import com.gokova.myanimelist.core.database.dao.RecommendationDao
 import com.gokova.myanimelist.core.database.dao.UserAnimeListDao
 import com.gokova.myanimelist.core.database.entity.AnimeEntity
+import com.gokova.myanimelist.core.database.entity.NewSeasonAnimeEntity
 import com.gokova.myanimelist.core.database.entity.RecommendationCandidateEntity
 import com.gokova.myanimelist.core.database.entity.RecommendationEntity
 import com.gokova.myanimelist.core.database.entity.UserAnimeListEntity
@@ -19,8 +21,9 @@ import com.gokova.myanimelist.core.database.entity.UserAnimeListEntity
         UserAnimeListEntity::class,
         RecommendationEntity::class,
         RecommendationCandidateEntity::class,
+        NewSeasonAnimeEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = false,
 )
 @TypeConverters(AnimeTypeConverters::class)
@@ -28,6 +31,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun userAnimeListDao(): UserAnimeListDao
 
     abstract fun recommendationDao(): RecommendationDao
+
+    abstract fun newSeasonDao(): NewSeasonDao
 
     companion object {
         val MIGRATION_1_2 =
@@ -95,6 +100,38 @@ abstract class AppDatabase : RoomDatabase() {
                         "CREATE UNIQUE INDEX IF NOT EXISTS " +
                             "`index_recommendation_candidates_anime_id` ON " +
                             "`recommendation_candidates` (`anime_id`)",
+                    )
+                }
+            }
+
+        val MIGRATION_3_4 =
+            object : Migration(3, 4) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL(
+                        """
+                        CREATE TABLE IF NOT EXISTS `new_season_animes` (
+                            `anime_id` INTEGER NOT NULL,
+                            `parent_anime_id` INTEGER NOT NULL,
+                            `relation_type` TEXT NOT NULL,
+                            `relation_type_formatted` TEXT NOT NULL,
+                            `created_at` INTEGER NOT NULL,
+                            PRIMARY KEY(`anime_id`),
+                            FOREIGN KEY(`anime_id`) REFERENCES `animes`(`id`)
+                                ON UPDATE NO ACTION ON DELETE CASCADE,
+                            FOREIGN KEY(`parent_anime_id`) REFERENCES `animes`(`id`)
+                                ON UPDATE NO ACTION ON DELETE CASCADE
+                        )
+                        """.trimIndent(),
+                    )
+                    db.execSQL(
+                        "CREATE UNIQUE INDEX IF NOT EXISTS " +
+                            "`index_new_season_animes_anime_id` ON " +
+                            "`new_season_animes` (`anime_id`)",
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS " +
+                            "`index_new_season_animes_parent_anime_id` ON " +
+                            "`new_season_animes` (`parent_anime_id`)",
                     )
                 }
             }

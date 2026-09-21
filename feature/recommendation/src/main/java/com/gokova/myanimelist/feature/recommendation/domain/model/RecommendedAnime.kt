@@ -25,12 +25,14 @@ data class RecommendedAnime(
         when (type) {
             RecommendationType.GENRE -> genreRank
             RecommendationType.THEME -> themeRank
+            RecommendationType.NEW_SEASONS -> 0
         }
 
     fun matchPercent(type: RecommendationType): Int =
         when (type) {
             RecommendationType.GENRE -> genreMatchPercent
             RecommendationType.THEME -> themeMatchPercent
+            RecommendationType.NEW_SEASONS -> 0
         }
 
     fun displayTitle(): String = titleEnglish ?: title

@@ -37,7 +37,8 @@ class FetchCandidatesWorker
                             "$MIN_USER_LIST_THRESHOLD, skipping"
                     }
                 } else {
-                    fetchAndStoreCandidates(userAnimeIds)
+                    val excludedAnimeIds = recommendationDao.getExcludedCandidateAnimeIds().toSet()
+                    fetchAndStoreCandidates(excludedAnimeIds)
                 }
                 Result.success()
             } catch (e: CancellationException) {
@@ -53,7 +54,7 @@ class FetchCandidatesWorker
             }
         }
 
-        private suspend fun fetchAndStoreCandidates(userAnimeIds: Set<Long>) {
+        private suspend fun fetchAndStoreCandidates(excludedAnimeIds: Set<Long>) {
             val topRanking = remoteDataSource.fetchTopRankingAnime()
             val targetSeasons = seasonalCalculator.getTargetSeasons()
             val seasonalAnime = mutableListOf<AnimeNodeDto>()
@@ -70,7 +71,7 @@ class FetchCandidatesWorker
             val allCandidates =
                 (topRanking + seasonalAnime)
                     .distinctBy { it.id }
-                    .filter { it.id !in userAnimeIds }
+                    .filter { it.id !in excludedAnimeIds }
 
             val animeEntities = allCandidates.map { RecommendationMapper.toAnimeEntity(it) }
             val candidateEntities =

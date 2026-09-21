@@ -30,6 +30,8 @@ import com.gokova.myanimelist.core.ui.theme.spacing
 import com.gokova.myanimelist.feature.recommendation.R
 import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationType
 import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendedAnime
+import com.gokova.myanimelist.feature.recommendation.presentation.components.HeaderSortConfig
+import com.gokova.myanimelist.feature.recommendation.presentation.components.NewSeasonCard
 import com.gokova.myanimelist.feature.recommendation.presentation.components.RecommendationCard
 import com.gokova.myanimelist.feature.recommendation.presentation.components.RecommendationEmptyState
 import com.gokova.myanimelist.feature.recommendation.presentation.components.RecommendationHeader
@@ -57,31 +59,69 @@ fun RecommendationContent(
     onEvent: (RecommendationUiEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Box(modifier = modifier.fillMaxSize()) {
+    Column(modifier = modifier.fillMaxSize()) {
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        horizontal = MaterialTheme.spacing.screenHorizontal,
+                        vertical = MaterialTheme.spacing.small,
+                    ),
+            contentAlignment = Alignment.Center,
+        ) {
+            RecommendationPillSelector(
+                selectedType = uiState.selectedType,
+                onTypeSelected = { onEvent(RecommendationUiEvent.SelectType(it)) },
+            )
+        }
+
+        RecommendationStateContent(
+            uiState = uiState,
+            onEvent = onEvent,
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun RecommendationStateContent(
+    uiState: RecommendationUiState,
+    onEvent: (RecommendationUiEvent) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier) {
         when (uiState) {
-            RecommendationUiState.Loading -> {
+            is RecommendationUiState.Loading -> {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             }
-            RecommendationUiState.EmptyInsufficientData -> {
+            is RecommendationUiState.EmptyInsufficientData -> {
                 RecommendationEmptyState(
                     titleRes = R.string.recommendation_empty_insufficient_title,
                     subtitleRes = R.string.recommendation_empty_insufficient_subtitle,
                 )
             }
-            RecommendationUiState.Calculating -> {
+            is RecommendationUiState.EmptyAllCaughtUp -> {
                 RecommendationEmptyState(
-                    titleRes = R.string.recommendation_calculating_title,
-                    subtitleRes = R.string.recommendation_calculating_subtitle,
+                    titleRes = R.string.new_seasons_empty_all_caught_up_title,
+                    subtitleRes = R.string.new_seasons_empty_all_caught_up_subtitle,
                     actionButtonTextRes = R.string.recommendation_btn_calculate_now,
                     onActionClick = { onEvent(RecommendationUiEvent.CalculateNow) },
                 )
             }
+            is RecommendationUiState.Calculating -> {
+                RecommendationCalculatingState(
+                    selectedType = uiState.selectedType,
+                    onCalculateNow = { onEvent(RecommendationUiEvent.CalculateNow) },
+                )
+            }
             is RecommendationUiState.Error -> {
-                RecommendationEmptyState(
-                    titleRes = R.string.recommendation_calculating_title,
-                    subtitleRes = R.string.recommendation_calculating_subtitle,
-                    actionButtonTextRes = R.string.recommendation_btn_calculate_now,
-                    onActionClick = { onEvent(RecommendationUiEvent.CalculateNow) },
+                RecommendationCalculatingState(
+                    selectedType = uiState.selectedType,
+                    onCalculateNow = { onEvent(RecommendationUiEvent.CalculateNow) },
                 )
             }
             is RecommendationUiState.Success -> {
@@ -92,6 +132,32 @@ fun RecommendationContent(
             }
         }
     }
+}
+
+@Composable
+private fun RecommendationCalculatingState(
+    selectedType: RecommendationType,
+    onCalculateNow: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val isNewSeasons = selectedType == RecommendationType.NEW_SEASONS
+    RecommendationEmptyState(
+        titleRes =
+            if (isNewSeasons) {
+                R.string.new_seasons_calculating_title
+            } else {
+                R.string.recommendation_calculating_title
+            },
+        subtitleRes =
+            if (isNewSeasons) {
+                R.string.new_seasons_calculating_subtitle
+            } else {
+                R.string.recommendation_calculating_subtitle
+            },
+        actionButtonTextRes = R.string.recommendation_btn_calculate_now,
+        onActionClick = onCalculateNow,
+        modifier = modifier,
+    )
 }
 
 @Composable
@@ -106,38 +172,88 @@ private fun RecommendationSuccessContent(
     val isExpanded = screenWidthDp >= EXPANDED_WIDTH_BREAKPOINT
 
     Column(modifier = modifier.fillMaxSize()) {
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(
-                        horizontal = MaterialTheme.spacing.screenHorizontal,
-                        vertical = MaterialTheme.spacing.small,
-                    ),
-            contentAlignment = Alignment.Center,
-        ) {
-            RecommendationPillSelector(
-                selectedType = state.selectedType,
-                onTypeSelected = { onEvent(RecommendationUiEvent.SelectType(it)) },
-            )
-        }
+        val count =
+            if (state.selectedType == RecommendationType.NEW_SEASONS) {
+                state.newSeasons.size
+            } else {
+                state.recommendations.size
+            }
+
+        val sortConfig =
+            if (state.selectedType == RecommendationType.NEW_SEASONS) {
+                HeaderSortConfig(
+                    selectedSort = state.newSeasonSort,
+                    onSortSelected = { onEvent(RecommendationUiEvent.SelectNewSeasonSort(it)) },
+                )
+            } else {
+                null
+            }
 
         RecommendationHeader(
-            count = state.recommendations.size,
+            count = count,
+            selectedType = state.selectedType,
+            sortConfig = sortConfig,
             onRefreshClick = { onEvent(RecommendationUiEvent.Refresh) },
         )
 
+        RecommendationBodyContent(
+            state = state,
+            isExpanded = isExpanded,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun RecommendationBodyContent(
+    state: RecommendationUiState.Success,
+    isExpanded: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    if (state.selectedType == RecommendationType.NEW_SEASONS) {
+        if (isExpanded) {
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = GRID_CELL_MIN_SIZE),
+                modifier = modifier.fillMaxSize(),
+                contentPadding =
+                    PaddingValues(
+                        horizontal = MaterialTheme.spacing.screenHorizontal,
+                        vertical = MaterialTheme.spacing.small,
+                    ),
+                horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium),
+                verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium),
+            ) {
+                items(state.newSeasons, key = { it.animeId }) { anime ->
+                    NewSeasonCard(anime = anime)
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = modifier.fillMaxSize(),
+                contentPadding =
+                    PaddingValues(
+                        horizontal = MaterialTheme.spacing.screenHorizontal,
+                        vertical = MaterialTheme.spacing.small,
+                    ),
+                verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium),
+            ) {
+                items(state.newSeasons, key = { it.animeId }) { anime ->
+                    NewSeasonCard(anime = anime)
+                }
+            }
+        }
+    } else {
         if (isExpanded) {
             RecommendationGrid(
                 recommendations = state.recommendations,
                 selectedType = state.selectedType,
-                modifier = Modifier.weight(1f),
+                modifier = modifier,
             )
         } else {
             RecommendationList(
                 recommendations = state.recommendations,
                 selectedType = state.selectedType,
-                modifier = Modifier.weight(1f),
+                modifier = modifier,
             )
         }
     }

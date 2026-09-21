@@ -61,6 +61,8 @@ object NetworkModule {
                 }
         }
 
+    private const val NETWORK_TIMEOUT_SECONDS = 30L
+
     @Provides
     @Singleton
     @Unauthenticated
@@ -69,6 +71,9 @@ object NetworkModule {
     ): OkHttpClient =
         OkHttpClient
             .Builder()
+            .connectTimeout(NETWORK_TIMEOUT_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(NETWORK_TIMEOUT_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
+            .writeTimeout(NETWORK_TIMEOUT_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
             .addInterceptor(logging)
             .build()
 
@@ -82,6 +87,9 @@ object NetworkModule {
     ): OkHttpClient =
         OkHttpClient
             .Builder()
+            .connectTimeout(NETWORK_TIMEOUT_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(NETWORK_TIMEOUT_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
+            .writeTimeout(NETWORK_TIMEOUT_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
             .addInterceptor(authInterceptor)
             .addInterceptor(loggingInterceptor)
             .authenticator(tokenAuthenticator)
