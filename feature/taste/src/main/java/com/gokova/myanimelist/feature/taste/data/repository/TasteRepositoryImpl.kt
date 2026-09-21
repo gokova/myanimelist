@@ -20,7 +20,8 @@ class TasteRepositoryImpl
                     UserAnimeRecord(
                         animeId = anime.id,
                         title = anime.titleEnglish ?: anime.title,
-                        imageUrl = anime.mainPictureMedium ?: anime.mainPictureLarge,
+                        thumbnailUrl = anime.mainPictureMedium ?: anime.mainPictureLarge,
+                        largeImageUrl = anime.mainPictureLarge ?: anime.mainPictureMedium,
                         status = userAnime.status,
                         userScore = userAnime.score,
                         numEpisodesWatched = userAnime.numEpisodesWatched,

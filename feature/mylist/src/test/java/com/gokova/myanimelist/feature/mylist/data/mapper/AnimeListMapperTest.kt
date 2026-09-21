@@ -162,6 +162,8 @@ class AnimeListMapperTest {
         assertEquals(AiringStatus.FINISHED_AIRING, domain.airingStatus)
         assertEquals("2016 Winter", domain.releaseSeason)
         assertEquals("TV", domain.mediaType)
+        assertEquals("m.jpg", domain.thumbnailUrl)
+        assertEquals("l.jpg", domain.largeImageUrl)
     }
 
     @Test

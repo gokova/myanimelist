@@ -134,3 +134,82 @@ data class PagingDto(
     @SerialName("previous")
     val previous: String? = null,
 )
+
+@OptIn(kotlinx.serialization.InternalSerializationApi::class)
+@Serializable
+data class AnimeDetailsDto(
+    @SerialName("id")
+    val id: Long,
+    @SerialName("title")
+    val title: String,
+    @SerialName("main_picture")
+    val mainPicture: PictureDto? = null,
+    @SerialName("alternative_titles")
+    val alternativeTitles: AlternativeTitlesDto? = null,
+    @SerialName("media_type")
+    val mediaType: String? = null,
+    @SerialName("status")
+    val status: String? = null,
+    @SerialName("num_episodes")
+    val numEpisodes: Int? = null,
+    @SerialName("start_season")
+    val startSeason: StartSeasonDto? = null,
+    @SerialName("mean")
+    val mean: Double? = null,
+    @SerialName("genres")
+    val genres: List<GenreDto>? = null,
+    @SerialName("studios")
+    val studios: List<StudioDto>? = null,
+    @SerialName("source")
+    val source: String? = null,
+    @SerialName("synopsis")
+    val synopsis: String? = null,
+    @SerialName("rating")
+    val rating: String? = null,
+    @SerialName("rank")
+    val rank: Int? = null,
+    @SerialName("popularity")
+    val popularity: Int? = null,
+    @SerialName("num_list_users")
+    val numListUsers: Int? = null,
+    @SerialName("average_episode_duration")
+    val averageEpisodeDuration: Int? = null,
+    @SerialName("nsfw")
+    val nsfw: String? = null,
+    @SerialName("related_anime")
+    val relatedAnime: List<RelatedAnimeEdgeDto>? = null,
+) {
+    fun toAnimeNodeDto(): AnimeNodeDto =
+        AnimeNodeDto(
+            id = id,
+            title = title,
+            mainPicture = mainPicture,
+            alternativeTitles = alternativeTitles,
+            mediaType = mediaType,
+            status = status,
+            numEpisodes = numEpisodes,
+            startSeason = startSeason,
+            mean = mean,
+            genres = genres,
+            studios = studios,
+            source = source,
+            synopsis = synopsis,
+            rating = rating,
+            rank = rank,
+            popularity = popularity,
+            numListUsers = numListUsers,
+            averageEpisodeDuration = averageEpisodeDuration,
+            nsfw = nsfw,
+        )
+}
+
+@OptIn(kotlinx.serialization.InternalSerializationApi::class)
+@Serializable
+data class RelatedAnimeEdgeDto(
+    @SerialName("node")
+    val node: AnimeNodeDto,
+    @SerialName("relation_type")
+    val relationType: String,
+    @SerialName("relation_type_formatted")
+    val relationTypeFormatted: String,
+)

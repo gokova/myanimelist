@@ -8,9 +8,9 @@ A modern, reactive Android client for the [MyAnimeList API](https://myanimelist.
 
 The screenshots below showcase the application flow, from authentication to anime tracking and visual taste analytics:
 
-| 1. Authentication | 2. My Anime List | 3. Taste Analytics | 4. Taste Drill-down |
-| :---: | :---: | :---: | :---: |
-| <img src="docs/screenshots/auth_screen.png" width="200" alt="Authentication Screen" /> | <img src="docs/screenshots/my_list_screen.png" width="200" alt="My List Screen" /> | <img src="docs/screenshots/my_taste_screen.png" width="200" alt="Taste Analytics Screen" /> | <img src="docs/screenshots/my_taste_bottom_sheet.png" width="200" alt="Taste Bottom Sheet Drill-down" /> |
+| 1. Authentication | 2. My Anime List | 3. Taste Analytics | 4. Taste Drill-down | 5. Recommendations |
+| :---: | :---: | :---: | :---: | :---: |
+| <img src="docs/screenshots/auth_screen.png" width="160" alt="Authentication Screen" /> | <img src="docs/screenshots/my_list_screen.png" width="160" alt="My List Screen" /> | <img src="docs/screenshots/my_taste_screen.png" width="160" alt="Taste Analytics Screen" /> | <img src="docs/screenshots/my_taste_bottom_sheet.png" width="160" alt="Taste Bottom Sheet Drill-down" /> | <img src="docs/screenshots/recommendations_screen.png" width="160" alt="Recommendations Screen" /> |
 
 ---
 
@@ -20,7 +20,8 @@ The screenshots below showcase the application flow, from authentication to anim
 *   **My Anime List (Offline-First)**: Complete catalog of user anime entries grouped by status (*All*, *Watching*, *Completed*, *On-Hold*, *Dropped*, *Plan to Watch*). Includes real-time progress indicators, rating badges, pull-to-refresh sync, and flexible sorting.
 *   **Interactive Taste Analytics**: Dynamic physics-packed bubble chart visualizing the user's top genres and themes based on occurrences in their personal anime list. Features smooth multi-touch gestures (zoom bounds: 0.6x–3.5x, pan), category toggle pills, and recenter controls.
 *   **Granular Taste Drill-Down**: Interactive bottom sheet displaying genre/theme statistics, average user rating, and individual anime cards with quick-reference status tags.
-*   **Smart Recommendation Engine**: Background-scheduled `WorkManager` engine that evaluates top seasonal and all-time anime against the user's genre preference profile to generate personalized suggestions.
+*   **Smart Recommendation Engine (TF-IDF & Quality Scoring)**: Autonomous two-stage `WorkManager` pipeline (`FetchCandidatesWorker` + `EvaluateRecommendationsWorker`) evaluating seasonal and all-time anime against the user's personal taste profile using TF-IDF genre/theme weighting and global quality multiplier to produce ranked recommendations with match percentages.
+*   **New Seasons Discovery**: Automatically discovers upcoming, ongoing, and recently aired sequels, prequels, and side stories for anime in the user's list. Features polite request pacing, rich metadata enrichment, contextual relation badges (*"Sequel to..."*), and multiple sort orders (Release Date, Score, Title).
 *   **Anime Details**: Rich detail views featuring episode counts, synopsis, seasonal air dates, genres, and production metadata.
 
 ---
@@ -140,3 +141,5 @@ All architectural decisions, design tokens, and feature specifications are maint
     *   [01: Authentication (OAuth 2.0 & PKCE)](docs/01_authentication.md)
     *   [02: My List & Sync](docs/02_my_list_sync.md)
     *   [03: Taste Analytics (Packed Bubble Chart)](docs/03_taste_screen.md)
+    *   [04: Smart Recommendation Engine & Screen](docs/04_recommendation_feature.md)
+    *   [05: New Seasons of User's Anime](docs/05_new_seasons_feature.md)

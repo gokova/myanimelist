@@ -150,7 +150,8 @@ class ObserveTasteAnalyticsUseCase
             TasteAnimeItem(
                 id = animeId,
                 title = title,
-                imageUrl = imageUrl,
+                thumbnailUrl = thumbnailUrl,
+                largeImageUrl = largeImageUrl,
                 userScore = userScore,
                 userStatus = status,
                 totalEpisodes = totalEpisodes,

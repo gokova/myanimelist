@@ -2,6 +2,7 @@ package com.gokova.myanimelist.feature.mylist.presentation.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.PreviewParameter
@@ -43,6 +45,7 @@ import com.gokova.myanimelist.feature.mylist.domain.model.UserAnime
 fun AnimeCard(
     anime: UserAnime,
     modifier: Modifier = Modifier,
+    onPosterClick: (() -> Unit)? = null,
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -66,8 +69,9 @@ fun AnimeCard(
             horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium),
         ) {
             PosterThumbnail(
-                imageUrl = anime.imageUrl,
+                imageUrl = anime.thumbnailUrl,
                 title = anime.displayTitle,
+                onPosterClick = onPosterClick,
             )
 
             Column(
@@ -111,22 +115,36 @@ fun AnimeCard(
 private fun PosterThumbnail(
     imageUrl: String?,
     title: String,
+    onPosterClick: (() -> Unit)?,
 ) {
+    val clickableModifier =
+        if (onPosterClick != null) {
+            Modifier.clickable(
+                role = Role.Button,
+                onClick = onPosterClick,
+            )
+        } else {
+            Modifier
+        }
+    val contentDescRes =
+        if (onPosterClick != null) {
+            R.string.my_list_zoom_poster_description
+        } else {
+            R.string.my_list_poster_content_description
+        }
+
     Box(
         modifier =
             Modifier
                 .width(80.dp)
                 .height(120.dp)
                 .clip(MaterialTheme.shapes.small)
-                .background(MaterialTheme.colorScheme.surfaceVariant),
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .then(clickableModifier),
     ) {
         AsyncImage(
             model = imageUrl,
-            contentDescription =
-                stringResource(
-                    R.string.my_list_poster_content_description,
-                    title,
-                ),
+            contentDescription = stringResource(contentDescRes, title),
             modifier = Modifier.matchParentSize(),
             contentScale = ContentScale.Crop,
         )

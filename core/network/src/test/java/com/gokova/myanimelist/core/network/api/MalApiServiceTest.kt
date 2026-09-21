@@ -1,5 +1,6 @@
 package com.gokova.myanimelist.core.network.api
 
+import com.gokova.myanimelist.core.network.model.AnimeDetailsDto
 import com.gokova.myanimelist.core.network.model.AnimeListEntryDto
 import com.gokova.myanimelist.core.network.model.AnimeListResponseDto
 import com.gokova.myanimelist.core.network.model.AnimeNodeDto
@@ -78,6 +79,27 @@ class MalApiServiceTest {
         assertNull(node.nsfw)
         assertNull(response.data[0].listStatus)
         assertNull(response.paging)
+    }
+
+    @Test
+    fun `deserializes anime details response with related_anime successfully`() {
+        val json = Json { ignoreUnknownKeys = true }
+        val details = json.decodeFromString<AnimeDetailsDto>(MAL_ANIME_DETAILS_JSON)
+
+        assertEquals(30230L, details.id)
+        assertEquals("Diamond no Ace: Second Season", details.title)
+        assertEquals(8.42, details.mean ?: 0.0, 0.001)
+        assertEquals(2, details.relatedAnime?.size)
+
+        val firstRelation = details.relatedAnime?.get(0)
+        assertEquals(18689L, firstRelation?.node?.id)
+        assertEquals("Diamond no Ace", firstRelation?.node?.title)
+        assertEquals("prequel", firstRelation?.relationType)
+        assertEquals("Prequel", firstRelation?.relationTypeFormatted)
+
+        val nodeDto = details.toAnimeNodeDto()
+        assertEquals(30230L, nodeDto.id)
+        assertEquals("Diamond no Ace: Second Season", nodeDto.title)
     }
 
     private fun assertCoreNodeFields(node: AnimeNodeDto) {
@@ -194,6 +216,48 @@ class MalApiServiceTest {
                     "id": 999,
                     "title": "Minimal Title"
                   }
+                }
+              ]
+            }
+            """.trimIndent()
+
+        private val MAL_ANIME_DETAILS_JSON =
+            """
+            {
+              "id": 30230,
+              "title": "Diamond no Ace: Second Season",
+              "main_picture": {
+                "medium": "https://cdn.myanimelist.net/images/anime/9/74398.jpg",
+                "large": "https://cdn.myanimelist.net/images/anime/9/74398l.jpg"
+              },
+              "mean": 8.42,
+              "num_episodes": 51,
+              "media_type": "tv",
+              "status": "finished_airing",
+              "related_anime": [
+                {
+                  "node": {
+                    "id": 18689,
+                    "title": "Diamond no Ace",
+                    "main_picture": {
+                      "medium": "https://cdn.myanimelist.net/images/anime/5/54235.jpg",
+                      "large": "https://cdn.myanimelist.net/images/anime/5/54235l.jpg"
+                    }
+                  },
+                  "relation_type": "prequel",
+                  "relation_type_formatted": "Prequel"
+                },
+                {
+                  "node": {
+                    "id": 34349,
+                    "title": "Diamond no Ace: Second Season OVA",
+                    "main_picture": {
+                      "medium": "https://cdn.myanimelist.net/images/anime/12/83218.jpg",
+                      "large": "https://cdn.myanimelist.net/images/anime/12/83218l.jpg"
+                    }
+                  },
+                  "relation_type": "side_story",
+                  "relation_type_formatted": "Side story"
                 }
               ]
             }

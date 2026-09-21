@@ -18,7 +18,11 @@ class AnimeTaxonomyTest {
         assertEquals(TagType.GENRE, classifyTag("Action"))
         assertEquals(TagType.GENRE, classifyTag("Fantasy"))
         assertEquals(TagType.GENRE, classifyTag("Romance"))
+        assertEquals(TagType.GENRE, classifyTag("Sports"))
+        assertEquals(TagType.GENRE, classifyTag("Gourmet"))
+        assertEquals(TagType.GENRE, classifyTag("Boys Love"))
         assertTrue(isGenre("Action"))
+        assertTrue(isGenre("Sports"))
     }
 
     @Test
@@ -26,7 +30,12 @@ class AnimeTaxonomyTest {
         assertEquals(TagType.THEME, classifyTag("Isekai"))
         assertEquals(TagType.THEME, classifyTag("School"))
         assertEquals(TagType.THEME, classifyTag("Shounen"))
+        assertEquals(TagType.THEME, classifyTag("Josei"))
+        assertEquals(TagType.THEME, classifyTag("Racing"))
+        assertEquals(TagType.THEME, classifyTag("Samurai"))
+        assertEquals(TagType.THEME, classifyTag("Music"))
         assertTrue(isTheme("Isekai"))
+        assertTrue(isTheme("Racing"))
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.gokova.myanimelist.core.network.api
 
+import com.gokova.myanimelist.core.network.model.AnimeDetailsDto
 import com.gokova.myanimelist.core.network.model.AnimeListResponseDto
 import retrofit2.http.GET
 import retrofit2.http.Path
@@ -38,11 +39,22 @@ interface MalApiService {
         @Query("fields") fields: String = DEFAULT_ANIME_LIST_FIELDS,
     ): AnimeListResponseDto
 
+    @GET("v2/anime/{anime_id}")
+    suspend fun getAnimeDetails(
+        @Path("anime_id") animeId: Long,
+        @Query("fields") fields: String = DEFAULT_ANIME_DETAILS_FIELDS,
+    ): AnimeDetailsDto
+
     companion object {
         const val DEFAULT_PAGE_LIMIT = 500
         const val DEFAULT_ANIME_LIST_FIELDS =
             "id,title,main_picture,alternative_titles,media_type,status,num_episodes," +
                 "start_season,mean,genres,studios,source,synopsis,rating,rank,popularity," +
                 "num_list_users,average_episode_duration,nsfw,list_status"
+        const val DEFAULT_ANIME_DETAILS_FIELDS =
+            "id,title,main_picture,alternative_titles,media_type,status,num_episodes," +
+                "start_season,mean,genres,studios,source,synopsis,rating,rank,popularity," +
+                "num_list_users,average_episode_duration,nsfw,related_anime"
+        const val FIELDS_RELATED_ANIME = "related_anime"
     }
 }

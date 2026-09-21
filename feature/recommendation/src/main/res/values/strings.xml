@@ -1,6 +1,7 @@
 <resources>
     <string name="recommendation_tab_genres">Genres</string>
     <string name="recommendation_tab_themes">Themes</string>
+    <string name="recommendation_tab_new_seasons">New Seasons</string>
 
     <string name="recommendation_empty_insufficient_title">More Anime Needed</string>
     <string name="recommendation_empty_insufficient_subtitle">Add at least 5 anime to your list so we can discover your unique taste and recommend matches.</string>
@@ -10,9 +11,29 @@
     <string name="recommendation_btn_calculate_now">Calculate Now</string>
     <string name="recommendation_btn_refresh">Recalculate</string>
 
+    <string name="new_seasons_empty_all_caught_up_title">All Caught Up</string>
+    <string name="new_seasons_empty_all_caught_up_subtitle">No new seasons found for any anime in your list. Check back soon!</string>
+    <string name="new_seasons_calculating_title">Discovering New Seasons</string>
+    <string name="new_seasons_calculating_subtitle">Scanning your anime list for upcoming and released sequels, prequels, and continuations.</string>
+
+    <string name="new_seasons_sort_release_date">Release Date</string>
+    <string name="new_seasons_sort_score">Score</string>
+    <string name="new_seasons_sort_title">Title</string>
+    <string name="new_seasons_sort_menu_desc">Sort new seasons</string>
+    <string name="new_seasons_relation_format">%1$s to %2$s</string>
+
+    <string name="new_seasons_status_currently_airing">Airing</string>
+    <string name="new_seasons_status_finished_airing">Finished</string>
+    <string name="new_seasons_status_not_yet_aired">Upcoming</string>
+
     <plurals name="recommendations_count">
         <item quantity="one">%d Recommendation</item>
         <item quantity="other">%d Recommendations</item>
+    </plurals>
+
+    <plurals name="new_seasons_count">
+        <item quantity="one">%d New Season</item>
+        <item quantity="other">%d New Seasons</item>
     </plurals>
 
     <string name="recommendation_rank_format">#%1$d</string>
@@ -22,4 +43,5 @@
     <string name="recommendation_episodes_format">%1$d ep</string>
     <string name="recommendation_episodes_unknown">\? ep</string>
     <string name="recommendation_metadata_separator"> • </string>
+    <string name="recommendation_zoom_poster_description">Zoom poster for %s</string>
 </resources>

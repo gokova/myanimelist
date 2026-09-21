@@ -3,6 +3,7 @@ package com.gokova.myanimelist.core.database.di
 import android.content.Context
 import androidx.room.Room
 import com.gokova.myanimelist.core.database.AppDatabase
+import com.gokova.myanimelist.core.database.dao.NewSeasonDao
 import com.gokova.myanimelist.core.database.dao.RecommendationDao
 import com.gokova.myanimelist.core.database.dao.UserAnimeListDao
 import dagger.Module
@@ -25,8 +26,11 @@ object DatabaseModule {
                 context,
                 AppDatabase::class.java,
                 "mal_database",
-            ).addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3)
-            .build()
+            ).addMigrations(
+                AppDatabase.MIGRATION_1_2,
+                AppDatabase.MIGRATION_2_3,
+                AppDatabase.MIGRATION_3_4,
+            ).build()
 
     @Provides
     @Singleton
@@ -35,4 +39,8 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideRecommendationDao(database: AppDatabase): RecommendationDao = database.recommendationDao()
+
+    @Provides
+    @Singleton
+    fun provideNewSeasonDao(database: AppDatabase): NewSeasonDao = database.newSeasonDao()
 }

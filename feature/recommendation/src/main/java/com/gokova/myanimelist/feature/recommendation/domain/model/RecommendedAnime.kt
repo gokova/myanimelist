@@ -4,7 +4,8 @@ data class RecommendedAnime(
     val animeId: Long,
     val title: String,
     val titleEnglish: String?,
-    val imageUrl: String?,
+    val thumbnailUrl: String?,
+    val largeImageUrl: String?,
     val mediaType: String?,
     val airingStatus: String?,
     val numEpisodes: Int?,
@@ -25,12 +26,14 @@ data class RecommendedAnime(
         when (type) {
             RecommendationType.GENRE -> genreRank
             RecommendationType.THEME -> themeRank
+            RecommendationType.NEW_SEASONS -> 0
         }
 
     fun matchPercent(type: RecommendationType): Int =
         when (type) {
             RecommendationType.GENRE -> genreMatchPercent
             RecommendationType.THEME -> themeMatchPercent
+            RecommendationType.NEW_SEASONS -> 0
         }
 
     fun displayTitle(): String = titleEnglish ?: title

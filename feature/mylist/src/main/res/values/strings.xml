@@ -27,6 +27,7 @@
     <string name="my_list_retry">Retry</string>
     <string name="my_list_score_unrated">-</string>
     <string name="my_list_poster_content_description">Poster image for %s</string>
+    <string name="my_list_zoom_poster_description">Zoom poster for %s</string>
     <string name="my_list_sort_menu_description">Sort anime list</string>
     <string name="my_list_airing_status_airing">Airing</string>
     <string name="my_list_airing_status_finished">Finished</string>

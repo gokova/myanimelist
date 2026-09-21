@@ -30,7 +30,9 @@ fun RecommendationPillSelector(
                 when (type) {
                     RecommendationType.GENRE -> R.string.recommendation_tab_genres
                     RecommendationType.THEME -> R.string.recommendation_tab_themes
+                    RecommendationType.NEW_SEASONS -> R.string.recommendation_tab_new_seasons
                 }
+
             SegmentedButton(
                 selected = selectedType == type,
                 onClick = { onTypeSelected(type) },

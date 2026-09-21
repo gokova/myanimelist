@@ -24,7 +24,9 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
@@ -34,6 +36,7 @@ import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.gokova.myanimelist.core.ui.component.AnimePosterPreviewDialog
 import com.gokova.myanimelist.core.ui.preview.StandardPreviews
 import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
 import com.gokova.myanimelist.core.ui.theme.spacing
@@ -106,6 +109,8 @@ fun MyListContent(
     actions: MyListActions,
     modifier: Modifier = Modifier,
 ) {
+    var previewAnime by remember { mutableStateOf<UserAnime?>(null) }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -135,9 +140,19 @@ fun MyListContent(
                 MyListBody(
                     uiState = uiState,
                     onRefresh = actions.onRefresh,
+                    onPosterClick = { previewAnime = it },
                 )
             }
         }
+    }
+
+    previewAnime?.let { anime ->
+        AnimePosterPreviewDialog(
+            thumbnailUrl = anime.thumbnailUrl,
+            largeImageUrl = anime.largeImageUrl,
+            title = anime.displayTitle,
+            onDismiss = { previewAnime = null },
+        )
     }
 }
 
@@ -147,6 +162,7 @@ private val EXPANDED_WIDTH_BREAKPOINT = 600.dp
 private fun MyListBody(
     uiState: MyListUiState,
     onRefresh: () -> Unit,
+    onPosterClick: (UserAnime) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (uiState.animeList.isEmpty() && !uiState.isLoadingInitial) {
@@ -168,11 +184,13 @@ private fun MyListBody(
         if (isExpanded) {
             MyListGrid(
                 animeList = uiState.animeList,
+                onPosterClick = onPosterClick,
                 modifier = modifier,
             )
         } else {
             MyListColumn(
                 animeList = uiState.animeList,
+                onPosterClick = onPosterClick,
                 modifier = modifier,
             )
         }
@@ -184,6 +202,7 @@ private val GRID_CELL_MIN_SIZE = 240.dp
 @Composable
 private fun MyListGrid(
     animeList: List<UserAnime>,
+    onPosterClick: (UserAnime) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyVerticalGrid(
@@ -207,6 +226,7 @@ private fun MyListGrid(
         ) { anime ->
             AnimeCard(
                 anime = anime,
+                onPosterClick = { onPosterClick(anime) },
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -216,6 +236,7 @@ private fun MyListGrid(
 @Composable
 private fun MyListColumn(
     animeList: List<UserAnime>,
+    onPosterClick: (UserAnime) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -236,6 +257,7 @@ private fun MyListColumn(
         ) { anime ->
             AnimeCard(
                 anime = anime,
+                onPosterClick = { onPosterClick(anime) },
                 modifier = Modifier.fillMaxWidth(),
             )
         }

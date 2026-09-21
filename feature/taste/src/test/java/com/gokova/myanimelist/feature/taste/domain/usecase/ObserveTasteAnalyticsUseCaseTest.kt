@@ -82,7 +82,8 @@ class ObserveTasteAnalyticsUseCaseTest {
     ) = UserAnimeRecord(
         animeId = id,
         title = "Anime $id",
-        imageUrl = null,
+        thumbnailUrl = null,
+        largeImageUrl = null,
         status = "completed",
         userScore = score,
         numEpisodesWatched = 12,

@@ -3,9 +3,13 @@ package com.gokova.myanimelist.feature.recommendation.di
 import com.gokova.myanimelist.feature.recommendation.data.remote.RecommendationRemoteDataSource
 import com.gokova.myanimelist.feature.recommendation.data.remote.RecommendationRemoteDataSourceImpl
 import com.gokova.myanimelist.feature.recommendation.data.remote.SeasonalPeriodCalculator
+import com.gokova.myanimelist.feature.recommendation.data.repository.NewSeasonRepositoryImpl
 import com.gokova.myanimelist.feature.recommendation.data.repository.RecommendationRepositoryImpl
+import com.gokova.myanimelist.feature.recommendation.data.work.NewSeasonScheduler
+import com.gokova.myanimelist.feature.recommendation.data.work.NewSeasonSchedulerImpl
 import com.gokova.myanimelist.feature.recommendation.data.work.RecommendationScheduler
 import com.gokova.myanimelist.feature.recommendation.data.work.RecommendationSchedulerImpl
+import com.gokova.myanimelist.feature.recommendation.domain.repository.NewSeasonRepository
 import com.gokova.myanimelist.feature.recommendation.domain.repository.RecommendationRepository
 import dagger.Binds
 import dagger.Module
@@ -34,6 +38,14 @@ abstract class RecommendationModule {
     abstract fun bindRecommendationScheduler(
         impl: RecommendationSchedulerImpl,
     ): RecommendationScheduler
+
+    @Binds
+    @Singleton
+    abstract fun bindNewSeasonRepository(impl: NewSeasonRepositoryImpl): NewSeasonRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindNewSeasonScheduler(impl: NewSeasonSchedulerImpl): NewSeasonScheduler
 
     companion object {
         @Provides
