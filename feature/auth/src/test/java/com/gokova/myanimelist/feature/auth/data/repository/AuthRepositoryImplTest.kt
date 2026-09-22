@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -88,6 +89,11 @@ class AuthRepositoryImplTest {
             )
     }
 
+    private fun createOAuthClient(
+        client: OkHttpClient = OkHttpClient(),
+        dispatcher: kotlinx.coroutines.CoroutineDispatcher = StandardTestDispatcher(),
+    ): MalOAuthClient = MalOAuthClient(client, oAuthConfig, dispatcher)
+
     @Test
     fun `getAuthorizationUrl builds URL using OAuthConfig and saves verifier and state`() =
         runTest {
@@ -95,7 +101,7 @@ class AuthRepositoryImplTest {
                 AuthRepositoryImpl(
                     authPreferences = preferences,
                     pkceGenerator = pkceGenerator,
-                    oAuthClient = MalOAuthClient(OkHttpClient(), oAuthConfig),
+                    oAuthClient = createOAuthClient(dispatcher = StandardTestDispatcher(testScheduler)),
                     oAuthConfig = oAuthConfig,
                 )
 
@@ -123,7 +129,7 @@ class AuthRepositoryImplTest {
                 AuthRepositoryImpl(
                     authPreferences = preferences,
                     pkceGenerator = pkceGenerator,
-                    oAuthClient = MalOAuthClient(OkHttpClient(), oAuthConfig),
+                    oAuthClient = createOAuthClient(dispatcher = StandardTestDispatcher(testScheduler)),
                     oAuthConfig = oAuthConfig,
                 )
 
@@ -143,7 +149,7 @@ class AuthRepositoryImplTest {
                 AuthRepositoryImpl(
                     authPreferences = preferences,
                     pkceGenerator = pkceGenerator,
-                    oAuthClient = MalOAuthClient(OkHttpClient(), oAuthConfig),
+                    oAuthClient = createOAuthClient(dispatcher = StandardTestDispatcher(testScheduler)),
                     oAuthConfig = oAuthConfig,
                 )
 
@@ -164,7 +170,7 @@ class AuthRepositoryImplTest {
                 AuthRepositoryImpl(
                     authPreferences = preferences,
                     pkceGenerator = pkceGenerator,
-                    oAuthClient = MalOAuthClient(OkHttpClient(), oAuthConfig),
+                    oAuthClient = createOAuthClient(dispatcher = StandardTestDispatcher(testScheduler)),
                     oAuthConfig = oAuthConfig,
                 )
 
@@ -200,7 +206,11 @@ class AuthRepositoryImplTest {
                             ).build()
                     }.build()
 
-            val oAuthClient = MalOAuthClient(okHttpClient, oAuthConfig)
+            val oAuthClient =
+                createOAuthClient(
+                    client = okHttpClient,
+                    dispatcher = StandardTestDispatcher(testScheduler),
+                )
             val repository =
                 AuthRepositoryImpl(
                     authPreferences = preferences,
@@ -227,7 +237,7 @@ class AuthRepositoryImplTest {
                 AuthRepositoryImpl(
                     authPreferences = preferences,
                     pkceGenerator = pkceGenerator,
-                    oAuthClient = MalOAuthClient(OkHttpClient(), oAuthConfig),
+                    oAuthClient = createOAuthClient(dispatcher = StandardTestDispatcher(testScheduler)),
                     oAuthConfig = oAuthConfig,
                 )
 

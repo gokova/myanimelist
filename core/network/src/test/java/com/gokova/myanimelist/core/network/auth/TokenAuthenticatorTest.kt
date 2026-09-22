@@ -237,7 +237,7 @@ class TokenAuthenticatorTest {
     }
 
     @Test
-    fun `authenticate clears tokens when refresh call fails`() {
+    fun `authenticate clears tokens when refresh call fails with 400 Bad Request`() {
         val mockClient =
             OkHttpClient
                 .Builder()
@@ -283,5 +283,96 @@ class TokenAuthenticatorTest {
         assertNull(nextRequest)
         assertNull(preferences.accessFlow.value)
         assertNull(preferences.refreshFlow.value)
+    }
+
+    @Test
+    fun `authenticate retains tokens when refresh call fails with IOException`() {
+        val mockClient =
+            OkHttpClient
+                .Builder()
+                .addInterceptor { _ ->
+                    throw java.io.IOException("Network connection timed out")
+                }.build()
+
+        val authenticator =
+            TokenAuthenticator(
+                authPreferences = preferences,
+                client = mockClient,
+                oAuthConfig = oAuthConfig,
+            )
+
+        preferences.accessFlow.value = "stale_token"
+        preferences.refreshFlow.value = "valid_refresh_token"
+
+        val request =
+            Request
+                .Builder()
+                .url("https://myanimelist.net/v2/anime")
+                .header("Authorization", "Bearer stale_token")
+                .build()
+
+        val response =
+            Response
+                .Builder()
+                .request(request)
+                .protocol(Protocol.HTTP_1_1)
+                .code(401)
+                .message("Unauthorized")
+                .build()
+
+        val nextRequest = authenticator.authenticate(null, response)
+
+        assertNull(nextRequest)
+        assertEquals("stale_token", preferences.accessFlow.value)
+        assertEquals("valid_refresh_token", preferences.refreshFlow.value)
+    }
+
+    @Test
+    fun `authenticate retains tokens when refresh call fails with 500 server error`() {
+        val mockClient =
+            OkHttpClient
+                .Builder()
+                .addInterceptor { chain ->
+                    Response
+                        .Builder()
+                        .request(chain.request())
+                        .protocol(Protocol.HTTP_1_1)
+                        .code(500)
+                        .message("Internal Server Error")
+                        .body("Server error".toResponseBody("text/plain".toMediaType()))
+                        .build()
+                }.build()
+
+        val authenticator =
+            TokenAuthenticator(
+                authPreferences = preferences,
+                client = mockClient,
+                oAuthConfig = oAuthConfig,
+            )
+
+        preferences.accessFlow.value = "stale_token"
+        preferences.refreshFlow.value = "valid_refresh_token"
+
+        val request =
+            Request
+                .Builder()
+                .url("https://myanimelist.net/v2/anime")
+                .header("Authorization", "Bearer stale_token")
+                .build()
+
+        val response =
+            Response
+                .Builder()
+                .request(request)
+                .protocol(Protocol.HTTP_1_1)
+                .code(401)
+                .message("Unauthorized")
+                .build()
+
+        val nextRequest = authenticator.authenticate(null, response)
+
+        assertNull(nextRequest)
+        assertEquals("stale_token", preferences.accessFlow.value)
+        assertEquals("valid_refresh_token", preferences.refreshFlow.value)
     }
 }

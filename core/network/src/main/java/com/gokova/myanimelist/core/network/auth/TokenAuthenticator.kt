@@ -1,6 +1,7 @@
 package com.gokova.myanimelist.core.network.auth
 
 import com.gokova.myanimelist.core.datastore.AuthPreferences
+import com.gokova.myanimelist.core.domain.logging.AppLog
 import com.gokova.myanimelist.core.network.config.OAuthConfig
 import com.gokova.myanimelist.core.network.di.Unauthenticated
 import kotlinx.coroutines.runBlocking
@@ -11,6 +12,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.Route
+import java.io.IOException
 import javax.inject.Inject
 
 /**
@@ -31,6 +33,16 @@ class TokenAuthenticator
         private val oAuthConfig: OAuthConfig,
     ) : Authenticator {
         private val json = Json { ignoreUnknownKeys = true }
+
+        private sealed interface RefreshResult {
+            data class Success(
+                val tokenResponse: TokenResponse,
+            ) : RefreshResult
+
+            data object InvalidSession : RefreshResult
+
+            data object TransientFailure : RefreshResult
+        }
 
         override fun authenticate(
             route: Route?,
@@ -66,37 +78,69 @@ class TokenAuthenticator
 
         private fun performTokenRefresh(response: Response): Request? {
             val refreshToken = authPreferences.getRefreshTokenSync()
-            val newTokenResponse = refreshToken?.let { refreshAccessToken(it) }
-
-            return if (newTokenResponse != null) {
-                runBlocking {
-                    authPreferences.saveTokens(
-                        accessToken = newTokenResponse.accessToken,
-                        refreshToken = newTokenResponse.refreshToken,
-                    )
-                }
-                response.request
-                    .newBuilder()
-                    .header("Authorization", "Bearer ${newTokenResponse.accessToken}")
-                    .build()
-            } else {
+            if (refreshToken == null) {
                 runBlocking {
                     authPreferences.clearTokens()
                 }
-                null
+                return null
+            }
+
+            return when (val result = refreshAccessToken(refreshToken)) {
+                is RefreshResult.Success -> {
+                    val newTokenResponse = result.tokenResponse
+                    runBlocking {
+                        authPreferences.saveTokens(
+                            accessToken = newTokenResponse.accessToken,
+                            refreshToken = newTokenResponse.refreshToken,
+                        )
+                    }
+                    response.request
+                        .newBuilder()
+                        .header("Authorization", "Bearer ${newTokenResponse.accessToken}")
+                        .build()
+                }
+                is RefreshResult.InvalidSession -> {
+                    AppLog.data.w { "Token refresh returned invalid session; clearing credentials" }
+                    runBlocking {
+                        authPreferences.clearTokens()
+                    }
+                    null
+                }
+                is RefreshResult.TransientFailure -> {
+                    AppLog.data.w { "Token refresh encountered transient error; preserving credentials" }
+                    null
+                }
             }
         }
 
-        private fun refreshAccessToken(refreshToken: String): TokenResponse? =
+        private fun refreshAccessToken(refreshToken: String): RefreshResult =
             try {
                 val request = buildRefreshRequest(refreshToken)
                 client.newCall(request).execute().use { response ->
-                    parseTokenResponse(response)
+                    when {
+                        response.isSuccessful -> {
+                            val bodyString = response.body.string()
+                            val tokenResponse = json.decodeFromString<TokenResponse>(bodyString)
+                            RefreshResult.Success(tokenResponse)
+                        }
+                        response.code in HTTP_AUTH_ERROR_RANGE -> {
+                            AppLog.data.w { "Token refresh failed with auth error: ${response.code}" }
+                            RefreshResult.InvalidSession
+                        }
+                        else -> {
+                            AppLog.data.w { "Token refresh failed with server status: ${response.code}" }
+                            RefreshResult.TransientFailure
+                        }
+                    }
                 }
+            } catch (e: IOException) {
+                AppLog.data.w(e) { "Token refresh failed due to network I/O error" }
+                RefreshResult.TransientFailure
             } catch (
-                @Suppress("TooGenericExceptionCaught", "SwallowedException") _: Exception,
+                @Suppress("TooGenericExceptionCaught") e: Exception,
             ) {
-                null
+                AppLog.data.e(e) { "Token refresh encountered unexpected error" }
+                RefreshResult.TransientFailure
             }
 
         private fun buildRefreshRequest(refreshToken: String): Request {
@@ -115,11 +159,6 @@ class TokenAuthenticator
                 .build()
         }
 
-        private fun parseTokenResponse(response: Response): TokenResponse? {
-            if (!response.isSuccessful) return null
-            return json.decodeFromString<TokenResponse>(response.body.string())
-        }
-
         private fun responseCount(response: Response): Int {
             var count = 1
             var prior = response.priorResponse
@@ -133,5 +172,6 @@ class TokenAuthenticator
         private companion object {
             private const val MAX_RETRY_COUNT = 3
             private const val TOKEN_ENDPOINT_PATH = "/oauth2/token"
+            private val HTTP_AUTH_ERROR_RANGE = 400..401
         }
     }
