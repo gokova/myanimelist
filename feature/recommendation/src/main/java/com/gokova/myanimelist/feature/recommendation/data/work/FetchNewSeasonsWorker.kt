@@ -14,6 +14,7 @@ import com.gokova.myanimelist.core.network.api.MalApiService
 import com.gokova.myanimelist.core.network.model.AnimeDetailsDto
 import com.gokova.myanimelist.core.network.model.RelatedAnimeEdgeDto
 import com.gokova.myanimelist.feature.recommendation.data.mapper.RecommendationMapper
+import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationConstants.MIN_USER_LIST_THRESHOLD
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.CancellationException
@@ -567,7 +568,6 @@ class FetchNewSeasonsWorker
 
         companion object {
             const val PRUNE_OBSOLETE_WINDOW_MS = 24 * 60 * 60 * 1000L
-            private const val MIN_USER_LIST_THRESHOLD = 5
             private const val USER_ANIME_BATCH_SIZE = 10
             private const val MAX_CANDIDATES_PER_ROOT = 50
             private val syncMutex = Mutex()

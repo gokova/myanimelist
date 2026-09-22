@@ -8,6 +8,7 @@ import com.gokova.myanimelist.feature.recommendation.data.work.NewSeasonSchedule
 import com.gokova.myanimelist.feature.recommendation.domain.model.NewSeasonAnime
 import com.gokova.myanimelist.feature.recommendation.domain.model.NewSeasonSortOption
 import com.gokova.myanimelist.feature.recommendation.domain.model.NewSeasonState
+import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationConstants.MIN_USER_LIST_THRESHOLD
 import com.gokova.myanimelist.feature.recommendation.domain.repository.NewSeasonRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -106,7 +107,6 @@ class NewSeasonRepositoryImpl
             }
 
         companion object {
-            private const val MIN_USER_LIST_THRESHOLD = 5
             private const val SEASON_ORDER_UNKNOWN = 0
             private const val SEASON_ORDER_WINTER = 1
             private const val SEASON_ORDER_SPRING = 2

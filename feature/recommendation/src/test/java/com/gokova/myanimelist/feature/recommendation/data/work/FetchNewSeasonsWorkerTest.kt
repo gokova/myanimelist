@@ -774,7 +774,7 @@ class FetchNewSeasonsWorkerTest {
             nsfw: Boolean,
         ) = throw UnsupportedOperationException()
 
-        override suspend fun getUserAnimeListNextPage(url: String) =
+        override suspend fun getAnimeListNextPage(url: String) =
             throw UnsupportedOperationException()
 
         override suspend fun getAnimeRanking(

@@ -11,6 +11,7 @@ import com.gokova.myanimelist.core.database.model.UserAnimeListItem
 import com.gokova.myanimelist.core.domain.logging.AppLog
 import com.gokova.myanimelist.feature.recommendation.data.mapper.RecommendationMapper
 import com.gokova.myanimelist.feature.recommendation.domain.algorithm.RecommendationScorer
+import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationConstants.MIN_USER_LIST_THRESHOLD
 import com.gokova.myanimelist.feature.recommendation.domain.model.UserTasteProfileItem
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -91,9 +92,5 @@ class EvaluateRecommendationsWorker
                     "${recommendationEntities.size} recommendations stored, " +
                     "${evaluation.discardedAnimeIds.size} discarded candidates pruned"
             }
-        }
-
-        companion object {
-            private const val MIN_USER_LIST_THRESHOLD = 5
         }
     }
