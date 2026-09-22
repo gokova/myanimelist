@@ -1,5 +1,6 @@
 package com.gokova.myanimelist.feature.recommendation.presentation
 
+import android.content.Intent
 import com.gokova.myanimelist.feature.recommendation.domain.model.NewSeasonAnime
 import com.gokova.myanimelist.feature.recommendation.domain.model.NewSeasonSortOption
 import com.gokova.myanimelist.feature.recommendation.domain.model.NewSeasonState
@@ -30,6 +31,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -39,6 +41,24 @@ class RecommendationViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
     private val fakeRepository = FakeRecommendationRepository()
     private val fakeNewSeasonRepository = FakeNewSeasonRepository()
+    private val fakePermissionManager = FakeBackgroundSyncPermissionManager()
+
+    private class FakeBackgroundSyncPermissionManager(
+        var shouldPromptValue: Boolean = false,
+        var isIgnoringValue: Boolean = false,
+    ) : BackgroundSyncPermissionManager {
+        var markPromptedCalled = false
+
+        override fun isIgnoringBatteryOptimizations(): Boolean = isIgnoringValue
+
+        override fun shouldPrompt(): Boolean = shouldPromptValue
+
+        override fun markPrompted() {
+            markPromptedCalled = true
+        }
+
+        override fun createPermissionIntent(): Intent = Intent("ACTION_FAKE_PERMISSION")
+    }
 
     private class FakeRecommendationRepository : RecommendationRepository {
         val stateFlow =
@@ -123,6 +143,7 @@ class RecommendationViewModelTest {
             triggerCalculationUseCase = triggerCalc,
             scheduleRecommendationWorkUseCase = scheduleWork,
             newSeasons = newSeasonsInteractor,
+            permissionManager = fakePermissionManager,
         )
     }
 
@@ -468,5 +489,37 @@ class RecommendationViewModelTest {
             assertEquals(genreAnime, success.recommendations)
 
             collectJob.cancel()
+        }
+
+    @Test
+    fun `when shouldPrompt is true, showBackgroundSyncPrompt is initially true`() =
+        runTest {
+            fakePermissionManager.shouldPromptValue = true
+            val viewModel = createViewModel()
+            assertTrue(viewModel.showBackgroundSyncPrompt.value)
+        }
+
+    @Test
+    fun `onEvent ConfirmBackgroundSyncPrompt marks prompted and hides prompt`() =
+        runTest {
+            fakePermissionManager.shouldPromptValue = true
+            val viewModel = createViewModel()
+            assertTrue(viewModel.showBackgroundSyncPrompt.value)
+
+            viewModel.onEvent(RecommendationUiEvent.ConfirmBackgroundSyncPrompt)
+            assertFalse(viewModel.showBackgroundSyncPrompt.value)
+            assertTrue(fakePermissionManager.markPromptedCalled)
+        }
+
+    @Test
+    fun `onEvent DismissBackgroundSyncPrompt marks prompted and hides prompt`() =
+        runTest {
+            fakePermissionManager.shouldPromptValue = true
+            val viewModel = createViewModel()
+            assertTrue(viewModel.showBackgroundSyncPrompt.value)
+
+            viewModel.onEvent(RecommendationUiEvent.DismissBackgroundSyncPrompt)
+            assertFalse(viewModel.showBackgroundSyncPrompt.value)
+            assertTrue(fakePermissionManager.markPromptedCalled)
         }
 }

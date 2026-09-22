@@ -13,13 +13,11 @@ import androidx.room.PrimaryKey
             entity = AnimeEntity::class,
             parentColumns = ["id"],
             childColumns = ["anime_id"],
-            onDelete = ForeignKey.CASCADE,
         ),
         ForeignKey(
             entity = AnimeEntity::class,
             parentColumns = ["id"],
             childColumns = ["parent_anime_id"],
-            onDelete = ForeignKey.CASCADE,
         ),
     ],
     indices = [

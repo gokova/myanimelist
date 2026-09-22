@@ -1,10 +1,9 @@
 package com.gokova.myanimelist.core.database.dao
 
 import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import androidx.room.Upsert
 import com.gokova.myanimelist.core.database.entity.AnimeEntity
 import com.gokova.myanimelist.core.database.entity.RecommendationCandidateEntity
 import com.gokova.myanimelist.core.database.entity.RecommendationEntity
@@ -28,10 +27,10 @@ interface RecommendationDao {
     @Query("SELECT COUNT(*) FROM recommendations")
     suspend fun getRecommendationCount(): Int
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun upsertAnimes(animes: List<AnimeEntity>)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun upsertCandidates(candidates: List<RecommendationCandidateEntity>)
 
     @Query("SELECT anime_id FROM user_anime_list")
@@ -55,7 +54,7 @@ interface RecommendationDao {
     )
     suspend fun getCandidateAnimes(): List<AnimeEntity>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun upsertRecommendations(recommendations: List<RecommendationEntity>)
 
     @Query("DELETE FROM recommendations")
@@ -69,7 +68,9 @@ interface RecommendationDao {
         DELETE FROM animes
         WHERE id IN (:animeIds)
           AND id NOT IN (SELECT anime_id FROM user_anime_list)
+          AND id NOT IN (SELECT anime_id FROM recommendations)
           AND id NOT IN (SELECT anime_id FROM new_season_animes)
+          AND id NOT IN (SELECT parent_anime_id FROM new_season_animes)
         """,
     )
     suspend fun deleteNonUserData(animeIds: List<Long>): Int

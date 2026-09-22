@@ -21,12 +21,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.gokova.myanimelist.core.domain.logging.AppLog
 import com.gokova.myanimelist.core.ui.component.AnimePosterPreviewDialog
 import com.gokova.myanimelist.core.ui.preview.StandardPreviews
 import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
@@ -35,6 +37,7 @@ import com.gokova.myanimelist.feature.recommendation.R
 import com.gokova.myanimelist.feature.recommendation.domain.model.NewSeasonAnime
 import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationType
 import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendedAnime
+import com.gokova.myanimelist.feature.recommendation.presentation.components.BackgroundSyncDialog
 import com.gokova.myanimelist.feature.recommendation.presentation.components.HeaderSortConfig
 import com.gokova.myanimelist.feature.recommendation.presentation.components.NewSeasonCard
 import com.gokova.myanimelist.feature.recommendation.presentation.components.RecommendationCard
@@ -57,6 +60,27 @@ fun RecommendationScreen(
     viewModel: RecommendationViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val showPrompt by viewModel.showBackgroundSyncPrompt.collectAsStateWithLifecycle()
+
+    if (showPrompt) {
+        val context = LocalContext.current
+        BackgroundSyncDialog(
+            onConfirm = {
+                viewModel.onEvent(RecommendationUiEvent.ConfirmBackgroundSyncPrompt)
+                try {
+                    context.startActivity(viewModel.getPermissionIntent())
+                } catch (
+                    @Suppress("TooGenericExceptionCaught") e: Exception,
+                ) {
+                    AppLog.ui.w(e) { "Could not launch battery optimization intent" }
+                }
+            },
+            onDismiss = {
+                viewModel.onEvent(RecommendationUiEvent.DismissBackgroundSyncPrompt)
+            },
+        )
+    }
+
     RecommendationContent(
         uiState = uiState,
         onEvent = viewModel::onEvent,

@@ -42,6 +42,8 @@ class NewSeasonRepositoryImplTest {
 
         override suspend fun getNewSeasonAnimeIds(parentIds: List<Long>?): List<Long> = emptyList()
 
+        override suspend fun getObsoleteNewSeasonAnimeIds(timestamp: Long): List<Long> = emptyList()
+
         override suspend fun getExistingAnimeIds(animeIds: List<Long>): List<Long> = emptyList()
 
         override suspend fun deleteNewSeasons(animeIds: List<Long>): Int = animeIds.size

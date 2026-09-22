@@ -12,11 +12,14 @@ import com.gokova.myanimelist.core.database.model.UserAnimeListItem
 import com.gokova.myanimelist.core.domain.logging.AppLog
 import com.gokova.myanimelist.core.network.api.MalApiService
 import com.gokova.myanimelist.core.network.model.AnimeDetailsDto
+import com.gokova.myanimelist.core.network.model.RelatedAnimeEdgeDto
 import com.gokova.myanimelist.feature.recommendation.data.mapper.RecommendationMapper
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import retrofit2.HttpException
 import java.io.IOException
 import kotlin.time.Duration.Companion.milliseconds
@@ -30,290 +33,294 @@ class FetchNewSeasonsWorker
         private val malApiService: MalApiService,
         private val userAnimeListDao: UserAnimeListDao,
         private val newSeasonDao: NewSeasonDao,
+        private val syncTracker: NewSeasonSyncTracker,
     ) : CoroutineWorker(context, params) {
-        override suspend fun doWork(): Result {
-            AppLog.domain.i { "FetchNewSeasonsWorker started" }
-            return try {
-                val userAnimeList = userAnimeListDao.getAllUserAnime()
-                if (userAnimeList.size < MIN_USER_LIST_THRESHOLD) {
-                    AppLog.domain.i {
-                        "User anime list has ${userAnimeList.size} < " +
-                            "$MIN_USER_LIST_THRESHOLD, skipping"
-                    }
-                    val previousIds = newSeasonDao.getNewSeasonAnimeIds()
-                    newSeasonDao.saveNewSeasonsTransaction(
-                        animes = emptyList(),
-                        newSeasons = emptyList(),
-                        discardedAnimeIds = previousIds,
-                    )
-                    Result.success()
+        private val workScope: String
+            get() =
+                if (inputData.getBoolean(NewSeasonScheduler.KEY_IS_MANUAL, false)) {
+                    NewSeasonSyncTracker.SCOPE_MANUAL
                 } else {
-                    val hasRetryableErrors = processNewSeasons(userAnimeList)
-                    if (hasRetryableErrors) {
-                        AppLog.domain.w {
-                            "FetchNewSeasonsWorker finished with partial retryable errors"
+                    NewSeasonSyncTracker.SCOPE_PERIODIC
+                }
+
+        override suspend fun doWork(): Result =
+            syncMutex.withLock {
+                AppLog.domain.i { "FetchNewSeasonsWorker started (attempt $runAttemptCount)" }
+                try {
+                    val userAnimeList = userAnimeListDao.getAllUserAnime()
+                    if (userAnimeList.size < MIN_USER_LIST_THRESHOLD) {
+                        AppLog.domain.i {
+                            "User anime list has ${userAnimeList.size} < " +
+                                "$MIN_USER_LIST_THRESHOLD, skipping"
+                        }
+                        val previousIds = newSeasonDao.getNewSeasonAnimeIds()
+                        newSeasonDao.saveNewSeasonsTransaction(
+                            animes = emptyList(),
+                            newSeasons = emptyList(),
+                            discardedAnimeIds = previousIds,
+                        )
+                        syncTracker.reset(workScope)
+                        Result.success()
+                    } else {
+                        val hasMoreWorkOrErrors = processNewSeasons(userAnimeList)
+                        if (hasMoreWorkOrErrors) {
+                            AppLog.domain.i {
+                                "FetchNewSeasonsWorker batch complete, scheduling next batch"
+                            }
+                            Result.retry()
+                        } else {
+                            Result.success()
+                        }
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: IOException) {
+                    AppLog.domain.w(e) { "FetchNewSeasonsWorker failed due to network error" }
+                    Result.retry()
+                } catch (e: HttpException) {
+                    if (e.code() == HTTP_TOO_MANY_REQUESTS || e.code() in HTTP_SERVER_ERROR_RANGE) {
+                        AppLog.domain.w(e) {
+                            "FetchNewSeasonsWorker hit retryable error: ${e.code()}"
                         }
                         Result.retry()
                     } else {
-                        Result.success()
+                        AppLog.domain.e(e) {
+                            "FetchNewSeasonsWorker encountered HTTP error: ${e.code()}"
+                        }
+                        Result.failure()
                     }
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: IOException) {
-                AppLog.domain.w(e) { "FetchNewSeasonsWorker failed due to network error" }
-                Result.retry()
-            } catch (e: HttpException) {
-                if (e.code() == HTTP_TOO_MANY_REQUESTS || e.code() in HTTP_SERVER_ERROR_RANGE) {
-                    AppLog.domain.w(e) {
-                        "FetchNewSeasonsWorker hit retryable error: ${e.code()}"
-                    }
-                    Result.retry()
-                } else {
-                    AppLog.domain.e(e) {
-                        "FetchNewSeasonsWorker encountered HTTP error: ${e.code()}"
-                    }
+                } catch (
+                    @Suppress("TooGenericExceptionCaught") e: Exception,
+                ) {
+                    AppLog.domain.e(e) { "FetchNewSeasonsWorker encountered fatal error" }
                     Result.failure()
                 }
-            } catch (
-                @Suppress("TooGenericExceptionCaught") e: Exception,
-            ) {
-                AppLog.domain.e(e) { "FetchNewSeasonsWorker encountered fatal error" }
-                Result.failure()
             }
-        }
 
         private suspend fun processNewSeasons(userAnimeList: List<UserAnimeListItem>): Boolean {
-            val previousAnimeIds = newSeasonDao.getNewSeasonAnimeIds()
-            val userAnimeIds = userAnimeList.map { it.anime.id }.toSet()
-            val candidateResult = collectCandidates(userAnimeList, userAnimeIds)
+            if (runAttemptCount == 0) {
+                syncTracker.reset(workScope)
+                syncTracker.setSyncStartTime(System.currentTimeMillis(), workScope)
+            }
 
-            if (candidateResult.candidateMap.isEmpty()) {
-                AppLog.domain.i { "No new season candidates discovered" }
-                if (candidateResult.failedParentAnimeIds.isEmpty()) {
-                    newSeasonDao.saveNewSeasonsTransaction(
-                        animes = emptyList(),
-                        newSeasons = emptyList(),
-                        discardedAnimeIds = previousAnimeIds,
-                    )
+            val syncStartTime =
+                syncTracker.getSyncStartTime(workScope).let { start ->
+                    if (start <= 0L) {
+                        val now = System.currentTimeMillis()
+                        syncTracker.setSyncStartTime(now, workScope)
+                        now
+                    } else {
+                        start
+                    }
                 }
-                return candidateResult.failedParentAnimeIds.isNotEmpty()
+            val lastProcessedId = syncTracker.getLastProcessedUserAnimeId(workScope)
+
+            val sortedUserList = userAnimeList.sortedBy { it.anime.id }
+            val remainingUserAnime = sortedUserList.filter { it.anime.id > lastProcessedId }
+            val userAnimeIds = userAnimeList.map { it.anime.id }.toSet()
+
+            if (remainingUserAnime.isEmpty()) {
+                AppLog.domain.i { "All user anime already processed, finalizing new seasons" }
+                pruneObsoleteSeasons(syncStartTime, userAnimeIds, emptySet())
+                syncTracker.reset(workScope)
+                return false
             }
 
-            val fetchResult = fetchCandidateEntities(candidateResult.candidateMap)
+            val currentBatch = remainingUserAnime.take(USER_ANIME_BATCH_SIZE)
 
-            if (fetchResult.savedAnimeIds.isEmpty() &&
-                fetchResult.retryableFailedCandidateIds.isNotEmpty()
-            ) {
-                throw IOException(
-                    "Failed to fetch any candidate anime details: all candidates failed",
-                )
+            val batchResult = processBatch(currentBatch, userAnimeIds)
+
+            val isFinished =
+                remainingUserAnime.size <= currentBatch.size && !batchResult.hasRetryableErrors
+            if (isFinished) {
+                pruneObsoleteSeasons(syncStartTime, userAnimeIds, batchResult.failedParentAnimeIds)
+                syncTracker.reset(workScope)
+                AppLog.domain.i { "FetchNewSeasonsWorker completed all batches successfully" }
+            } else {
+                AppLog.domain.i {
+                    "FetchNewSeasonsWorker batch complete. Saved: ${batchResult.savedCount}, " +
+                        "remaining user anime: ${remainingUserAnime.size - currentBatch.size}"
+                }
             }
 
-            pruneObsoleteSeasons(
-                previousAnimeIds = previousAnimeIds,
-                failedParentAnimeIds = candidateResult.failedParentAnimeIds,
-                fetchResult = fetchResult,
+            return !isFinished
+        }
+
+        private suspend fun processBatch(
+            currentBatch: List<UserAnimeListItem>,
+            userAnimeIds: Set<Long>,
+        ): BatchResult {
+            val visitedAnimeIds = userAnimeIds.toMutableSet()
+            val state = CandidateBatchState()
+            val failedParentAnimeIds = mutableSetOf<Long>()
+            var stoppedOrFailed = false
+
+            for (userItem in currentBatch) {
+                if (stoppedOrFailed || isStopped) {
+                    break
+                }
+                val parentId = userItem.anime.id
+                if (processUserAnimeTree(parentId, visitedAnimeIds, state)) {
+                    syncTracker.setLastProcessedUserAnimeId(parentId, workScope)
+                    delay(POLITE_DELAY_MS.milliseconds)
+                } else {
+                    failedParentAnimeIds.add(parentId)
+                    stoppedOrFailed = true
+                }
+            }
+
+            state.flushRemaining(newSeasonDao)
+
+            return BatchResult(
+                savedCount = state.savedAnimeIds.size,
+                hasRetryableErrors = failedParentAnimeIds.isNotEmpty(),
+                failedParentAnimeIds = failedParentAnimeIds,
             )
+        }
 
-            AppLog.domain.i {
-                "FetchNewSeasonsWorker finished batch: " +
-                    "${fetchResult.savedAnimeIds.size} new seasons saved, " +
-                    "${fetchResult.unreachedCandidateIds.size} deferred"
+        private suspend fun processUserAnimeTree(
+            parentId: Long,
+            visitedAnimeIds: MutableSet<Long>,
+            state: CandidateBatchState,
+        ): Boolean {
+            val queue = ArrayDeque<CandidateQueueItem>()
+            val collector = RecursiveCandidateCollector(visitedAnimeIds, queue)
+
+            val fetchResult =
+                fetchAnimeDetailsWithRetry(
+                    animeId = parentId,
+                    fields = MalApiService.FIELDS_RELATED_ANIME,
+                    itemType = "User anime",
+                )
+            var hasTreeError =
+                when (fetchResult) {
+                    is FetchItemResult.Success -> {
+                        collector.enqueueDirectEdges(fetchResult.details.relatedAnime, parentId)
+                        false
+                    }
+                    is FetchItemResult.NotFound -> {
+                        AppLog.domain.w { "User anime $parentId returned 404 Not Found" }
+                        false
+                    }
+                    is FetchItemResult.RetryableError -> true
+                }
+
+            if (!hasTreeError && queue.isNotEmpty()) {
+                val initialIds = queue.map { it.candidateId }
+                val existingAnimeIds = newSeasonDao.getExistingAnimeIds(initialIds).toMutableSet()
+                var processedCandidatesCount = 0
+
+                while (queue.isNotEmpty() && !isStopped && !hasTreeError) {
+                    if (processedCandidatesCount >= MAX_CANDIDATES_PER_ROOT) {
+                        AppLog.domain.w {
+                            "Reached max candidates limit ($MAX_CANDIDATES_PER_ROOT) for parent $parentId"
+                        }
+                        break
+                    }
+                    val item = queue.removeFirst()
+                    val success = processQueueItem(item, existingAnimeIds, state, collector)
+                    if (!success) {
+                        hasTreeError = true
+                    }
+                    processedCandidatesCount++
+                    state.flushIfFull(newSeasonDao)
+                }
+                if (isStopped) {
+                    AppLog.domain.i { "FetchNewSeasonsWorker stopped in traversal" }
+                    hasTreeError = true
+                }
             }
 
-            return candidateResult.failedParentAnimeIds.isNotEmpty() ||
-                fetchResult.retryableFailedCandidateIds.isNotEmpty() ||
-                fetchResult.unreachedCandidateIds.isNotEmpty()
+            return !hasTreeError
+        }
+
+        private suspend fun processQueueItem(
+            item: CandidateQueueItem,
+            existingAnimeIds: MutableSet<Long>,
+            state: CandidateBatchState,
+            collector: RecursiveCandidateCollector,
+        ): Boolean {
+            val candidateId = item.candidateId
+            val isContinuation = item.relation.relationType in CONTINUATION_RELATIONS
+            val newSeason = item.toNewSeasonEntity()
+
+            var success = true
+            val isAlreadyCached =
+                candidateId in existingAnimeIds ||
+                    newSeasonDao.getExistingAnimeIds(listOf(candidateId)).isNotEmpty()
+            if (isAlreadyCached) {
+                existingAnimeIds.add(candidateId)
+                state.addCached(candidateId, newSeason)
+                if (isContinuation && item.depth < MAX_RECURSION_DEPTH) {
+                    val relResult =
+                        fetchAnimeDetailsWithRetry(
+                            animeId = candidateId,
+                            fields = MalApiService.FIELDS_RELATED_ANIME,
+                            itemType = "Continuation",
+                        )
+                    when (relResult) {
+                        is FetchItemResult.Success -> {
+                            collector.discover(item, relResult.details.relatedAnime.orEmpty())
+                        }
+                        is FetchItemResult.NotFound -> Unit
+                        is FetchItemResult.RetryableError -> success = false
+                    }
+                    delay(POLITE_DELAY_MS.milliseconds)
+                }
+            } else {
+                val detailsResult =
+                    fetchAnimeDetailsWithRetry(
+                        animeId = candidateId,
+                        fields = MalApiService.DEFAULT_ANIME_DETAILS_FIELDS,
+                        itemType = "Candidate",
+                    )
+                when (detailsResult) {
+                    is FetchItemResult.Success -> {
+                        state.handleFetchSuccess(candidateId, newSeason, detailsResult.details)
+                        existingAnimeIds.add(candidateId)
+                        if (isContinuation && item.depth < MAX_RECURSION_DEPTH) {
+                            collector.discover(item, detailsResult.details.relatedAnime.orEmpty())
+                        }
+                    }
+                    is FetchItemResult.NotFound -> {
+                        AppLog.domain.w { "Candidate $candidateId returned 404 Not Found" }
+                    }
+                    is FetchItemResult.RetryableError -> success = false
+                }
+                delay(POLITE_DELAY_MS.milliseconds)
+            }
+            return success
         }
 
         private suspend fun pruneObsoleteSeasons(
-            previousAnimeIds: List<Long>,
+            syncStartTime: Long,
+            userAnimeIds: Set<Long>,
             failedParentAnimeIds: Set<Long>,
-            fetchResult: CandidateFetchResult,
         ) {
-            val protectedParentChildIds =
+            val protectedChildIds =
                 if (failedParentAnimeIds.isNotEmpty()) {
                     newSeasonDao.getNewSeasonAnimeIds(failedParentAnimeIds.toList()).toSet()
                 } else {
                     emptySet()
                 }
 
-            val discardedIds =
-                previousAnimeIds.filter { id ->
-                    id !in fetchResult.savedAnimeIds &&
-                        id !in protectedParentChildIds &&
-                        id !in fetchResult.retryableFailedCandidateIds &&
-                        id !in fetchResult.unreachedCandidateIds
-                }
+            val cutoffTime = (syncStartTime - PRUNE_OBSOLETE_WINDOW_MS).coerceAtLeast(0L)
+            val timeObsoleteIds =
+                newSeasonDao
+                    .getObsoleteNewSeasonAnimeIds(cutoffTime)
+                    .filter { it !in protectedChildIds }
 
-            if (discardedIds.isNotEmpty()) {
-                newSeasonDao.saveNewSeasonsTransaction(discardedAnimeIds = discardedIds)
+            val inUserListIds =
+                newSeasonDao
+                    .getNewSeasonAnimeIds()
+                    .filter { it in userAnimeIds }
+
+            val obsoleteIds = (timeObsoleteIds + inUserListIds).distinct()
+
+            if (obsoleteIds.isNotEmpty()) {
+                newSeasonDao.saveNewSeasonsTransaction(discardedAnimeIds = obsoleteIds)
+                AppLog.domain.i { "Pruned ${obsoleteIds.size} obsolete new season records" }
             }
-        }
-
-        private suspend fun collectCandidates(
-            userAnimeList: List<UserAnimeListItem>,
-            userAnimeIds: Set<Long>,
-        ): CandidateCollectionResult {
-            val candidateMap = mutableMapOf<Long, CandidateRelation>()
-            val failedParentAnimeIds = mutableSetOf<Long>()
-            var successCount = 0
-
-            for (userItem in userAnimeList) {
-                if (isStopped) {
-                    AppLog.domain.i {
-                        "FetchNewSeasonsWorker stopped by system during parent scan"
-                    }
-                    failedParentAnimeIds.add(userItem.anime.id)
-                    continue
-                }
-                val animeId = userItem.anime.id
-                val fetchResult =
-                    fetchAnimeDetailsWithRetry(
-                        animeId = animeId,
-                        fields = MalApiService.FIELDS_RELATED_ANIME,
-                        itemType = "User anime",
-                    )
-                when (fetchResult) {
-                    is FetchItemResult.Success -> {
-                        successCount++
-                        collectNarrativeCandidates(
-                            details = fetchResult.details,
-                            userAnimeIds = userAnimeIds,
-                            parentAnimeId = animeId,
-                            candidateMap = candidateMap,
-                        )
-                    }
-                    is FetchItemResult.NotFound -> {
-                        AppLog.domain.w { "User anime $animeId returned 404 Not Found" }
-                    }
-                    is FetchItemResult.RetryableError -> {
-                        failedParentAnimeIds.add(animeId)
-                    }
-                }
-                delay(POLITE_DELAY_MS.milliseconds)
-            }
-
-            if (userAnimeList.isNotEmpty() &&
-                successCount == 0 &&
-                failedParentAnimeIds.isNotEmpty()
-            ) {
-                throw IOException("Failed to fetch related anime for all user anime items")
-            }
-
-            return CandidateCollectionResult(candidateMap, failedParentAnimeIds)
-        }
-
-        private fun collectNarrativeCandidates(
-            details: AnimeDetailsDto,
-            userAnimeIds: Set<Long>,
-            parentAnimeId: Long,
-            candidateMap: MutableMap<Long, CandidateRelation>,
-        ) {
-            val edges = details.relatedAnime ?: return
-            for (edge in edges) {
-                val relatedId = edge.node.id
-                if (relatedId !in userAnimeIds && edge.relationType in NARRATIVE_RELATIONS) {
-                    candidateMap.putIfAbsent(
-                        relatedId,
-                        CandidateRelation(
-                            parentAnimeId = parentAnimeId,
-                            relationType = edge.relationType,
-                            relationTypeFormatted = edge.relationTypeFormatted,
-                        ),
-                    )
-                }
-            }
-        }
-
-        private suspend fun fetchCandidateEntities(
-            candidateMap: Map<Long, CandidateRelation>,
-        ): CandidateFetchResult {
-            val existingAnimeIds =
-                newSeasonDao.getExistingAnimeIds(candidateMap.keys.toList()).toSet()
-            val state = CandidateBatchState(existingAnimeIds)
-            var uncachedFetchCount = 0
-            val unreachedCandidateIds = mutableSetOf<Long>()
-
-            for ((candidateId, relation) in candidateMap) {
-                if (isStopped) {
-                    AppLog.domain.i {
-                        "FetchNewSeasonsWorker stopped by system, deferring remaining candidates"
-                    }
-                    unreachedCandidateIds.add(candidateId)
-                    continue
-                }
-
-                val newSeason =
-                    NewSeasonAnimeEntity(
-                        animeId = candidateId,
-                        parentAnimeId = relation.parentAnimeId,
-                        relationType = relation.relationType,
-                        relationTypeFormatted = relation.relationTypeFormatted,
-                    )
-                if (candidateId in existingAnimeIds) {
-                    state.addCached(candidateId, newSeason)
-                } else if (uncachedFetchCount >= MAX_UNCACHED_FETCHES_PER_RUN) {
-                    unreachedCandidateIds.add(candidateId)
-                } else {
-                    uncachedFetchCount++
-                    processCandidate(candidateId, newSeason, state)
-                }
-
-                if (state.shouldFlush()) {
-                    newSeasonDao.saveNewSeasonsTransaction(
-                        animes = state.pendingAnimes.toList(),
-                        newSeasons = state.pendingNewSeasons.toList(),
-                    )
-                    state.clearPending()
-                }
-            }
-
-            if (state.hasPending()) {
-                newSeasonDao.saveNewSeasonsTransaction(
-                    animes = state.pendingAnimes.toList(),
-                    newSeasons = state.pendingNewSeasons.toList(),
-                )
-                state.clearPending()
-            }
-
-            return CandidateFetchResult(
-                savedAnimeIds = state.savedAnimeIds,
-                retryableFailedCandidateIds = state.retryableFailedCandidateIds,
-                unreachedCandidateIds = unreachedCandidateIds,
-            )
-        }
-
-        private suspend fun processCandidate(
-            candidateId: Long,
-            newSeason: NewSeasonAnimeEntity,
-            state: CandidateBatchState,
-        ) {
-            if (candidateId in state.existingAnimeIds) {
-                state.addCached(candidateId, newSeason)
-                return
-            }
-
-            val result =
-                fetchAnimeDetailsWithRetry(
-                    animeId = candidateId,
-                    fields = MalApiService.DEFAULT_ANIME_DETAILS_FIELDS,
-                    itemType = "Candidate",
-                )
-            when (result) {
-                is FetchItemResult.Success -> {
-                    val anime = RecommendationMapper.toAnimeEntity(result.details.toAnimeNodeDto())
-                    state.addSuccess(candidateId, newSeason, anime)
-                }
-                is FetchItemResult.NotFound -> {
-                    AppLog.domain.w { "Candidate $candidateId returned 404 Not Found" }
-                }
-                is FetchItemResult.RetryableError -> {
-                    state.addRetryableFailure(candidateId)
-                }
-            }
-            delay(POLITE_DELAY_MS.milliseconds)
         }
 
         private suspend fun fetchAnimeDetailsWithRetry(
@@ -390,13 +397,10 @@ class FetchNewSeasonsWorker
             }
         }
 
-        private class CandidateBatchState(
-            val existingAnimeIds: Set<Long>,
-        ) {
+        private class CandidateBatchState {
             val pendingAnimes = mutableListOf<AnimeEntity>()
             val pendingNewSeasons = mutableListOf<NewSeasonAnimeEntity>()
             val savedAnimeIds = mutableSetOf<Long>()
-            val retryableFailedCandidateIds = mutableSetOf<Long>()
 
             fun addCached(
                 candidateId: Long,
@@ -416,15 +420,36 @@ class FetchNewSeasonsWorker
                 savedAnimeIds.add(candidateId)
             }
 
-            fun addRetryableFailure(candidateId: Long) {
-                retryableFailedCandidateIds.add(candidateId)
+            fun handleFetchSuccess(
+                candidateId: Long,
+                newSeason: NewSeasonAnimeEntity,
+                details: AnimeDetailsDto,
+            ) {
+                val anime = RecommendationMapper.toAnimeEntity(details.toAnimeNodeDto())
+                addSuccess(candidateId, newSeason, anime)
             }
 
-            fun shouldFlush(): Boolean = pendingNewSeasons.size >= BATCH_FLUSH_SIZE
+            suspend fun flushIfFull(newSeasonDao: NewSeasonDao) {
+                if (pendingNewSeasons.size >= BATCH_FLUSH_SIZE) {
+                    newSeasonDao.saveNewSeasonsTransaction(
+                        animes = pendingAnimes.toList(),
+                        newSeasons = pendingNewSeasons.toList(),
+                    )
+                    clearPending()
+                }
+            }
 
-            fun hasPending(): Boolean = pendingNewSeasons.isNotEmpty() || pendingAnimes.isNotEmpty()
+            suspend fun flushRemaining(newSeasonDao: NewSeasonDao) {
+                if (pendingNewSeasons.isNotEmpty() || pendingAnimes.isNotEmpty()) {
+                    newSeasonDao.saveNewSeasonsTransaction(
+                        animes = pendingAnimes.toList(),
+                        newSeasons = pendingNewSeasons.toList(),
+                    )
+                    clearPending()
+                }
+            }
 
-            fun clearPending() {
+            private fun clearPending() {
                 pendingAnimes.clear()
                 pendingNewSeasons.clear()
             }
@@ -455,15 +480,83 @@ class FetchNewSeasonsWorker
             ) : AttemptResult
         }
 
-        private data class CandidateCollectionResult(
-            val candidateMap: Map<Long, CandidateRelation>,
-            val failedParentAnimeIds: Set<Long>,
-        )
+        private data class CandidateQueueItem(
+            val candidateId: Long,
+            val relation: CandidateRelation,
+            val depth: Int,
+        ) {
+            fun toNewSeasonEntity(): NewSeasonAnimeEntity =
+                NewSeasonAnimeEntity(
+                    animeId = candidateId,
+                    parentAnimeId = relation.parentAnimeId,
+                    relationType = relation.relationType,
+                    relationTypeFormatted = relation.relationTypeFormatted,
+                    createdAt = System.currentTimeMillis(),
+                )
+        }
 
-        private data class CandidateFetchResult(
-            val savedAnimeIds: Set<Long>,
-            val retryableFailedCandidateIds: Set<Long>,
-            val unreachedCandidateIds: Set<Long> = emptySet(),
+        private class RecursiveCandidateCollector(
+            private val visitedAnimeIds: MutableSet<Long>,
+            private val queue: ArrayDeque<CandidateQueueItem>,
+        ) {
+            fun enqueueDirectEdges(
+                edges: List<RelatedAnimeEdgeDto>?,
+                parentAnimeId: Long,
+            ) {
+                if (edges.isNullOrEmpty()) return
+                for (edge in edges) {
+                    val childId = edge.node.id
+                    if (childId !in visitedAnimeIds && edge.relationType in NARRATIVE_RELATIONS) {
+                        visitedAnimeIds.add(childId)
+                        queue.addLast(
+                            CandidateQueueItem(
+                                candidateId = childId,
+                                relation =
+                                    CandidateRelation(
+                                        parentAnimeId = parentAnimeId,
+                                        relationType = edge.relationType,
+                                        relationTypeFormatted = edge.relationTypeFormatted,
+                                    ),
+                                depth = 1,
+                            ),
+                        )
+                    }
+                }
+            }
+
+            fun discover(
+                parentItem: CandidateQueueItem,
+                relatedEdges: List<RelatedAnimeEdgeDto>,
+            ) {
+                if (parentItem.relation.relationType !in CONTINUATION_RELATIONS) return
+
+                for (edge in relatedEdges) {
+                    val childId = edge.node.id
+                    val relType = edge.relationType
+
+                    if (childId !in visitedAnimeIds && relType in NARRATIVE_RELATIONS) {
+                        visitedAnimeIds.add(childId)
+                        queue.addLast(
+                            CandidateQueueItem(
+                                candidateId = childId,
+                                relation =
+                                    CandidateRelation(
+                                        parentAnimeId = parentItem.candidateId,
+                                        relationType = edge.relationType,
+                                        relationTypeFormatted = edge.relationTypeFormatted,
+                                    ),
+                                depth = parentItem.depth + 1,
+                            ),
+                        )
+                    }
+                }
+            }
+        }
+
+        private data class BatchResult(
+            val savedCount: Int,
+            val hasRetryableErrors: Boolean,
+            val failedParentAnimeIds: Set<Long>,
         )
 
         private data class CandidateRelation(
@@ -473,15 +566,25 @@ class FetchNewSeasonsWorker
         )
 
         companion object {
+            const val PRUNE_OBSOLETE_WINDOW_MS = 24 * 60 * 60 * 1000L
             private const val MIN_USER_LIST_THRESHOLD = 5
+            private const val USER_ANIME_BATCH_SIZE = 10
+            private const val MAX_CANDIDATES_PER_ROOT = 50
+            private val syncMutex = Mutex()
             private const val POLITE_DELAY_MS = 300L
             private const val RATE_LIMIT_BACKOFF_MS = 1500L
             private const val MAX_ITEM_ATTEMPTS = 2
             private const val BATCH_FLUSH_SIZE = 5
-            private const val MAX_UNCACHED_FETCHES_PER_RUN = 50
+            private const val MAX_RECURSION_DEPTH = 10
             private const val HTTP_NOT_FOUND = 404
             private const val HTTP_TOO_MANY_REQUESTS = 429
             private val HTTP_SERVER_ERROR_RANGE = 500..599
+
+            private val CONTINUATION_RELATIONS =
+                setOf(
+                    "sequel",
+                    "prequel",
+                )
 
             private val NARRATIVE_RELATIONS =
                 setOf(

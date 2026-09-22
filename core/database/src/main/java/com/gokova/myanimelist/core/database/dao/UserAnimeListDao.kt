@@ -1,10 +1,9 @@
 package com.gokova.myanimelist.core.database.dao
 
 import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import androidx.room.Upsert
 import com.gokova.myanimelist.core.database.entity.AnimeEntity
 import com.gokova.myanimelist.core.database.entity.UserAnimeListEntity
 import com.gokova.myanimelist.core.database.model.UserAnimeListItem
@@ -24,10 +23,10 @@ interface UserAnimeListDao {
     @Query("SELECT * FROM user_anime_list WHERE status = :status")
     fun observeUserAnimeByStatus(status: String): Flow<List<UserAnimeListItem>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun upsertAnimes(animes: List<AnimeEntity>)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun upsertUserAnimeList(userAnimeList: List<UserAnimeListEntity>)
 
     @Query("DELETE FROM user_anime_list")

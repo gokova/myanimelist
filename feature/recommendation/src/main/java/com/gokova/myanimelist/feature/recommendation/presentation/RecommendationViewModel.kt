@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
@@ -37,11 +38,17 @@ class RecommendationViewModel
         private val triggerCalculationUseCase: TriggerRecommendationCalculationUseCase,
         private val scheduleRecommendationWorkUseCase: ScheduleRecommendationWorkUseCase,
         private val newSeasons: NewSeasonsInteractor,
+        private val permissionManager: BackgroundSyncPermissionManager,
     ) : ViewModel() {
         private val selectedType = MutableStateFlow(RecommendationType.GENRE)
         private val newSeasonSort = MutableStateFlow(NewSeasonSortOption.RELEASE_DATE_DESC)
+        private val _showBackgroundSyncPrompt = MutableStateFlow(false)
+        val showBackgroundSyncPrompt: StateFlow<Boolean> = _showBackgroundSyncPrompt.asStateFlow()
 
         init {
+            if (permissionManager.shouldPrompt()) {
+                _showBackgroundSyncPrompt.value = true
+            }
             viewModelScope.launch {
                 scheduleRecommendationWorkUseCase()
                 newSeasons.scheduleWork()
@@ -145,8 +152,20 @@ class RecommendationViewModel
                 RecommendationUiEvent.CalculateNow,
                 RecommendationUiEvent.Refresh,
                 -> handleRefresh()
+                RecommendationUiEvent.ConfirmBackgroundSyncPrompt -> {
+                    AppLog.ui.i { "User confirmed background sync prompt" }
+                    permissionManager.markPrompted()
+                    _showBackgroundSyncPrompt.value = false
+                }
+                RecommendationUiEvent.DismissBackgroundSyncPrompt -> {
+                    AppLog.ui.i { "User dismissed background sync prompt" }
+                    permissionManager.markPrompted()
+                    _showBackgroundSyncPrompt.value = false
+                }
             }
         }
+
+        fun getPermissionIntent() = permissionManager.createPermissionIntent()
 
         private fun handleRefresh() {
             AppLog.ui.i { "User triggered recalculation for type: ${selectedType.value}" }
