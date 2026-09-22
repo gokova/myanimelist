@@ -20,6 +20,7 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Surface
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -29,6 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalWindowInfo
@@ -115,7 +117,7 @@ fun MyListContent(
         modifier = modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = Color.Transparent,
     ) { paddingValues ->
         PullToRefreshBox(
             isRefreshing = uiState.isRefreshing,
@@ -270,15 +272,17 @@ private fun MyListScreenPreview(
     @PreviewParameter(MyListUiStatePreviewParameterProvider::class) uiState: MyListUiState,
 ) {
     MyAnimeListTheme {
-        MyListContent(
-            uiState = uiState,
-            snackbarHostState = remember { SnackbarHostState() },
-            actions =
-                MyListActions(
-                    onCategorySelected = {},
-                    onSortSelected = {},
-                    onRefresh = {},
-                ),
-        )
+        Surface(color = MaterialTheme.colorScheme.background) {
+            MyListContent(
+                uiState = uiState,
+                snackbarHostState = remember { SnackbarHostState() },
+                actions =
+                    MyListActions(
+                        onCategorySelected = {},
+                        onSortSelected = {},
+                        onRefresh = {},
+                    ),
+            )
+        }
     }
 }
