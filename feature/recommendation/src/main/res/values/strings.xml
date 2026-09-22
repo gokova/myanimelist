@@ -44,4 +44,9 @@
     <string name="recommendation_episodes_unknown">\? ep</string>
     <string name="recommendation_metadata_separator"> • </string>
     <string name="recommendation_zoom_poster_description">Zoom poster for %s</string>
+
+    <string name="background_sync_dialog_title">Allow Background Sync</string>
+    <string name="background_sync_dialog_message">To discover new seasons and recommendations seamlessly when your phone is locked, please allow MyAnimeList to run unrestricted in battery settings.</string>
+    <string name="background_sync_dialog_confirm">Open Settings</string>
+    <string name="background_sync_dialog_dismiss">Not Now</string>
 </resources>

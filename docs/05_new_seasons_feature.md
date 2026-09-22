@@ -35,8 +35,12 @@ Suggestions are fetched periodically every 30 days when the device is connected 
 4. **Background Pipeline (`FetchNewSeasonsWorker`)**:
    - Single cohesive Hilt `CoroutineWorker`.
    - Fetches related anime for all entries in `user_anime_list` with polite request pacing (300ms delay) to respect MAL rate limits.
-   - Retrieves full details for discovered unique candidates.
-   - Atomically updates Room: clears `new_season_animes`, upserts anime entities, inserts new relations, and safely deletes pruned candidates not referenced by `user_anime_list` or `recommendations`.
+   - Processes user anime in deterministic batches of 10 roots. `NewSeasonSyncTracker` persists the last processed anime ID and sync start timestamp so `Result.retry()` resumes the same sync rather than starting over.
+   - Discovers multi-hop continuations (e.g. Season 1 -> Season 2 -> Season 3) recursively via BFS: each candidate fetch (`GET /v2/anime/{id}?fields=...`) retrieves `related_anime` and enqueues sequential continuation edges (`sequel`, `prequel`) up to depth 10. Lateral relations are included as direct candidates but are not recursively traversed.
+   - A per-batch `visitedAnimeIds` set prevents cycles in bidirectional MAL relations and excludes anime already in the user's list.
+   - Candidate results are incrementally upserted in Room in flushes of five records. At successful completion, records with `created_at` older than the sync start are pruned, while records belonging to a failed parent remain protected for the next retry.
+   - Retryable item failures (I/O, HTTP 429, and HTTP 5xx) receive two item-level attempts and cause the WorkManager request to retry; 404 responses are treated as permanent for that item.
+   - The current implementation does not yet enforce a global candidate-fetch cap across recursive traversal. The 10-minute WorkManager safety limit therefore remains an open reliability requirement, and deferred traversal must be addressed before claiming that guarantee.
    - Minimum user list threshold: 5 anime.
 
 5. **Mutual Candidate Isolation**:
@@ -46,7 +50,8 @@ Suggestions are fetched periodically every 30 days when the device is connected 
 6. **Scheduling & Triggers (`NewSeasonScheduler`)**:
    - Recurring 30-day periodic work (`PeriodicWorkRequestBuilder(30, TimeUnit.DAYS)`) with `NetworkType.CONNECTED` and `setRequiresDeviceIdle(true)`.
    - Lazy initial calculation on screen visit if `new_season_animes` is empty and user has $\ge 5$ anime.
-   - Immediate manual recalculation via the header refresh button (bypassing the idle constraint).
+   - Immediate manual recalculation via the header refresh button (bypassing the idle constraint). Manual and lazy one-time requests currently use `REPLACE` and omit the connected-network constraint; this should be reconciled with the intended scheduling contract.
+   - The recommendation screen prompts once for battery-optimization exemption and opens the system battery settings screen; the user's response is persisted in `background_sync_prefs`.
 
 7. **UI & Presentation (`:feature:recommendation`)**:
    - 3-segmented button pill switch: `Genres`, `Themes`, `New Seasons`.
@@ -79,7 +84,8 @@ Suggestions are fetched periodically every 30 days when the device is connected 
 │   │   └── NewSeasonRepositoryImpl.kt
 │   └── work/
 │       ├── FetchNewSeasonsWorker.kt
-│       └── NewSeasonScheduler.kt
+│       ├── NewSeasonScheduler.kt
+│       └── NewSeasonSyncTracker.kt
 ├── domain/
 │   ├── model/
 │   │   ├── NewSeasonAnime.kt
@@ -136,18 +142,25 @@ sequenceDiagram
     participant VM as RecommendationViewModel
 
     Scheduler->>Worker: Enqueue Worker (Periodic / Manual / Lazy)
-    Worker->>DB: Get User Anime List (IDs & Titles)
-    loop For each user anime (polite 300ms pacing)
-        Worker->>API: GET /v2/anime/{id}?fields=related_anime
-        API-->>Worker: Anime details with related_anime
+    Worker->>Tracker: Read sync cursor and sync start time
+    Worker->>DB: Get and sort user anime list
+    loop For each batch of up to 10 roots
+        Worker->>API: GET root details with related_anime
+        Worker->>Worker: BFS continuations, filter user IDs, prevent cycles
+        loop For each queued candidate
+            Worker->>API: GET candidate details
+            API-->>Worker: Full metadata and optional related_anime
+        end
+        Worker->>DB: Flush upserts in small Room transactions
+        Worker->>Tracker: Persist last successful root
     end
-    Worker->>Worker: Filter narrative relations & exclude user's anime IDs
-    loop For each unique new season candidate
-        Worker->>API: GET /v2/anime/{candidate_id}
-        API-->>Worker: Full anime metadata
+    alt More roots or retryable error
+        Worker-->>Scheduler: Result.retry()
+    else All roots complete
+        Worker->>DB: Prune stale records and orphaned anime
+        Worker->>Tracker: Reset cursor
+        Worker-->>Scheduler: Result.success()
     end
-    Worker->>DB: Atomic transaction (upsert animes, replace new_season_animes, prune orphaned)
-    Worker-->>Scheduler: Finished
 
     UI->>VM: Screen Entered / Tab Switched to NEW_SEASONS
     VM->>DB: Observe new seasons (Flow)

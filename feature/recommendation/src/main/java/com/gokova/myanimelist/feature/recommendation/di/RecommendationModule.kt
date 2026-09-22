@@ -7,10 +7,14 @@ import com.gokova.myanimelist.feature.recommendation.data.repository.NewSeasonRe
 import com.gokova.myanimelist.feature.recommendation.data.repository.RecommendationRepositoryImpl
 import com.gokova.myanimelist.feature.recommendation.data.work.NewSeasonScheduler
 import com.gokova.myanimelist.feature.recommendation.data.work.NewSeasonSchedulerImpl
+import com.gokova.myanimelist.feature.recommendation.data.work.NewSeasonSyncTracker
+import com.gokova.myanimelist.feature.recommendation.data.work.NewSeasonSyncTrackerImpl
 import com.gokova.myanimelist.feature.recommendation.data.work.RecommendationScheduler
 import com.gokova.myanimelist.feature.recommendation.data.work.RecommendationSchedulerImpl
 import com.gokova.myanimelist.feature.recommendation.domain.repository.NewSeasonRepository
 import com.gokova.myanimelist.feature.recommendation.domain.repository.RecommendationRepository
+import com.gokova.myanimelist.feature.recommendation.presentation.BackgroundSyncPermissionManager
+import com.gokova.myanimelist.feature.recommendation.presentation.BackgroundSyncPermissionManagerImpl
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -46,6 +50,16 @@ abstract class RecommendationModule {
     @Binds
     @Singleton
     abstract fun bindNewSeasonScheduler(impl: NewSeasonSchedulerImpl): NewSeasonScheduler
+
+    @Binds
+    @Singleton
+    abstract fun bindNewSeasonSyncTracker(impl: NewSeasonSyncTrackerImpl): NewSeasonSyncTracker
+
+    @Binds
+    @Singleton
+    abstract fun bindBackgroundSyncPermissionManager(
+        impl: BackgroundSyncPermissionManagerImpl,
+    ): BackgroundSyncPermissionManager
 
     companion object {
         @Provides

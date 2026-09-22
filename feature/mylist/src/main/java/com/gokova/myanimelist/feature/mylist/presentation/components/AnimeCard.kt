@@ -4,7 +4,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -23,9 +22,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -132,23 +133,23 @@ private fun PosterThumbnail(
         } else {
             R.string.my_list_poster_content_description
         }
+    val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
+    val placeholderPainter = remember(surfaceVariant) { ColorPainter(surfaceVariant) }
 
-    Box(
+    AsyncImage(
+        model = imageUrl,
+        contentDescription = stringResource(contentDescRes, title),
+        placeholder = placeholderPainter,
+        error = placeholderPainter,
+        fallback = placeholderPainter,
         modifier =
             Modifier
                 .width(80.dp)
                 .height(120.dp)
                 .clip(MaterialTheme.shapes.small)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
                 .then(clickableModifier),
-    ) {
-        AsyncImage(
-            model = imageUrl,
-            contentDescription = stringResource(contentDescRes, title),
-            modifier = Modifier.matchParentSize(),
-            contentScale = ContentScale.Crop,
-        )
-    }
+        contentScale = ContentScale.Crop,
+    )
 }
 
 @Composable

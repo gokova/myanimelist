@@ -11,6 +11,7 @@ import com.gokova.myanimelist.core.network.model.AnimeNodeDto
 import com.gokova.myanimelist.feature.recommendation.data.mapper.RecommendationMapper
 import com.gokova.myanimelist.feature.recommendation.data.remote.RecommendationRemoteDataSource
 import com.gokova.myanimelist.feature.recommendation.data.remote.SeasonalPeriodCalculator
+import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationConstants.MIN_USER_LIST_THRESHOLD
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.CancellationException
@@ -89,9 +90,5 @@ class FetchCandidatesWorker
             AppLog.domain.i {
                 "FetchCandidatesWorker finished: ${allCandidates.size} candidates saved"
             }
-        }
-
-        companion object {
-            private const val MIN_USER_LIST_THRESHOLD = 5
         }
     }

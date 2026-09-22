@@ -62,12 +62,6 @@ class RecommendationSchedulerImpl
         }
 
         override fun triggerImmediateCalculation() {
-            val constraints =
-                Constraints
-                    .Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                    .build()
-
             val inputData =
                 Data
                     .Builder()
@@ -76,7 +70,6 @@ class RecommendationSchedulerImpl
 
             val oneTimeRequest =
                 OneTimeWorkRequestBuilder<FetchCandidatesWorker>()
-                    .setConstraints(constraints)
                     .setInputData(inputData)
                     .build()
 
@@ -88,12 +81,6 @@ class RecommendationSchedulerImpl
         }
 
         override fun scheduleInitialCalculation() {
-            val constraints =
-                Constraints
-                    .Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                    .build()
-
             val inputData =
                 Data
                     .Builder()
@@ -102,7 +89,6 @@ class RecommendationSchedulerImpl
 
             val oneTimeRequest =
                 OneTimeWorkRequestBuilder<FetchCandidatesWorker>()
-                    .setConstraints(constraints)
                     .setInputData(inputData)
                     .build()
 

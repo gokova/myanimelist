@@ -17,7 +17,7 @@ interface MalApiService {
     ): AnimeListResponseDto
 
     @GET
-    suspend fun getUserAnimeListNextPage(
+    suspend fun getAnimeListNextPage(
         @Url url: String,
     ): AnimeListResponseDto
 

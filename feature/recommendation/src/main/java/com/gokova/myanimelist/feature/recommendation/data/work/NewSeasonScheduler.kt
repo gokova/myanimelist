@@ -1,6 +1,7 @@
 package com.gokova.myanimelist.feature.recommendation.data.work
 
 import android.content.Context
+import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.Data
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -10,6 +11,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import androidx.work.WorkRequest
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import java.util.concurrent.TimeUnit
@@ -67,12 +69,6 @@ class NewSeasonSchedulerImpl
         }
 
         override fun triggerImmediateCalculation() {
-            val constraints =
-                Constraints
-                    .Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                    .build()
-
             val inputData =
                 Data
                     .Builder()
@@ -81,9 +77,12 @@ class NewSeasonSchedulerImpl
 
             val oneTimeRequest =
                 OneTimeWorkRequestBuilder<FetchNewSeasonsWorker>()
-                    .setConstraints(constraints)
                     .setInputData(inputData)
-                    .build()
+                    .setBackoffCriteria(
+                        BackoffPolicy.LINEAR,
+                        WorkRequest.MIN_BACKOFF_MILLIS,
+                        TimeUnit.MILLISECONDS,
+                    ).build()
 
             workManager.enqueueUniqueWork(
                 NewSeasonScheduler.FETCH_WORK_NAME,
@@ -93,12 +92,6 @@ class NewSeasonSchedulerImpl
         }
 
         override fun scheduleInitialCalculation() {
-            val constraints =
-                Constraints
-                    .Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                    .build()
-
             val inputData =
                 Data
                     .Builder()
@@ -107,9 +100,12 @@ class NewSeasonSchedulerImpl
 
             val oneTimeRequest =
                 OneTimeWorkRequestBuilder<FetchNewSeasonsWorker>()
-                    .setConstraints(constraints)
                     .setInputData(inputData)
-                    .build()
+                    .setBackoffCriteria(
+                        BackoffPolicy.LINEAR,
+                        WorkRequest.MIN_BACKOFF_MILLIS,
+                        TimeUnit.MILLISECONDS,
+                    ).build()
 
             workManager.enqueueUniqueWork(
                 NewSeasonScheduler.FETCH_WORK_NAME,

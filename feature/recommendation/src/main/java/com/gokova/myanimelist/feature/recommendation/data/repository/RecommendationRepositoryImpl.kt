@@ -4,6 +4,7 @@ import com.gokova.myanimelist.core.database.dao.RecommendationDao
 import com.gokova.myanimelist.core.database.dao.UserAnimeListDao
 import com.gokova.myanimelist.feature.recommendation.data.mapper.RecommendationMapper
 import com.gokova.myanimelist.feature.recommendation.data.work.RecommendationScheduler
+import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationConstants.MIN_USER_LIST_THRESHOLD
 import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationEngineState
 import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationType
 import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendedAnime
@@ -63,9 +64,5 @@ class RecommendationRepositoryImpl
 
         override suspend fun triggerImmediateEvaluation() {
             scheduler.triggerImmediateCalculation()
-        }
-
-        companion object {
-            private const val MIN_USER_LIST_THRESHOLD = 5
         }
     }

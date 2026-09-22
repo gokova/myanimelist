@@ -26,6 +26,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gokova.myanimelist.core.ui.preview.StandardPreviews
 import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
+import com.gokova.myanimelist.core.ui.theme.spacing
 
 @Composable
 fun AuthScreen(
@@ -82,12 +83,12 @@ private fun AuthScreenContent(
                 Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
-                    .padding(24.dp),
+                    .padding(MaterialTheme.spacing.screenHorizontal),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
             AuthHeader()
-            Spacer(modifier = Modifier.height(64.dp))
+            Spacer(modifier = Modifier.height(MaterialTheme.spacing.huge))
             AuthActionArea(
                 uiState = uiState,
                 onLoginClick = onLoginClick,
@@ -106,7 +107,7 @@ private fun AuthHeader() {
                 color = MaterialTheme.colorScheme.primary,
             ),
     )
-    Spacer(modifier = Modifier.height(16.dp))
+    Spacer(modifier = Modifier.height(MaterialTheme.spacing.medium))
     Text(
         text = stringResource(id = R.string.feature_auth_app_subtitle),
         style = MaterialTheme.typography.bodyLarge,
@@ -143,7 +144,7 @@ private fun AuthActionArea(
             }
 
             if (uiState is AuthUiState.Error) {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(MaterialTheme.spacing.medium))
                 Text(
                     text = stringResource(id = uiState.messageResId),
                     color = MaterialTheme.colorScheme.error,

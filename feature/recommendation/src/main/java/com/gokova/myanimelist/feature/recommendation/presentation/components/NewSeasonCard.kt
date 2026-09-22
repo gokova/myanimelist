@@ -18,9 +18,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -126,13 +128,22 @@ private fun PosterThumbnail(
             title
         }
 
+    val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
+    val placeholderPainter = remember(surfaceVariant) { ColorPainter(surfaceVariant) }
+    val backgroundModifier =
+        if (imageUrl.isNullOrBlank()) {
+            Modifier.background(surfaceVariant)
+        } else {
+            Modifier
+        }
+
     Box(
         modifier =
             modifier
                 .width(80.dp)
                 .height(120.dp)
                 .clip(MaterialTheme.shapes.small)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .then(backgroundModifier)
                 .semantics { this.contentDescription = contentDesc }
                 .then(clickableModifier),
         contentAlignment = Alignment.Center,
@@ -141,6 +152,9 @@ private fun PosterThumbnail(
             AsyncImage(
                 model = imageUrl,
                 contentDescription = null,
+                placeholder = placeholderPainter,
+                error = placeholderPainter,
+                fallback = placeholderPainter,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxWidth().height(120.dp),
             )

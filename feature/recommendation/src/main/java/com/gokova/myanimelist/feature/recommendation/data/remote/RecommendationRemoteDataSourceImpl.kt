@@ -36,7 +36,7 @@ class RecommendationRemoteDataSourceImpl
                                 offset = 0,
                             )
                         } else {
-                            apiService.getUserAnimeListNextPage(nextUrl!!)
+                            apiService.getAnimeListNextPage(nextUrl!!)
                         }
                     }
 
@@ -76,7 +76,7 @@ class RecommendationRemoteDataSourceImpl
                                 offset = 0,
                             )
                         } else {
-                            apiService.getUserAnimeListNextPage(nextUrl!!)
+                            apiService.getAnimeListNextPage(nextUrl!!)
                         }
                     }
 
@@ -91,6 +91,7 @@ class RecommendationRemoteDataSourceImpl
             return nodes.take(limit)
         }
 
+        // TODO: Extract duplicate retry logic into a shared helper in :core:network
         private suspend fun executeWithRetry(
             block: suspend () -> AnimeListResponseDto,
         ): AnimeListResponseDto {

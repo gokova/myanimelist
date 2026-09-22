@@ -2,9 +2,10 @@ package com.gokova.myanimelist.feature.auth.data
 
 import com.gokova.myanimelist.core.network.auth.TokenResponse
 import com.gokova.myanimelist.core.network.config.OAuthConfig
+import com.gokova.myanimelist.core.network.di.IoDispatcher
 import com.gokova.myanimelist.core.network.di.Unauthenticated
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import okhttp3.FormBody
@@ -20,6 +21,7 @@ class MalOAuthClient
     constructor(
         @Unauthenticated private val client: OkHttpClient,
         private val oAuthConfig: OAuthConfig,
+        @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
     ) {
         private val json = Json { ignoreUnknownKeys = true }
 
@@ -27,7 +29,7 @@ class MalOAuthClient
             code: String,
             codeVerifier: String,
         ): Result<TokenResponse> =
-            withContext(Dispatchers.IO) {
+            withContext(ioDispatcher) {
                 try {
                     val formBody =
                         FormBody
