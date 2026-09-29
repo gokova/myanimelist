@@ -41,7 +41,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -60,6 +59,7 @@ import com.gokova.myanimelist.core.ui.component.AnimePosterPreviewDialog
 import com.gokova.myanimelist.core.ui.preview.StandardPreviews
 import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
 import com.gokova.myanimelist.core.ui.theme.TasteColors
+import com.gokova.myanimelist.core.ui.theme.componentSizes
 import com.gokova.myanimelist.core.ui.theme.spacing
 import com.gokova.myanimelist.feature.taste.R
 import com.gokova.myanimelist.feature.taste.domain.model.TasteAnimeItem
@@ -117,7 +117,9 @@ private fun TasteBottomSheetPreviewOverlay(
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = BOTTOM_SHEET_SCRIM_ALPHA)),
+                .background(
+                    MaterialTheme.colorScheme.scrim.copy(alpha = BOTTOM_SHEET_SCRIM_ALPHA),
+                ),
         contentAlignment = Alignment.BottomCenter,
     ) {
         Surface(
@@ -340,32 +342,9 @@ private fun TasteAnimeCard(
                     .padding(MaterialTheme.spacing.small),
             verticalAlignment = Alignment.Top,
         ) {
-            val clickableModifier =
-                if (onPosterClick != null) {
-                    Modifier.clickable(
-                        role = Role.Button,
-                        onClick = onPosterClick,
-                    )
-                } else {
-                    Modifier
-                }
-            val contentDesc =
-                if (onPosterClick != null) {
-                    stringResource(R.string.taste_zoom_poster_description, anime.title)
-                } else {
-                    anime.title
-                }
-
-            AsyncImage(
-                model = anime.thumbnailUrl,
-                contentDescription = contentDesc,
-                contentScale = ContentScale.Crop,
-                modifier =
-                    Modifier
-                        .size(width = 56.dp, height = 80.dp)
-                        .clip(MaterialTheme.shapes.small)
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .then(clickableModifier),
+            TasteAnimePoster(
+                anime = anime,
+                onPosterClick = onPosterClick,
             )
 
             Spacer(modifier = Modifier.width(MaterialTheme.spacing.medium))
@@ -373,6 +352,39 @@ private fun TasteAnimeCard(
             AnimeCardContent(anime = anime, modifier = Modifier.weight(1f))
         }
     }
+}
+
+@Composable
+private fun TasteAnimePoster(
+    anime: TasteAnimeItem,
+    onPosterClick: (() -> Unit)?,
+) {
+    val clickableModifier =
+        if (onPosterClick != null) {
+            Modifier.clickable(role = Role.Button, onClick = onPosterClick)
+        } else {
+            Modifier
+        }
+    val contentDesc =
+        if (onPosterClick != null) {
+            stringResource(R.string.taste_zoom_poster_description, anime.title)
+        } else {
+            anime.title
+        }
+
+    AsyncImage(
+        model = anime.thumbnailUrl,
+        contentDescription = contentDesc,
+        contentScale = ContentScale.Crop,
+        modifier =
+            Modifier
+                .size(
+                    width = MaterialTheme.componentSizes.bottomSheetPosterWidth,
+                    height = MaterialTheme.componentSizes.bottomSheetPosterHeight,
+                ).clip(MaterialTheme.shapes.small)
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .then(clickableModifier),
+    )
 }
 
 @Composable

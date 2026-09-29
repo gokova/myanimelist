@@ -2,10 +2,13 @@ package com.gokova.myanimelist.feature.auth
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -122,26 +125,13 @@ private fun AuthActionArea(
 ) {
     when (uiState) {
         is AuthUiState.Loading -> {
-            CircularProgressIndicator(
-                color = MaterialTheme.colorScheme.primary,
+            LoginButton(
+                isLoading = true,
+                onClick = onLoginClick,
             )
         }
         else -> {
-            Button(
-                onClick = onLoginClick,
-                shape = MaterialTheme.shapes.large,
-                colors =
-                    ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                    ),
-                modifier = Modifier.height(56.dp),
-            ) {
-                Text(
-                    text = stringResource(id = R.string.feature_auth_login_button),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-            }
+            LoginButton(onClick = onLoginClick)
 
             if (uiState is AuthUiState.Error) {
                 Spacer(modifier = Modifier.height(MaterialTheme.spacing.medium))
@@ -151,6 +141,46 @@ private fun AuthActionArea(
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun LoginButton(
+    isLoading: Boolean = false,
+    onClick: () -> Unit,
+) {
+    Button(
+        onClick = onClick,
+        enabled = !isLoading,
+        shape = MaterialTheme.shapes.large,
+        colors =
+            ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                disabledContainerColor = MaterialTheme.colorScheme.primary,
+                disabledContentColor = MaterialTheme.colorScheme.onPrimary,
+            ),
+        modifier = Modifier.height(56.dp),
+    ) {
+        if (isLoading) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                CircularProgressIndicator(
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp,
+                )
+                Spacer(modifier = Modifier.width(MaterialTheme.spacing.small))
+                Text(
+                    text = stringResource(R.string.feature_auth_logging_in),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
+        } else {
+            Text(
+                text = stringResource(id = R.string.feature_auth_login_button),
+                style = MaterialTheme.typography.titleMedium,
+            )
         }
     }
 }

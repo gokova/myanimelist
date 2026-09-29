@@ -22,6 +22,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import com.gokova.myanimelist.core.ui.preview.StandardPreviews
@@ -90,14 +93,24 @@ private fun getStatusStyle(status: UserAnimeStatus): StatusStyle =
 fun AnimeStatusChip(
     status: UserAnimeStatus,
     modifier: Modifier = Modifier,
+    compact: Boolean = false,
 ) {
     val style = getStatusStyle(status)
+    val statusLabel = stringResource(style.labelRes)
     Row(
         modifier =
             modifier
                 .clip(MaterialTheme.shapes.extraSmall)
                 .background(style.containerColor)
-                .padding(
+                .then(
+                    if (compact) {
+                        Modifier.semantics {
+                            contentDescription = statusLabel
+                        }
+                    } else {
+                        Modifier
+                    },
+                ).padding(
                     horizontal = MaterialTheme.spacing.badgePaddingHorizontal,
                     vertical = MaterialTheme.spacing.badgePaddingVertical,
                 ),
@@ -109,12 +122,17 @@ fun AnimeStatusChip(
             tint = style.contentColor,
             modifier = Modifier.size(MaterialTheme.spacing.iconSmall),
         )
-        Spacer(modifier = Modifier.width(MaterialTheme.spacing.extraSmall))
-        Text(
-            text = stringResource(style.labelRes),
-            color = style.contentColor,
-            style = MaterialTheme.typography.labelSmall,
-        )
+        if (!compact) {
+            Spacer(modifier = Modifier.width(MaterialTheme.spacing.extraSmall))
+            Text(
+                text = stringResource(style.labelRes),
+                color = style.contentColor,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 

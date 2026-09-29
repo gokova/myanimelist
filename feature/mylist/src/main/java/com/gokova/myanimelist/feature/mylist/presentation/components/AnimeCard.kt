@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -37,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.gokova.myanimelist.core.ui.preview.StandardPreviews
 import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
+import com.gokova.myanimelist.core.ui.theme.componentSizes
 import com.gokova.myanimelist.core.ui.theme.spacing
 import com.gokova.myanimelist.feature.mylist.R
 import com.gokova.myanimelist.feature.mylist.domain.model.AiringStatus
@@ -96,37 +98,42 @@ private fun AnimeCardDetails(
     anime: UserAnime,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
-    ) {
-        TitleSection(
-            displayTitle = anime.displayTitle,
-            subtitleTitle = anime.subtitleTitle,
-        )
-
-        MetadataRow(
-            mediaType = anime.mediaType,
-            releaseSeason = anime.releaseSeason,
-            airingStatus = anime.airingStatus,
-        )
-
-        Spacer(modifier = Modifier.height(MaterialTheme.spacing.extraSmall))
-
-        ProgressSection(
-            watchedEpisodes = anime.watchedEpisodes,
-            totalEpisodes = anime.totalEpisodes,
-        )
-
-        Spacer(modifier = Modifier.height(MaterialTheme.spacing.micro))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+    BoxWithConstraints(modifier = modifier) {
+        val useCompactStatusChip = maxWidth < 200.dp
+        Column(
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
         ) {
-            ScoreBadge(score = anime.userScore)
-            AnimeStatusChip(status = anime.userStatus)
+            TitleSection(
+                displayTitle = anime.displayTitle,
+                subtitleTitle = anime.subtitleTitle,
+            )
+
+            MetadataRow(
+                mediaType = anime.mediaType,
+                releaseSeason = anime.releaseSeason,
+                airingStatus = anime.airingStatus,
+            )
+
+            Spacer(modifier = Modifier.height(MaterialTheme.spacing.extraSmall))
+
+            ProgressSection(
+                watchedEpisodes = anime.watchedEpisodes,
+                totalEpisodes = anime.totalEpisodes,
+            )
+
+            Spacer(modifier = Modifier.height(MaterialTheme.spacing.micro))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ScoreBadge(score = anime.userScore)
+                AnimeStatusChip(
+                    status = anime.userStatus,
+                    compact = useCompactStatusChip,
+                )
+            }
         }
     }
 }
@@ -163,8 +170,8 @@ private fun PosterThumbnail(
         fallback = placeholderPainter,
         modifier =
             Modifier
-                .width(80.dp)
-                .height(120.dp)
+                .width(MaterialTheme.componentSizes.posterSmallWidth)
+                .height(MaterialTheme.componentSizes.posterSmallHeight)
                 .clip(MaterialTheme.shapes.small)
                 .then(clickableModifier),
         contentScale = ContentScale.Crop,

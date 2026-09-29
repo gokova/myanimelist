@@ -23,6 +23,13 @@
     <string name="details_recommendations_title">Recommendations</string>
 
     <string name="details_info_media_type">Type</string>
+    <string name="details_media_type_tv">TV</string>
+    <string name="details_media_type_movie">Movie</string>
+    <string name="details_media_type_ova">OVA</string>
+    <string name="details_media_type_ona">ONA</string>
+    <string name="details_media_type_special">Special</string>
+    <string name="details_media_type_tv_special">TV Special</string>
+    <string name="details_media_type_music">Music</string>
     <string name="details_info_status">Status</string>
     <string name="details_info_season">Season</string>
     <string name="details_info_episodes">Episodes</string>
@@ -35,6 +42,7 @@
     <string name="details_score_user">My Score: %1$d</string>
     <string name="details_score_unrated">My Score: —</string>
     <string name="details_score_empty">—</string>
+    <string name="details_score_format">%1$.2f</string>
     <string name="details_rank_format">#%1$d</string>
     <string name="details_popularity_format">#%1$d</string>
 

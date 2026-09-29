@@ -1,5 +1,6 @@
 package com.gokova.myanimelist.feature.taste.presentation.components
 
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -8,6 +9,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import com.gokova.myanimelist.core.ui.theme.componentSizes
 import com.gokova.myanimelist.feature.taste.R
 import com.gokova.myanimelist.feature.taste.domain.model.TasteType
 
@@ -18,7 +20,9 @@ fun TasteTypeSelector(
     modifier: Modifier = Modifier,
 ) {
     val types = TasteType.entries
-    SingleChoiceSegmentedButtonRow(modifier = modifier) {
+    SingleChoiceSegmentedButtonRow(
+        modifier = modifier.height(MaterialTheme.componentSizes.segmentedSelectorHeight),
+    ) {
         types.forEachIndexed { index, type ->
             val labelRes =
                 when (type) {
@@ -31,8 +35,8 @@ fun TasteTypeSelector(
                 shape = SegmentedButtonDefaults.itemShape(index = index, count = types.size),
                 colors =
                     SegmentedButtonDefaults.colors(
-                        activeContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        activeContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        activeContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        activeContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                         inactiveContainerColor = MaterialTheme.colorScheme.surface,
                         inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     ),

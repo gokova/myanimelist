@@ -1,6 +1,5 @@
 package com.gokova.myanimelist.feature.recommendation.presentation.components
 
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
@@ -11,7 +10,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
+import com.gokova.myanimelist.core.ui.theme.componentSizes
 import com.gokova.myanimelist.feature.recommendation.R
 import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationType
 
@@ -23,7 +23,7 @@ fun RecommendationPillSelector(
 ) {
     val types = RecommendationType.entries
     SingleChoiceSegmentedButtonRow(
-        modifier = modifier.height(IntrinsicSize.Min),
+        modifier = modifier.height(MaterialTheme.componentSizes.segmentedSelectorHeight),
     ) {
         types.forEachIndexed { index, type ->
             val labelRes =
@@ -37,7 +37,7 @@ fun RecommendationPillSelector(
                 selected = selectedType == type,
                 onClick = { onTypeSelected(type) },
                 shape = SegmentedButtonDefaults.itemShape(index = index, count = types.size),
-                modifier = Modifier.fillMaxHeight(),
+                modifier = Modifier.weight(1f).fillMaxHeight(),
                 icon = {},
                 colors =
                     SegmentedButtonDefaults.colors(
@@ -50,9 +50,8 @@ fun RecommendationPillSelector(
                     Text(
                         text = stringResource(labelRes),
                         style = MaterialTheme.typography.labelLarge,
-                        maxLines = 1,
-                        softWrap = false,
-                        overflow = TextOverflow.Ellipsis,
+                        maxLines = 2,
+                        textAlign = TextAlign.Center,
                     )
                 },
             )

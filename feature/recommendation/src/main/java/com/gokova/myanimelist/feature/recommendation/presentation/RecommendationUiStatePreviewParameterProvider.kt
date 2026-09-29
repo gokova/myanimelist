@@ -94,6 +94,7 @@ class RecommendationUiStatePreviewParameterProvider :
             RecommendationUiState.EmptyAllCaughtUp(),
             RecommendationUiState.Calculating(),
             RecommendationUiState.Loading(),
+            RecommendationUiState.Error(message = "Preview error"),
         )
 
     override fun getDisplayName(index: Int): String? =
@@ -105,6 +106,7 @@ class RecommendationUiStatePreviewParameterProvider :
             INDEX_ALL_CAUGHT_UP -> "All Caught Up"
             INDEX_CALCULATING -> "Calculating"
             INDEX_LOADING -> "Loading"
+            INDEX_ERROR -> "Error"
             else -> null
         }
 
@@ -116,5 +118,6 @@ class RecommendationUiStatePreviewParameterProvider :
         private const val INDEX_ALL_CAUGHT_UP = 4
         private const val INDEX_CALCULATING = 5
         private const val INDEX_LOADING = 6
+        private const val INDEX_ERROR = 7
     }
 }

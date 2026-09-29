@@ -77,13 +77,30 @@ class MyListUiStatePreviewParameterProvider : PreviewParameterProvider<MyListUiS
                 isRefreshing = true,
                 isLoadingInitial = false,
             ),
+            // 4. Initial loading state
+            MyListUiState(
+                animeList = emptyList(),
+                selectedCategory = ListFilterCategory.ALL,
+                selectedSort = SortOption.SCORE_DESC,
+                isSyncing = false,
+                isRefreshing = false,
+                isLoadingInitial = true,
+            ),
         )
 
     override fun getDisplayName(index: Int): String? =
         when (index) {
-            0 -> "Loaded"
-            1 -> "Empty"
-            2 -> "Syncing"
+            INDEX_LOADED -> "Loaded"
+            INDEX_EMPTY -> "Empty"
+            INDEX_SYNCING -> "Syncing"
+            INDEX_LOADING -> "Loading"
             else -> null
         }
+
+    private companion object {
+        private const val INDEX_LOADED = 0
+        private const val INDEX_EMPTY = 1
+        private const val INDEX_SYNCING = 2
+        private const val INDEX_LOADING = 3
+    }
 }

@@ -68,6 +68,7 @@ The project enforces a **Feature-based Multi-Module** architecture to establish 
 *   **Static Analysis**: [Detekt](https://detekt.dev/) with zero-violation enforcement, 100-character line limit, and strict complexity checks.
 *   **Formatting**: [KtLint](https://pinterest.github.io/ktlint/) for idiomatic Kotlin style.
 *   **Accessibility (a11y)**: Full TalkBack support across all screens, including custom `Canvas` graphics equipped with virtual semantics nodes, `customActions`, and localized Android plural resources (`<plurals>`).
+*   **UI State Coverage**: Loading, empty, cached, calculating, and error states preserve the surrounding layout and expose an actionable recovery path where appropriate.
 *   **Testing**: Comprehensive unit test suite covering Domain Use Cases, Data Mappers, and ViewModels using `kotlinx-coroutines-test`, MockK, and in-memory test fakes.
 *   **Zero Framework Leakage**: Pure Kotlin Domain layer with zero dependencies on Android framework classes.
 
