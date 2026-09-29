@@ -38,7 +38,6 @@ class AnimeListRemoteDataSourceImpl
             return entries
         }
 
-        // TODO: Extract duplicate retry logic into a shared helper in :core:network
         private suspend fun fetchPageWithRetry(nextUrl: String?): AnimeListResponseDto {
             var currentAttempt = 0
             var delayDuration = INITIAL_BACKOFF_DELAY

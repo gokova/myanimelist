@@ -172,12 +172,18 @@ data class AnimeDetailsDto(
     val popularity: Int? = null,
     @SerialName("num_list_users")
     val numListUsers: Int? = null,
+    @SerialName("num_scoring_users")
+    val numScoringUsers: Int? = null,
     @SerialName("average_episode_duration")
     val averageEpisodeDuration: Int? = null,
     @SerialName("nsfw")
     val nsfw: String? = null,
+    @SerialName("my_list_status")
+    val myListStatus: MyListStatusDto? = null,
     @SerialName("related_anime")
     val relatedAnime: List<RelatedAnimeEdgeDto>? = null,
+    @SerialName("recommendations")
+    val recommendations: List<AnimeRecommendationEdgeDto>? = null,
 ) {
     fun toAnimeNodeDto(): AnimeNodeDto =
         AnimeNodeDto(
@@ -212,4 +218,13 @@ data class RelatedAnimeEdgeDto(
     val relationType: String,
     @SerialName("relation_type_formatted")
     val relationTypeFormatted: String,
+)
+
+@OptIn(kotlinx.serialization.InternalSerializationApi::class)
+@Serializable
+data class AnimeRecommendationEdgeDto(
+    @SerialName("node")
+    val node: AnimeNodeDto,
+    @SerialName("num_recommendations")
+    val numRecommendations: Int,
 )

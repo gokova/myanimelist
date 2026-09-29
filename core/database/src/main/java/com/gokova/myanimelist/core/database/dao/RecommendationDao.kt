@@ -60,6 +60,9 @@ interface RecommendationDao {
     @Query("DELETE FROM recommendations")
     suspend fun clearRecommendations(): Int
 
+    @Query("DELETE FROM recommendations WHERE anime_id = :animeId")
+    suspend fun deleteRecommendation(animeId: Long): Int
+
     @Query("DELETE FROM recommendation_candidates")
     suspend fun clearCandidates(): Int
 
@@ -71,6 +74,7 @@ interface RecommendationDao {
           AND id NOT IN (SELECT anime_id FROM recommendations)
           AND id NOT IN (SELECT anime_id FROM new_season_animes)
           AND id NOT IN (SELECT parent_anime_id FROM new_season_animes)
+          AND id NOT IN (SELECT anime_id FROM recommendation_candidates)
         """,
     )
     suspend fun deleteNonUserData(animeIds: List<Long>): Int
@@ -82,9 +86,9 @@ interface RecommendationDao {
     ) {
         clearRecommendations()
         upsertRecommendations(recommendations)
+        clearCandidates()
         if (discardedAnimeIds.isNotEmpty()) {
             deleteNonUserData(discardedAnimeIds)
         }
-        clearCandidates()
     }
 }

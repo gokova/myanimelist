@@ -102,6 +102,25 @@ class MalApiServiceTest {
         assertEquals("Diamond no Ace: Second Season", nodeDto.title)
     }
 
+    @Test
+    fun `deserializes anime details with recommendations and list status successfully`() {
+        val json = Json { ignoreUnknownKeys = true }
+        val details =
+            json.decodeFromString<AnimeDetailsDto>(
+                MAL_ANIME_DETAILS_WITH_RECOMMENDATIONS_JSON,
+            )
+
+        assertEquals(30230L, details.id)
+        assertEquals(150000, details.numScoringUsers)
+        assertEquals("plan_to_watch", details.myListStatus?.status)
+        assertEquals(1, details.recommendations?.size)
+
+        val firstRec = details.recommendations?.get(0)
+        assertEquals(18689L, firstRec?.node?.id)
+        assertEquals("Diamond no Ace", firstRec?.node?.title)
+        assertEquals(42, firstRec?.numRecommendations)
+    }
+
     private fun assertCoreNodeFields(node: AnimeNodeDto) {
         assertEquals(16498L, node.id)
         assertEquals("Shingeki no Kyojin", node.title)
@@ -258,6 +277,29 @@ class MalApiServiceTest {
                   },
                   "relation_type": "side_story",
                   "relation_type_formatted": "Side story"
+                }
+              ]
+            }
+            """.trimIndent()
+
+        private val MAL_ANIME_DETAILS_WITH_RECOMMENDATIONS_JSON =
+            """
+            {
+              "id": 30230,
+              "title": "Diamond no Ace: Second Season",
+              "num_scoring_users": 150000,
+              "my_list_status": {
+                "status": "plan_to_watch",
+                "score": 0,
+                "num_episodes_watched": 0
+              },
+              "recommendations": [
+                {
+                  "node": {
+                    "id": 18689,
+                    "title": "Diamond no Ace"
+                  },
+                  "num_recommendations": 42
                 }
               ]
             }

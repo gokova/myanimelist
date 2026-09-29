@@ -15,7 +15,8 @@ class AnimeTypeConverters {
     fun toGenreList(value: String?): List<GenreEntity>? = value?.let { json.decodeFromString(it) }
 
     @TypeConverter
-    fun fromStudioList(studios: List<StudioEntity>?): String? = studios?.let { json.encodeToString(it) }
+    fun fromStudioList(studios: List<StudioEntity>?): String? =
+        studios?.let { json.encodeToString(it) }
 
     @TypeConverter
     fun toStudioList(value: String?): List<StudioEntity>? = value?.let { json.decodeFromString(it) }

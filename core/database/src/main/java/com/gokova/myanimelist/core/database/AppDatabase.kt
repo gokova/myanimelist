@@ -222,7 +222,9 @@ abstract class AppDatabase : RoomDatabase() {
                         )
                         """.trimIndent(),
                     )
-                    db.execSQL("INSERT INTO `new_season_animes_new` SELECT * FROM `new_season_animes`")
+                    db.execSQL(
+                        "INSERT INTO `new_season_animes_new` SELECT * FROM `new_season_animes`",
+                    )
                     db.execSQL("DROP TABLE `new_season_animes`")
                     db.execSQL("ALTER TABLE `new_season_animes_new` RENAME TO `new_season_animes`")
                     db.execSQL(

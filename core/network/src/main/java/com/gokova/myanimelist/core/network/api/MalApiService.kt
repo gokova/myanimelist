@@ -2,7 +2,11 @@ package com.gokova.myanimelist.core.network.api
 
 import com.gokova.myanimelist.core.network.model.AnimeDetailsDto
 import com.gokova.myanimelist.core.network.model.AnimeListResponseDto
+import com.gokova.myanimelist.core.network.model.MyListStatusDto
+import retrofit2.http.Field
+import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
+import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 import retrofit2.http.Url
@@ -45,6 +49,15 @@ interface MalApiService {
         @Query("fields") fields: String = DEFAULT_ANIME_DETAILS_FIELDS,
     ): AnimeDetailsDto
 
+    @FormUrlEncoded
+    @PUT("v2/anime/{anime_id}/my_list_status")
+    suspend fun updateMyListStatus(
+        @Path("anime_id") animeId: Long,
+        @Field("status") status: String = "plan_to_watch",
+        @Field("num_watched_episodes") numWatchedEpisodes: Int = 0,
+        @Field("score") score: Int = 0,
+    ): MyListStatusDto
+
     companion object {
         const val DEFAULT_PAGE_LIMIT = 500
         const val DEFAULT_ANIME_LIST_FIELDS =
@@ -54,7 +67,8 @@ interface MalApiService {
         const val DEFAULT_ANIME_DETAILS_FIELDS =
             "id,title,main_picture,alternative_titles,media_type,status,num_episodes," +
                 "start_season,mean,genres,studios,source,synopsis,rating,rank,popularity," +
-                "num_list_users,average_episode_duration,nsfw,related_anime"
+                "num_list_users,num_scoring_users,average_episode_duration,nsfw," +
+                "related_anime,recommendations,my_list_status"
         const val FIELDS_RELATED_ANIME = "related_anime"
     }
 }

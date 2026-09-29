@@ -54,6 +54,7 @@ import com.gokova.myanimelist.feature.mylist.presentation.components.MyListHeade
 fun MyListScreen(
     modifier: Modifier = Modifier,
     viewModel: MyListViewModel = hiltViewModel(),
+    onAnimeClick: (Long) -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -92,6 +93,7 @@ fun MyListScreen(
                 onCategorySelected = viewModel::onCategorySelected,
                 onSortSelected = viewModel::onSortOptionSelected,
                 onRefresh = viewModel::onRefresh,
+                onAnimeClick = onAnimeClick,
             ),
         modifier = modifier,
     )
@@ -101,6 +103,7 @@ data class MyListActions(
     val onCategorySelected: (ListFilterCategory) -> Unit,
     val onSortSelected: (SortOption) -> Unit,
     val onRefresh: () -> Unit,
+    val onAnimeClick: (Long) -> Unit = {},
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -143,6 +146,7 @@ fun MyListContent(
                     uiState = uiState,
                     onRefresh = actions.onRefresh,
                     onPosterClick = { previewAnime = it },
+                    onAnimeClick = actions.onAnimeClick,
                 )
             }
         }
@@ -165,6 +169,7 @@ private fun MyListBody(
     uiState: MyListUiState,
     onRefresh: () -> Unit,
     onPosterClick: (UserAnime) -> Unit,
+    onAnimeClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (uiState.animeList.isEmpty() && !uiState.isLoadingInitial) {
@@ -187,12 +192,14 @@ private fun MyListBody(
             MyListGrid(
                 animeList = uiState.animeList,
                 onPosterClick = onPosterClick,
+                onAnimeClick = onAnimeClick,
                 modifier = modifier,
             )
         } else {
             MyListColumn(
                 animeList = uiState.animeList,
                 onPosterClick = onPosterClick,
+                onAnimeClick = onAnimeClick,
                 modifier = modifier,
             )
         }
@@ -205,6 +212,7 @@ private val GRID_CELL_MIN_SIZE = 240.dp
 private fun MyListGrid(
     animeList: List<UserAnime>,
     onPosterClick: (UserAnime) -> Unit,
+    onAnimeClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyVerticalGrid(
@@ -229,6 +237,7 @@ private fun MyListGrid(
             AnimeCard(
                 anime = anime,
                 onPosterClick = { onPosterClick(anime) },
+                onCardClick = { onAnimeClick(anime.id) },
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -239,6 +248,7 @@ private fun MyListGrid(
 private fun MyListColumn(
     animeList: List<UserAnime>,
     onPosterClick: (UserAnime) -> Unit,
+    onAnimeClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -260,6 +270,7 @@ private fun MyListColumn(
             AnimeCard(
                 anime = anime,
                 onPosterClick = { onPosterClick(anime) },
+                onCardClick = { onAnimeClick(anime.id) },
                 modifier = Modifier.fillMaxWidth(),
             )
         }

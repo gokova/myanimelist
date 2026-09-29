@@ -53,7 +53,11 @@ class AuthRepositoryImpl
 
             val verifier = authPreferences.codeVerifier.first()
             return if (verifier != null) {
-                val tokenResult = oAuthClient.exchangeCodeForTokens(code = code, codeVerifier = verifier)
+                val tokenResult =
+                    oAuthClient.exchangeCodeForTokens(
+                        code = code,
+                        codeVerifier = verifier,
+                    )
                 tokenResult.fold(
                     onSuccess = { tokenResponse ->
                         // saveTokens atomically commits tokens and removes transient verifier and state

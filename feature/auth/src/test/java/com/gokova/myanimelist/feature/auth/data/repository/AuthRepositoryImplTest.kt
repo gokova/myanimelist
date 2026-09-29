@@ -101,7 +101,10 @@ class AuthRepositoryImplTest {
                 AuthRepositoryImpl(
                     authPreferences = preferences,
                     pkceGenerator = pkceGenerator,
-                    oAuthClient = createOAuthClient(dispatcher = StandardTestDispatcher(testScheduler)),
+                    oAuthClient =
+                        createOAuthClient(
+                            dispatcher = StandardTestDispatcher(testScheduler),
+                        ),
                     oAuthConfig = oAuthConfig,
                 )
 
@@ -129,7 +132,10 @@ class AuthRepositoryImplTest {
                 AuthRepositoryImpl(
                     authPreferences = preferences,
                     pkceGenerator = pkceGenerator,
-                    oAuthClient = createOAuthClient(dispatcher = StandardTestDispatcher(testScheduler)),
+                    oAuthClient =
+                        createOAuthClient(
+                            dispatcher = StandardTestDispatcher(testScheduler),
+                        ),
                     oAuthConfig = oAuthConfig,
                 )
 
@@ -149,7 +155,10 @@ class AuthRepositoryImplTest {
                 AuthRepositoryImpl(
                     authPreferences = preferences,
                     pkceGenerator = pkceGenerator,
-                    oAuthClient = createOAuthClient(dispatcher = StandardTestDispatcher(testScheduler)),
+                    oAuthClient =
+                        createOAuthClient(
+                            dispatcher = StandardTestDispatcher(testScheduler),
+                        ),
                     oAuthConfig = oAuthConfig,
                 )
 
@@ -170,7 +179,10 @@ class AuthRepositoryImplTest {
                 AuthRepositoryImpl(
                     authPreferences = preferences,
                     pkceGenerator = pkceGenerator,
-                    oAuthClient = createOAuthClient(dispatcher = StandardTestDispatcher(testScheduler)),
+                    oAuthClient =
+                        createOAuthClient(
+                            dispatcher = StandardTestDispatcher(testScheduler),
+                        ),
                     oAuthConfig = oAuthConfig,
                 )
 
@@ -237,7 +249,10 @@ class AuthRepositoryImplTest {
                 AuthRepositoryImpl(
                     authPreferences = preferences,
                     pkceGenerator = pkceGenerator,
-                    oAuthClient = createOAuthClient(dispatcher = StandardTestDispatcher(testScheduler)),
+                    oAuthClient =
+                        createOAuthClient(
+                            dispatcher = StandardTestDispatcher(testScheduler),
+                        ),
                     oAuthConfig = oAuthConfig,
                 )
 

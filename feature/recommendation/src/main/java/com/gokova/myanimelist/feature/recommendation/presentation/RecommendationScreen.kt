@@ -57,6 +57,7 @@ private data class PosterPreviewData(
 @Composable
 fun RecommendationScreen(
     modifier: Modifier = Modifier,
+    onAnimeClick: (Long) -> Unit = {},
     viewModel: RecommendationViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -84,6 +85,7 @@ fun RecommendationScreen(
     RecommendationContent(
         uiState = uiState,
         onEvent = viewModel::onEvent,
+        onAnimeClick = onAnimeClick,
         modifier = modifier,
     )
 }
@@ -93,6 +95,7 @@ fun RecommendationContent(
     uiState: RecommendationUiState,
     onEvent: (RecommendationUiEvent) -> Unit,
     modifier: Modifier = Modifier,
+    onAnimeClick: (Long) -> Unit = {},
 ) {
     var previewPoster by remember { mutableStateOf<PosterPreviewData?>(null) }
 
@@ -117,6 +120,7 @@ fun RecommendationContent(
             uiState = uiState,
             onEvent = onEvent,
             onPosterClick = { previewPoster = it },
+            onAnimeClick = onAnimeClick,
             modifier =
                 Modifier
                     .fillMaxWidth()
@@ -139,6 +143,7 @@ private fun RecommendationStateContent(
     uiState: RecommendationUiState,
     onEvent: (RecommendationUiEvent) -> Unit,
     onPosterClick: (PosterPreviewData) -> Unit,
+    onAnimeClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier) {
@@ -177,6 +182,7 @@ private fun RecommendationStateContent(
                     state = uiState,
                     onEvent = onEvent,
                     onPosterClick = onPosterClick,
+                    onAnimeClick = onAnimeClick,
                 )
             }
         }
@@ -214,6 +220,7 @@ private fun RecommendationSuccessContent(
     state: RecommendationUiState.Success,
     onEvent: (RecommendationUiEvent) -> Unit,
     onPosterClick: (PosterPreviewData) -> Unit,
+    onAnimeClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val windowInfo = LocalWindowInfo.current
@@ -250,6 +257,7 @@ private fun RecommendationSuccessContent(
             state = state,
             isExpanded = isExpanded,
             onPosterClick = onPosterClick,
+            onAnimeClick = onAnimeClick,
             modifier = Modifier.weight(1f),
         )
     }
@@ -260,6 +268,7 @@ private fun RecommendationBodyContent(
     state: RecommendationUiState.Success,
     isExpanded: Boolean,
     onPosterClick: (PosterPreviewData) -> Unit,
+    onAnimeClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (state.selectedType == RecommendationType.NEW_SEASONS) {
@@ -267,14 +276,15 @@ private fun RecommendationBodyContent(
             newSeasons = state.newSeasons,
             isExpanded = isExpanded,
             onPosterClick = onPosterClick,
+            onAnimeClick = onAnimeClick,
             modifier = modifier,
         )
     } else {
         RecommendationItemsContent(
-            recommendations = state.recommendations,
-            selectedType = state.selectedType,
+            state = state,
             isExpanded = isExpanded,
             onPosterClick = onPosterClick,
+            onAnimeClick = onAnimeClick,
             modifier = modifier,
         )
     }
@@ -285,6 +295,7 @@ private fun NewSeasonContent(
     newSeasons: List<NewSeasonAnime>,
     isExpanded: Boolean,
     onPosterClick: (PosterPreviewData) -> Unit,
+    onAnimeClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val padding =
@@ -305,6 +316,7 @@ private fun NewSeasonContent(
                     ),
                 )
             },
+            onCardClick = { onAnimeClick(anime.animeId) },
         )
     }
 
@@ -331,10 +343,10 @@ private fun NewSeasonContent(
 
 @Composable
 private fun RecommendationItemsContent(
-    recommendations: List<RecommendedAnime>,
-    selectedType: RecommendationType,
+    state: RecommendationUiState.Success,
     isExpanded: Boolean,
     onPosterClick: (PosterPreviewData) -> Unit,
+    onAnimeClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val padding =
@@ -346,7 +358,7 @@ private fun RecommendationItemsContent(
     val cardContent: @Composable (RecommendedAnime) -> Unit = { anime ->
         RecommendationCard(
             anime = anime,
-            selectedType = selectedType,
+            selectedType = state.selectedType,
             onPosterClick = {
                 onPosterClick(
                     PosterPreviewData(
@@ -356,6 +368,7 @@ private fun RecommendationItemsContent(
                     ),
                 )
             },
+            onCardClick = { onAnimeClick(anime.animeId) },
         )
     }
 
@@ -367,7 +380,7 @@ private fun RecommendationItemsContent(
             horizontalArrangement = Arrangement.spacedBy(spacing),
             verticalArrangement = Arrangement.spacedBy(spacing),
         ) {
-            items(recommendations, key = { it.animeId }) { cardContent(it) }
+            items(state.recommendations, key = { it.animeId }) { cardContent(it) }
         }
     } else {
         LazyColumn(
@@ -375,7 +388,7 @@ private fun RecommendationItemsContent(
             contentPadding = padding,
             verticalArrangement = Arrangement.spacedBy(spacing),
         ) {
-            items(recommendations, key = { it.animeId }) { cardContent(it) }
+            items(state.recommendations, key = { it.animeId }) { cardContent(it) }
         }
     }
 }

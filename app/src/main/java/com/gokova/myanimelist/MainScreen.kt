@@ -53,7 +53,10 @@ import com.gokova.myanimelist.navigation.TasteRoute
 import kotlin.reflect.KClass
 
 @Composable
-fun MainScreen(onLogoutConfirm: () -> Unit = {}) {
+fun MainScreen(
+    onLogoutConfirm: () -> Unit = {},
+    onAnimeClick: (Long) -> Unit = {},
+) {
     val navController = rememberNavController()
     var showLogoutDialog by rememberSaveable { mutableStateOf(false) }
 
@@ -100,13 +103,17 @@ fun MainScreen(onLogoutConfirm: () -> Unit = {}) {
             showLogoutDialog = true
         },
     ) {
-        MainNavHost(navController = navController)
+        MainNavHost(
+            navController = navController,
+            onAnimeClick = onAnimeClick,
+        )
     }
 }
 
 @Composable
 private fun MainNavHost(
     navController: NavHostController,
+    onAnimeClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     NavHost(
@@ -115,13 +122,13 @@ private fun MainNavHost(
         modifier = modifier,
     ) {
         composable<MyListRoute> {
-            MyListScreen()
+            MyListScreen(onAnimeClick = onAnimeClick)
         }
         composable<TasteRoute> {
-            TasteScreen()
+            TasteScreen(onAnimeClick = onAnimeClick)
         }
         composable<RecommendationsRoute> {
-            RecommendationScreen()
+            RecommendationScreen(onAnimeClick = onAnimeClick)
         }
     }
 }

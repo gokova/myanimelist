@@ -54,7 +54,9 @@ class MalOAuthClient
                             Result.success(tokenResponse)
                         } else {
                             val errorBody = response.body.string()
-                            Result.failure(Exception("Failed to exchange token: ${response.code} $errorBody"))
+                            Result.failure(
+                                Exception("Failed to exchange token: ${response.code} $errorBody"),
+                            )
                         }
                     }
                 } catch (e: CancellationException) {

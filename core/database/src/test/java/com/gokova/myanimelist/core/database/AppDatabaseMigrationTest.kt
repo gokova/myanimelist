@@ -108,9 +108,13 @@ class AppDatabaseMigrationTest {
 
         assertEquals(3, executedStatements.size)
         assertTrue(executedStatements[0].contains("CREATE TABLE IF NOT EXISTS `new_season_animes`"))
-        assertTrue(executedStatements[0].contains("FOREIGN KEY(`anime_id`) REFERENCES `animes`(`id`)"))
         assertTrue(
-            executedStatements[0].contains("FOREIGN KEY(`parent_anime_id`) REFERENCES `animes`(`id`)"),
+            executedStatements[0].contains("FOREIGN KEY(`anime_id`) REFERENCES `animes`(`id`)"),
+        )
+        assertTrue(
+            executedStatements[0].contains(
+                "FOREIGN KEY(`parent_anime_id`) REFERENCES `animes`(`id`)",
+            ),
         )
         assertTrue(executedStatements[1].contains("index_new_season_animes_anime_id"))
         assertTrue(executedStatements[2].contains("index_new_season_animes_parent_anime_id"))

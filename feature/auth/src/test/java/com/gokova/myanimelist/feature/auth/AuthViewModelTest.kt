@@ -123,7 +123,10 @@ class AuthViewModelTest {
 
             val state = viewModel.uiState.value
             assertTrue(state is AuthUiState.Error)
-            assertEquals(R.string.feature_auth_error_login_failed, (state as AuthUiState.Error).messageResId)
+            assertEquals(
+                R.string.feature_auth_error_login_failed,
+                (state as AuthUiState.Error).messageResId,
+            )
         }
 
     @Test
@@ -153,6 +156,9 @@ class AuthViewModelTest {
 
         val state = viewModel.uiState.value
         assertTrue(state is AuthUiState.Error)
-        assertEquals(R.string.feature_auth_error_login_failed, (state as AuthUiState.Error).messageResId)
+        assertEquals(
+            R.string.feature_auth_error_login_failed,
+            (state as AuthUiState.Error).messageResId,
+        )
     }
 }

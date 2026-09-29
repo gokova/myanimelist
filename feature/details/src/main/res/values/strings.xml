@@ -1,0 +1,62 @@
+<resources>
+    <string name="details_top_bar_title">Anime Details</string>
+    <string name="details_back_button_content_description">Navigate back</string>
+    <string name="details_zoom_poster_content_description">Preview poster for %1$s</string>
+    <string name="details_poster_content_description">Poster for %1$s</string>
+
+    <string name="details_add_to_list">Add to List</string>
+    <string name="details_adding_to_list">Adding…</string>
+    <string name="details_added_to_plan_to_watch">Added to Plan to Watch</string>
+    <string name="details_add_to_list_failed">Failed to add to list. Please check your connection.</string>
+    <string name="details_offline_showing_cached">Showing cached details (offline)</string>
+    <string name="details_refresh_failed">Could not refresh details</string>
+
+    <string name="details_synopsis_title">Synopsis</string>
+    <string name="details_synopsis_read_more">Read more</string>
+    <string name="details_synopsis_show_less">Show less</string>
+    <string name="details_no_synopsis">No synopsis available.</string>
+
+    <string name="details_genres_title">Genres</string>
+    <string name="details_themes_title">Themes</string>
+    <string name="details_information_title">Information</string>
+    <string name="details_related_anime_title">Related Anime</string>
+    <string name="details_recommendations_title">Recommendations</string>
+
+    <string name="details_info_media_type">Type</string>
+    <string name="details_info_status">Status</string>
+    <string name="details_info_season">Season</string>
+    <string name="details_info_episodes">Episodes</string>
+    <string name="details_info_duration">Duration</string>
+    <string name="details_info_rank">Rank</string>
+    <string name="details_info_popularity">Popularity</string>
+    <string name="details_info_members">Members</string>
+    <string name="details_info_scoring_users">Scoring Users</string>
+
+    <string name="details_score_user">My Score: %1$d</string>
+    <string name="details_score_unrated">My Score: —</string>
+    <string name="details_score_empty">—</string>
+    <string name="details_rank_format">#%1$d</string>
+    <string name="details_popularity_format">#%1$d</string>
+
+    <string name="details_duration_minutes">%1$d min</string>
+    <string name="details_duration_hours">%1$dh</string>
+    <string name="details_duration_hours_minutes">%1$dh %2$dm</string>
+
+    <string name="details_status_watching">Watching</string>
+    <string name="details_status_completed">Completed</string>
+    <string name="details_status_on_hold">On-Hold</string>
+    <string name="details_status_dropped">Dropped</string>
+    <string name="details_status_plan_to_watch">Plan to Watch</string>
+
+    <string name="details_airing_finished">Finished</string>
+    <string name="details_airing_currently">Airing</string>
+    <string name="details_airing_not_yet">Upcoming</string>
+
+    <string name="details_error_not_found">Anime details could not be loaded.</string>
+    <string name="details_error_retry">Retry</string>
+
+    <plurals name="details_rec_users_count">
+        <item quantity="one">%1$d user</item>
+        <item quantity="other">%1$d users</item>
+    </plurals>
+</resources>

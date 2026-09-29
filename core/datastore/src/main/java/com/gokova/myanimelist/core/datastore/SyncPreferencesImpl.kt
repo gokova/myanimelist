@@ -13,7 +13,9 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private val Context.syncDataStore: DataStore<Preferences> by preferencesDataStore(name = "sync_prefs")
+private val Context.syncDataStore: DataStore<Preferences> by preferencesDataStore(
+    name = "sync_prefs",
+)
 
 @Singleton
 class SyncPreferencesImpl
@@ -28,7 +30,8 @@ class SyncPreferencesImpl
                 preferences[lastSyncKey] ?: 0L
             }
 
-        override suspend fun getLastAnimeListSyncTimestamp(): Long = lastAnimeListSyncTimestamp.first()
+        override suspend fun getLastAnimeListSyncTimestamp(): Long =
+            lastAnimeListSyncTimestamp.first()
 
         override suspend fun updateLastAnimeListSyncTimestamp(timestamp: Long) {
             context.syncDataStore.edit { preferences ->

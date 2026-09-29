@@ -134,8 +134,9 @@ fun AnimePosterPreviewOverlay(
         modifier =
             modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.scrim.copy(alpha = SCRIM_ALPHA * animatedAlpha))
-                .clickable(
+                .background(
+                    MaterialTheme.colorScheme.scrim.copy(alpha = SCRIM_ALPHA * animatedAlpha),
+                ).clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = { dismissWithAnimation() },

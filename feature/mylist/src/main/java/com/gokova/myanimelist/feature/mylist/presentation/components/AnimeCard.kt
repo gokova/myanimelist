@@ -47,9 +47,17 @@ fun AnimeCard(
     anime: UserAnime,
     modifier: Modifier = Modifier,
     onPosterClick: (() -> Unit)? = null,
+    onCardClick: (() -> Unit)? = null,
 ) {
+    val cardClickableModifier =
+        if (onCardClick != null) {
+            Modifier.clickable(role = Role.Button, onClick = onCardClick)
+        } else {
+            Modifier
+        }
+
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().then(cardClickableModifier),
         shape = MaterialTheme.shapes.medium,
         colors =
             CardDefaults.cardColors(
@@ -75,39 +83,50 @@ fun AnimeCard(
                 onPosterClick = onPosterClick,
             )
 
-            Column(
+            AnimeCardDetails(
+                anime = anime,
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
-            ) {
-                TitleSection(
-                    displayTitle = anime.displayTitle,
-                    subtitleTitle = anime.subtitleTitle,
-                )
+            )
+        }
+    }
+}
 
-                MetadataRow(
-                    mediaType = anime.mediaType,
-                    releaseSeason = anime.releaseSeason,
-                    airingStatus = anime.airingStatus,
-                )
+@Composable
+private fun AnimeCardDetails(
+    anime: UserAnime,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
+    ) {
+        TitleSection(
+            displayTitle = anime.displayTitle,
+            subtitleTitle = anime.subtitleTitle,
+        )
 
-                Spacer(modifier = Modifier.height(MaterialTheme.spacing.extraSmall))
+        MetadataRow(
+            mediaType = anime.mediaType,
+            releaseSeason = anime.releaseSeason,
+            airingStatus = anime.airingStatus,
+        )
 
-                ProgressSection(
-                    watchedEpisodes = anime.watchedEpisodes,
-                    totalEpisodes = anime.totalEpisodes,
-                )
+        Spacer(modifier = Modifier.height(MaterialTheme.spacing.extraSmall))
 
-                Spacer(modifier = Modifier.height(MaterialTheme.spacing.micro))
+        ProgressSection(
+            watchedEpisodes = anime.watchedEpisodes,
+            totalEpisodes = anime.totalEpisodes,
+        )
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    ScoreBadge(score = anime.userScore)
-                    AnimeStatusChip(status = anime.userStatus)
-                }
-            }
+        Spacer(modifier = Modifier.height(MaterialTheme.spacing.micro))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            ScoreBadge(score = anime.userScore)
+            AnimeStatusChip(status = anime.userStatus)
         }
     }
 }
