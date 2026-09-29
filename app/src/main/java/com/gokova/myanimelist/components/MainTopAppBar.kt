@@ -64,7 +64,10 @@ fun MainTopAppBar(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Person,
-                        contentDescription = stringResource(R.string.main_avatar_content_description),
+                        contentDescription =
+                            stringResource(
+                                R.string.main_avatar_content_description,
+                            ),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }

@@ -35,11 +35,13 @@ object DatabaseModule {
 
     @Provides
     @Singleton
-    fun provideUserAnimeListDao(database: AppDatabase): UserAnimeListDao = database.userAnimeListDao()
+    fun provideUserAnimeListDao(database: AppDatabase): UserAnimeListDao =
+        database.userAnimeListDao()
 
     @Provides
     @Singleton
-    fun provideRecommendationDao(database: AppDatabase): RecommendationDao = database.recommendationDao()
+    fun provideRecommendationDao(database: AppDatabase): RecommendationDao =
+        database.recommendationDao()
 
     @Provides
     @Singleton

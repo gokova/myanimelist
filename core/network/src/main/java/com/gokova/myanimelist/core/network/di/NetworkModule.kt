@@ -125,5 +125,6 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideMalApiService(retrofit: Retrofit): MalApiService = retrofit.create(MalApiService::class.java)
+    fun provideMalApiService(retrofit: Retrofit): MalApiService =
+        retrofit.create(MalApiService::class.java)
 }

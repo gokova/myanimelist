@@ -8,4 +8,5 @@ data class TasteActions(
     val onBubbleClick: (TasteBubble) -> Unit,
     val onRecenterClick: () -> Unit,
     val onDismissBottomSheet: () -> Unit,
+    val onAnimeClick: (Long) -> Unit = {},
 )

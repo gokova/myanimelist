@@ -107,7 +107,9 @@ class TokenAuthenticator
                     null
                 }
                 is RefreshResult.TransientFailure -> {
-                    AppLog.data.w { "Token refresh encountered transient error; preserving credentials" }
+                    AppLog.data.w {
+                        "Token refresh encountered transient error; preserving credentials"
+                    }
                     null
                 }
             }
@@ -124,11 +126,15 @@ class TokenAuthenticator
                             RefreshResult.Success(tokenResponse)
                         }
                         response.code in HTTP_AUTH_ERROR_RANGE -> {
-                            AppLog.data.w { "Token refresh failed with auth error: ${response.code}" }
+                            AppLog.data.w {
+                                "Token refresh failed with auth error: ${response.code}"
+                            }
                             RefreshResult.InvalidSession
                         }
                         else -> {
-                            AppLog.data.w { "Token refresh failed with server status: ${response.code}" }
+                            AppLog.data.w {
+                                "Token refresh failed with server status: ${response.code}"
+                            }
                             RefreshResult.TransientFailure
                         }
                     }

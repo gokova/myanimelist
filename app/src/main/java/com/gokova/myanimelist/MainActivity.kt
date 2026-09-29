@@ -28,6 +28,8 @@ import androidx.navigation.compose.rememberNavController
 import com.gokova.myanimelist.core.domain.logging.AppLog
 import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
 import com.gokova.myanimelist.feature.auth.AuthScreen
+import com.gokova.myanimelist.feature.details.navigation.AnimeDetailsRoute
+import com.gokova.myanimelist.feature.details.presentation.AnimeDetailsScreen
 import com.gokova.myanimelist.navigation.AuthRoute
 import com.gokova.myanimelist.navigation.MainRoute
 import com.gokova.myanimelist.navigation.OAuthRedirectHandler
@@ -131,16 +133,7 @@ fun AppNavigation(
     val navController = rememberNavController()
     val redirectResult by redirectHandler.redirectResult
 
-    DisposableEffect(navController) {
-        val listener =
-            NavController.OnDestinationChangedListener { _, destination, _ ->
-                AppLog.ui.i { "Navigated to destination: ${destination.route}" }
-            }
-        navController.addOnDestinationChangedListener(listener)
-        onDispose {
-            navController.removeOnDestinationChangedListener(listener)
-        }
-    }
+    TrackNavigationChanges(navController)
 
     LaunchedEffect(isLoggedIn) {
         if (!isLoggedIn) {
@@ -172,7 +165,32 @@ fun AppNavigation(
         composable<MainRoute> {
             MainScreen(
                 onLogoutConfirm = onLogout,
+                onAnimeClick = { animeId ->
+                    navController.navigate(AnimeDetailsRoute(animeId))
+                },
             )
+        }
+        composable<AnimeDetailsRoute> {
+            AnimeDetailsScreen(
+                onBackClick = { navController.popBackStack() },
+                onAnimeClick = { animeId ->
+                    navController.navigate(AnimeDetailsRoute(animeId))
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun TrackNavigationChanges(navController: NavController) {
+    DisposableEffect(navController) {
+        val listener =
+            NavController.OnDestinationChangedListener { _, destination, _ ->
+                AppLog.ui.i { "Navigated to destination: ${destination.route}" }
+            }
+        navController.addOnDestinationChangedListener(listener)
+        onDispose {
+            navController.removeOnDestinationChangedListener(listener)
         }
     }
 }

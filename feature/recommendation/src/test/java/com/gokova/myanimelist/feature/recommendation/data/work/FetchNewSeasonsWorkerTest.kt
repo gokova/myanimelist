@@ -17,6 +17,7 @@ import com.gokova.myanimelist.core.database.model.UserAnimeListItem
 import com.gokova.myanimelist.core.network.api.MalApiService
 import com.gokova.myanimelist.core.network.model.AnimeDetailsDto
 import com.gokova.myanimelist.core.network.model.AnimeNodeDto
+import com.gokova.myanimelist.core.network.model.MyListStatusDto
 import com.gokova.myanimelist.core.network.model.RelatedAnimeEdgeDto
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
@@ -700,6 +701,16 @@ class FetchNewSeasonsWorkerTest {
         override suspend fun upsertUserAnimeList(userAnimeList: List<UserAnimeListEntity>) = Unit
 
         override suspend fun clearUserAnimeList(): Int = 0
+
+        override fun observeUserAnimeById(animeId: Long): Flow<UserAnimeListItem?> = emptyFlow()
+
+        override suspend fun getUserAnimeById(animeId: Long): UserAnimeListItem? = null
+
+        override fun observeAnimeEntityById(animeId: Long): Flow<AnimeEntity?> = emptyFlow()
+
+        override suspend fun deleteRecommendation(animeId: Long): Int = 0
+
+        override suspend fun deleteNewSeasonAnime(animeId: Long): Int = 0
     }
 
     private class FakeNewSeasonDao : NewSeasonDao {
@@ -792,5 +803,12 @@ class FetchNewSeasonsWorkerTest {
             offset: Int,
             fields: String,
         ) = throw UnsupportedOperationException()
+
+        override suspend fun updateMyListStatus(
+            animeId: Long,
+            status: String,
+            numWatchedEpisodes: Int,
+            score: Int,
+        ): MyListStatusDto = throw UnsupportedOperationException()
     }
 }

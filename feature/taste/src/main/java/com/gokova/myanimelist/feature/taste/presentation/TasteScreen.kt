@@ -32,6 +32,7 @@ import com.gokova.myanimelist.feature.taste.presentation.components.TasteTypeSel
 fun TasteScreen(
     modifier: Modifier = Modifier,
     viewModel: TasteViewModel = hiltViewModel(),
+    onAnimeClick: (Long) -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -43,6 +44,7 @@ fun TasteScreen(
                 onBubbleClick = viewModel::onBubbleSelected,
                 onRecenterClick = viewModel::onRecenterClicked,
                 onDismissBottomSheet = viewModel::onDismissBottomSheet,
+                onAnimeClick = onAnimeClick,
             ),
         modifier = modifier,
     )
@@ -85,6 +87,7 @@ fun TasteContent(
             TasteBottomSheet(
                 bubble = bubble,
                 onDismissRequest = actions.onDismissBottomSheet,
+                onAnimeClick = actions.onAnimeClick,
             )
         }
     }

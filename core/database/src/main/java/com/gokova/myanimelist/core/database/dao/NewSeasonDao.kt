@@ -58,6 +58,7 @@ interface NewSeasonDao {
           AND id NOT IN (SELECT anime_id FROM recommendations)
           AND id NOT IN (SELECT anime_id FROM new_season_animes)
           AND id NOT IN (SELECT parent_anime_id FROM new_season_animes)
+          AND id NOT IN (SELECT anime_id FROM recommendation_candidates)
         """,
     )
     suspend fun deleteOrphanedAnimes(animeIds: List<Long>): Int

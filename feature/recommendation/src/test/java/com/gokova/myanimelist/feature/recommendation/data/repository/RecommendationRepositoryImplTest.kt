@@ -14,6 +14,7 @@ import com.gokova.myanimelist.feature.recommendation.domain.model.Recommendation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -63,6 +64,8 @@ class RecommendationRepositoryImplTest {
         override suspend fun getExcludedCandidateAnimeIds(): List<Long> = emptyList()
 
         override suspend fun deleteNonUserData(animeIds: List<Long>): Int = 0
+
+        override suspend fun deleteRecommendation(animeId: Long): Int = 0
     }
 
     private class FakeUserAnimeListDao : UserAnimeListDao {
@@ -83,6 +86,16 @@ class RecommendationRepositoryImplTest {
         }
 
         override suspend fun clearUserAnimeList(): Int = 0
+
+        override fun observeUserAnimeById(animeId: Long): Flow<UserAnimeListItem?> = flowOf(null)
+
+        override suspend fun getUserAnimeById(animeId: Long): UserAnimeListItem? = null
+
+        override fun observeAnimeEntityById(animeId: Long): Flow<AnimeEntity?> = flowOf(null)
+
+        override suspend fun deleteRecommendation(animeId: Long): Int = 0
+
+        override suspend fun deleteNewSeasonAnime(animeId: Long): Int = 0
     }
 
     private class FakeRecommendationScheduler : RecommendationScheduler {

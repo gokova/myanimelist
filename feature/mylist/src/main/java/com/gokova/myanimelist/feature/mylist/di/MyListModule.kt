@@ -19,5 +19,7 @@ abstract class MyListModule {
 
     @Binds
     @Singleton
-    abstract fun bindAnimeListRemoteDataSource(impl: AnimeListRemoteDataSourceImpl): AnimeListRemoteDataSource
+    abstract fun bindAnimeListRemoteDataSource(
+        impl: AnimeListRemoteDataSourceImpl,
+    ): AnimeListRemoteDataSource
 }

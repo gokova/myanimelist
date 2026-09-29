@@ -51,9 +51,17 @@ fun NewSeasonCard(
     anime: NewSeasonAnime,
     modifier: Modifier = Modifier,
     onPosterClick: (() -> Unit)? = null,
+    onCardClick: (() -> Unit)? = null,
 ) {
+    val cardClickableModifier =
+        if (onCardClick != null) {
+            Modifier.clickable(role = Role.Button, onClick = onCardClick)
+        } else {
+            Modifier
+        }
+
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().then(cardClickableModifier),
         shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border =

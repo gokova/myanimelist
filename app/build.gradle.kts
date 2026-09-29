@@ -153,6 +153,7 @@ dependencies {
     implementation(project(":feature:mylist"))
     implementation(project(":feature:taste"))
     implementation(project(":feature:recommendation"))
+    implementation(project(":feature:details"))
 
     // Logging
     implementation(libs.timber)

@@ -77,10 +77,12 @@ fun TasteBottomSheet(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    onAnimeClick: (Long) -> Unit = {},
 ) {
     if (LocalInspectionMode.current) {
         TasteBottomSheetPreviewOverlay(
             bubble = bubble,
+            onAnimeClick = onAnimeClick,
             modifier = modifier,
         )
     } else {
@@ -97,6 +99,7 @@ fun TasteBottomSheet(
         ) {
             TasteBottomSheetContent(
                 bubble = bubble,
+                onAnimeClick = onAnimeClick,
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -108,6 +111,7 @@ fun TasteBottomSheet(
 private fun TasteBottomSheetPreviewOverlay(
     bubble: TasteBubble,
     modifier: Modifier = Modifier,
+    onAnimeClick: (Long) -> Unit = {},
 ) {
     Box(
         modifier =
@@ -132,6 +136,7 @@ private fun TasteBottomSheetPreviewOverlay(
                 BottomSheetDefaults.DragHandle()
                 TasteBottomSheetContent(
                     bubble = bubble,
+                    onAnimeClick = onAnimeClick,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
@@ -160,6 +165,7 @@ private fun rememberSheetNestedScrollConnection(): NestedScrollConnection =
 fun TasteBottomSheetContent(
     bubble: TasteBubble,
     modifier: Modifier = Modifier,
+    onAnimeClick: (Long) -> Unit = {},
 ) {
     var previewAnime by remember { mutableStateOf<TasteAnimeItem?>(null) }
     val density = LocalDensity.current
@@ -196,6 +202,7 @@ fun TasteBottomSheetContent(
                 TasteAnimeCard(
                     anime = anime,
                     onPosterClick = { previewAnime = anime },
+                    onCardClick = { onAnimeClick(anime.id) },
                 )
             }
 
@@ -304,9 +311,17 @@ private fun TasteAnimeCard(
     anime: TasteAnimeItem,
     modifier: Modifier = Modifier,
     onPosterClick: (() -> Unit)? = null,
+    onCardClick: (() -> Unit)? = null,
 ) {
+    val cardClickableModifier =
+        if (onCardClick != null) {
+            Modifier.clickable(role = Role.Button, onClick = onCardClick)
+        } else {
+            Modifier
+        }
+
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().then(cardClickableModifier),
         shape = MaterialTheme.shapes.medium,
         colors =
             CardDefaults.cardColors(
@@ -431,7 +446,16 @@ private fun TasteBottomSheetPreview() {
                                 TasteAnimeItem(1, "Naruto", null, null, 8, "completed", 220, 220),
                                 TasteAnimeItem(2, "One Piece", null, null, 9, "watching", 0, 196),
                                 TasteAnimeItem(3, "Berserk", null, null, 0, "plan_to_watch", 25, 0),
-                                TasteAnimeItem(4, ".hack//Sign", null, null, 6, "completed", 26, 26),
+                                TasteAnimeItem(
+                                    4,
+                                    ".hack//Sign",
+                                    null,
+                                    null,
+                                    6,
+                                    "completed",
+                                    26,
+                                    26,
+                                ),
                                 TasteAnimeItem(5, "Last Exile", null, null, 7, "completed", 26, 26),
                             ),
                     ),
