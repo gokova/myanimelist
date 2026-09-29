@@ -28,6 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.gokova.myanimelist.core.ui.theme.componentSizes
 import com.gokova.myanimelist.core.ui.theme.spacing
 import com.gokova.myanimelist.feature.details.R
 import com.gokova.myanimelist.feature.details.domain.model.RelatedAnime
@@ -75,7 +76,7 @@ private fun RelatedAnimeCard(
     Card(
         modifier =
             modifier
-                .width(110.dp)
+                .width(MaterialTheme.componentSizes.carouselPosterWidth)
                 .clickable(role = Role.Button, onClick = onClick),
         shape = MaterialTheme.shapes.small,
         colors =
@@ -100,7 +101,7 @@ private fun RelatedAnimeCard(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .height(150.dp)
+                        .height(MaterialTheme.componentSizes.carouselPosterHeight)
                         .clip(MaterialTheme.shapes.small)
                         .background(MaterialTheme.colorScheme.surfaceVariant),
             )

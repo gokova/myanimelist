@@ -42,6 +42,7 @@ import com.gokova.myanimelist.core.ui.theme.StatusDroppedContainer
 import com.gokova.myanimelist.core.ui.theme.StatusOnHoldContainer
 import com.gokova.myanimelist.core.ui.theme.StatusPlanToWatchContainer
 import com.gokova.myanimelist.core.ui.theme.StatusWatchingContainer
+import com.gokova.myanimelist.core.ui.theme.componentSizes
 import com.gokova.myanimelist.core.ui.theme.spacing
 import com.gokova.myanimelist.feature.details.R
 import com.gokova.myanimelist.feature.details.domain.model.AnimeDetails
@@ -108,8 +109,8 @@ private fun HeaderPoster(
         contentScale = ContentScale.Crop,
         modifier =
             Modifier
-                .width(110.dp)
-                .height(165.dp)
+                .width(MaterialTheme.componentSizes.detailPosterWidth)
+                .height(MaterialTheme.componentSizes.detailPosterHeight)
                 .clip(MaterialTheme.shapes.small)
                 .background(MaterialTheme.colorScheme.surfaceVariant)
                 .clickable(role = Role.Button, onClick = onPosterClick),
@@ -167,7 +168,7 @@ private fun HeaderScores(
                 )
                 Text(
                     text =
-                        meanScore?.let { String.format(Locale.US, "%.2f", it) }
+                        meanScore?.let { stringResource(R.string.details_score_format, it) }
                             ?: stringResource(R.string.details_score_empty),
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
@@ -219,7 +220,7 @@ private fun HeaderAction(
             onClick = onAddToList,
             enabled = !isAddingToList,
             shape = MaterialTheme.shapes.large,
-            modifier = Modifier.height(44.dp),
+            modifier = Modifier.height(MaterialTheme.spacing.minTouchTarget),
         ) {
             if (isAddingToList) {
                 CircularProgressIndicator(

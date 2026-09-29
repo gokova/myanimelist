@@ -10,6 +10,9 @@
     <string name="recommendation_calculating_subtitle">Our background engine evaluates top all-time and seasonal anime against your taste profile. This might take a few moments.</string>
     <string name="recommendation_btn_calculate_now">Calculate Now</string>
     <string name="recommendation_btn_refresh">Recalculate</string>
+    <string name="recommendation_btn_retry">Retry</string>
+    <string name="recommendation_error_title">Couldn’t Load Recommendations</string>
+    <string name="recommendation_error_subtitle">Check your connection and try again.</string>
 
     <string name="new_seasons_empty_all_caught_up_title">All Caught Up</string>
     <string name="new_seasons_empty_all_caught_up_subtitle">No new seasons found for any anime in your list. Check back soon!</string>

@@ -57,6 +57,7 @@ import kotlin.math.sqrt
 private const val MIN_SCALE = 0.6f
 private const val MAX_SCALE = 3.5f
 private const val DEFAULT_SCALE = 1f
+private const val MIN_INITIAL_FIT_SCALE = 0.45f
 
 internal data class ChartViewport(
     val center: Offset,
@@ -132,7 +133,8 @@ fun PackedBubbleChart(
 
     BoxWithConstraints(modifier = modifier.fillMaxSize().clipToBounds()) {
         val center = Offset(constraints.maxWidth / 2f, constraints.maxHeight / 2f)
-        val viewport = ChartViewport(center, state.offset, state.scale)
+        val fitScale = calculateFitScale(bubbles, constraints, density)
+        val viewport = ChartViewport(center, state.offset, state.scale * fitScale)
 
         Canvas(
             modifier =
@@ -295,7 +297,8 @@ private fun DrawScope.drawBubbleLabels(
     colors: BubbleColorScheme,
     textMeasurer: TextMeasurer,
 ) {
-    val maxTextWidth = (radius * 1.6f).toInt()
+    val maxTextWidth = (radius * 1.8f).toInt().coerceAtLeast(1)
+    val titleMaxLines = if (bubble.name.any(Char::isWhitespace)) 2 else 1
     val titleFontSize =
         when {
             radius >= 55.dp.toPx() -> 14.sp
@@ -313,7 +316,7 @@ private fun DrawScope.drawBubbleLabels(
                     fontWeight = FontWeight.SemiBold,
                     color = colors.onContainer,
                 ),
-            maxLines = 2,
+            maxLines = titleMaxLines,
             overflow = TextOverflow.Ellipsis,
             constraints = Constraints(maxWidth = maxTextWidth),
         )
@@ -346,4 +349,29 @@ private fun DrawScope.drawBubbleLabels(
                 startY + titleResult.size.height + 2,
             ),
     )
+}
+
+private fun calculateFitScale(
+    bubbles: List<TasteBubble>,
+    constraints: Constraints,
+    density: Density,
+): Float {
+    if (bubbles.isEmpty()) return DEFAULT_SCALE
+
+    val minX = bubbles.minOf { it.x - it.radius }
+    val maxX = bubbles.maxOf { it.x + it.radius }
+    val minY = bubbles.minOf { it.y - it.radius }
+    val maxY = bubbles.maxOf { it.y + it.radius }
+    val contentWidthPx = with(density) { (maxX - minX).dp.toPx() }
+    val contentHeightPx = with(density) { (maxY - minY).dp.toPx() }
+    val horizontalPaddingPx = with(density) { 24.dp.toPx() }
+    val verticalPaddingPx = with(density) { 24.dp.toPx() }
+    val availableWidthPx = (constraints.maxWidth - horizontalPaddingPx * 2).coerceAtLeast(1f)
+    val availableHeightPx = (constraints.maxHeight - verticalPaddingPx * 2).coerceAtLeast(1f)
+
+    return minOf(
+        DEFAULT_SCALE,
+        availableWidthPx / contentWidthPx,
+        availableHeightPx / contentHeightPx,
+    ).coerceAtLeast(MIN_INITIAL_FIT_SCALE)
 }

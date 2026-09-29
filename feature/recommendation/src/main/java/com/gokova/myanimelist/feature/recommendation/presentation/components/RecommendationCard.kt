@@ -37,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.gokova.myanimelist.core.ui.theme.componentSizes
 import com.gokova.myanimelist.core.ui.theme.spacing
 import com.gokova.myanimelist.feature.recommendation.R
 import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationType
@@ -138,8 +139,8 @@ private fun PosterThumbnail(
     Surface(
         modifier =
             modifier
-                .width(80.dp)
-                .height(120.dp)
+                .width(MaterialTheme.componentSizes.posterSmallWidth)
+                .height(MaterialTheme.componentSizes.posterSmallHeight)
                 .clip(MaterialTheme.shapes.small)
                 .semantics { this.contentDescription = contentDesc }
                 .then(clickableModifier),

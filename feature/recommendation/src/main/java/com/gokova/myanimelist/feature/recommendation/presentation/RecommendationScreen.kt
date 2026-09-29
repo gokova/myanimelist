@@ -172,9 +172,11 @@ private fun RecommendationStateContent(
                 )
             }
             is RecommendationUiState.Error -> {
-                RecommendationCalculatingState(
-                    selectedType = uiState.selectedType,
-                    onCalculateNow = { onEvent(RecommendationUiEvent.CalculateNow) },
+                RecommendationEmptyState(
+                    titleRes = R.string.recommendation_error_title,
+                    subtitleRes = R.string.recommendation_error_subtitle,
+                    actionButtonTextRes = R.string.recommendation_btn_retry,
+                    onActionClick = { onEvent(RecommendationUiEvent.Refresh) },
                 )
             }
             is RecommendationUiState.Success -> {

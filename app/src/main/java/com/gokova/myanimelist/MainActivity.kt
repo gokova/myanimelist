@@ -39,6 +39,7 @@ import dagger.hilt.android.AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
     private val redirectHandler = OAuthRedirectHandler()
+    private var fallbackCustomTabInProgress = false
 
     private val authTabLauncher =
         AuthTabIntent.registerActivityResultLauncher(this) { result ->
@@ -94,7 +95,21 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        // A fallback Custom Tab has no ActivityResult callback. A redirect intent proves that
+        // the browser returned with a result, so do not treat this resume as cancellation.
+        fallbackCustomTabInProgress = false
         redirectHandler.handleIntent(intent)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (fallbackCustomTabInProgress) {
+            fallbackCustomTabInProgress = false
+            if (redirectHandler.redirectResult.value == null) {
+                AppLog.ui.i { "OAuth Custom Tab closed without a redirect" }
+                redirectHandler.handleCancellation()
+            }
+        }
     }
 
     private fun launchOAuth(url: String) {
@@ -113,6 +128,7 @@ class MainActivity : ComponentActivity() {
             val authTabIntent = builder.build()
             authTabIntent.launch(authTabLauncher, uri, OAuthRedirectHandler.EXPECTED_SCHEME)
         } else {
+            fallbackCustomTabInProgress = true
             val builder = CustomTabsIntent.Builder()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 builder.setEphemeralBrowsingEnabled(true)

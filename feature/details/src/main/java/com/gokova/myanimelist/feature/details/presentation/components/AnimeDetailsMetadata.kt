@@ -61,7 +61,7 @@ private fun BroadcastMetadataBadges(details: AnimeDetails) {
     details.mediaType?.let {
         MetadataBadge(
             label = stringResource(R.string.details_info_media_type),
-            value = it.uppercase(Locale.US),
+            value = formatMediaType(it),
         )
     }
     details.status?.let {
@@ -89,6 +89,19 @@ private fun BroadcastMetadataBadges(details: AnimeDetails) {
         )
     }
 }
+
+@Composable
+private fun formatMediaType(mediaType: String): String =
+    when (mediaType.lowercase(Locale.US)) {
+        "tv" -> stringResource(R.string.details_media_type_tv)
+        "movie" -> stringResource(R.string.details_media_type_movie)
+        "ova" -> stringResource(R.string.details_media_type_ova)
+        "ona" -> stringResource(R.string.details_media_type_ona)
+        "special" -> stringResource(R.string.details_media_type_special)
+        "tv_special" -> stringResource(R.string.details_media_type_tv_special)
+        "music" -> stringResource(R.string.details_media_type_music)
+        else -> mediaType.replace('_', ' ').replaceFirstChar { it.uppercase(Locale.US) }
+    }
 
 @Composable
 private fun MetricMetadataBadges(details: AnimeDetails) {

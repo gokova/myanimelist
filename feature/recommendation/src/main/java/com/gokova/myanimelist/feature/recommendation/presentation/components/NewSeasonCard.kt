@@ -42,6 +42,7 @@ import com.gokova.myanimelist.core.ui.theme.OnStatusWatchingContainer
 import com.gokova.myanimelist.core.ui.theme.StatusCompletedContainer
 import com.gokova.myanimelist.core.ui.theme.StatusPlanToWatchContainer
 import com.gokova.myanimelist.core.ui.theme.StatusWatchingContainer
+import com.gokova.myanimelist.core.ui.theme.componentSizes
 import com.gokova.myanimelist.core.ui.theme.spacing
 import com.gokova.myanimelist.feature.recommendation.R
 import com.gokova.myanimelist.feature.recommendation.domain.model.NewSeasonAnime
@@ -148,8 +149,8 @@ private fun PosterThumbnail(
     Box(
         modifier =
             modifier
-                .width(80.dp)
-                .height(120.dp)
+                .width(MaterialTheme.componentSizes.posterSmallWidth)
+                .height(MaterialTheme.componentSizes.posterSmallHeight)
                 .clip(MaterialTheme.shapes.small)
                 .then(backgroundModifier)
                 .semantics { this.contentDescription = contentDesc }
@@ -164,7 +165,10 @@ private fun PosterThumbnail(
                 error = placeholderPainter,
                 fallback = placeholderPainter,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxWidth().height(120.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(MaterialTheme.componentSizes.posterSmallHeight),
             )
         } else {
             Text(

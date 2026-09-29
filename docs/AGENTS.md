@@ -246,3 +246,19 @@ When implementing features or refactoring:
 - Keep changes minimal, focused, and well-verified.
 - Preserve architectural consistency.
 - Ask before introducing new dependencies.
+
+## Current UI implementation notes
+
+- Use `MaterialTheme.componentSizes` from `:core:ui` for repeated poster, carousel, empty-state,
+  and other semantic component dimensions. Do not copy the same poster size into multiple feature
+  modules.
+- Primary segmented selectors use `primaryContainer` for the selected state and may wrap labels on
+  compact widths; never hide a core destination behind ellipsis.
+- Keep loading, calculating, empty, cached-content, and error states distinct in the UI. Errors
+  must expose a localized recovery action when retry is available.
+- Preserve primary-action geometry while loading. A progress indicator replaces button content;
+  it must not replace the button surface with a differently sized standalone spinner.
+- Public detail scores use the localized detail format; compact cards may use the compact format.
+  Do not use `String.format(Locale.US, ...)` for user-visible numbers.
+- Runtime dialogs and bottom sheets must have inspection-mode simulated overlays and previews. Use
+  `MaterialTheme.colorScheme.scrim` for both runtime and simulated scrims.

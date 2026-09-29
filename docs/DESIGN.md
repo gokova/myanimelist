@@ -12,6 +12,10 @@ The application follows a **"Soft & Modern"** aesthetic. The goal is to create a
 *   **Tonal Depth Over Drop Shadows:** Flat, clean surfaces separated by subtle background-to-surface tonal shifts rather than harsh drop shadows.
 *   **Accessibility First:** High contrast (WCAG AA compliant, \(\ge 4.5:1\) for body text) paired with minimum `48.dp` interactive touch targets.
 
+The reference implementation is validated primarily on compact portrait, but every screen must
+also remain intentional in compact landscape and tablet widths. Responsive behavior is a layout
+decision, not a scale factor: content may reflow, become a grid, or move beside a navigation rail.
+
 ---
 
 ## 2. Guidelines for AI Agents & Developers ("Theme-First Rule")
@@ -255,3 +259,72 @@ All UI components and screens must include preview coverage using the standard m
 *   **Descriptive Parameter Names:** Always override `getDisplayName(index: Int)` in `PreviewParameterProvider` implementations to return human-readable names (e.g., `"Loaded"`, `"Empty"`, `"Watching"`) rather than default indices (`uiState 0`, `uiState 1`).
 *   **Stateless Previews:** Screens must expose a public stateless composable accepting state and lambdas so `@StandardPreviews` never instantiates Hilt ViewModel factories or relies on an Activity context.
 *   **Inspection Mode Overlays:** Use `LocalInspectionMode.current` to render simulated overlays for transient containers like bottom sheets and dialogs so their expanded states can be visually inspected within static previews.
+
+---
+
+## 8. Implemented Component Contracts
+
+These contracts make the visual language concrete for the current screens and prevent feature-local
+drift.
+
+### Shared dimensions
+
+Repeated poster and discovery dimensions live in `:core:ui` as `MaterialTheme.componentSizes`:
+
+*   Small list/discovery posters: `80.dp × 120.dp` (2:3).
+*   Detail hero poster: `110.dp × 165.dp` (2:3).
+*   Detail carousel poster: `110.dp × 150.dp`.
+*   Taste bottom-sheet poster: `56.dp × 80.dp`.
+*   Empty-state icon container/icon: `80.dp` / `40.dp`.
+
+Feature components may introduce a new dimension only when the information architecture requires a
+new variant; repeated values must be promoted to `:core:ui`.
+
+### Card and chip variants
+
+Cards are intentionally variants of one grammar, not one universal layout:
+
+*   **Compact list card:** poster, title/subtitle, metadata, progress, score slot, status.
+*   **Rich discovery card:** poster, title/subtitle, rank or relationship, score/episodes,
+    metadata, and wrapped taxonomy chips.
+*   **Bottom-sheet card:** compact poster, title, progress/episode context, score, and status.
+*   **Carousel card:** poster-led discovery with a partial next-card cue.
+*   **Metadata badge:** label/value pair for details information, never an interactive control.
+
+All variants preserve the same `surface`/`surfaceContainer` hierarchy, medium card shape, subtle
+outline, 2:3 poster treatment where applicable, and explicit title/relation truncation rules.
+
+### Selection and content rules
+
+*   Primary navigation selectors use `primaryContainer` / `onPrimaryContainer` for the selected
+    state. Secondary and tertiary containers remain reserved for taxonomy and contextual metadata.
+*   Core destinations must remain readable at compact width. Segmented selectors may wrap to two
+    lines, but must not silently ellipsize a destination name.
+*   Public detail scores use two decimal places in the detail hero; compact cards use one decimal.
+    Both formats must go through localized resources.
+*   Unknown episode counts use a localized placeholder and reserve the same visual slot as known
+    counts. Counts and quantities use Android plurals.
+*   Titles use a two-line limit in cards and a three-line limit in the detail hero. Relation labels
+    use one line with ellipsis and must not visually outrank the title.
+
+### State and overlay rules
+
+*   Loading preserves the geometry of the content or primary action whenever possible. A spinner
+    must not cause the login CTA or a populated screen to jump to a different layout.
+*   Error states are visually distinct from calculating, empty, and cached-content states and
+    provide a localized recovery action when retry is possible.
+*   Runtime dialogs and bottom sheets need inspection-mode simulated overlays so their scrim,
+    surface, actions, and content can be reviewed in Android Studio previews.
+*   All scrims use `MaterialTheme.colorScheme.scrim`; feature previews must not hardcode black.
+
+### Responsive and accessibility rules
+
+*   Below `600.dp`, use bottom navigation and compact single-column content where appropriate.
+    At or above `600.dp`, use the navigation rail and adaptive grids or two-pane compositions.
+*   Use `LocalWindowInfo` plus `LocalDensity` for window decisions; do not branch on device model
+    or `LocalConfiguration` dimensions.
+*   Interactive controls are at least `48.dp` in both dimensions, including detail actions,
+    chart recentering, poster preview close, and expandable synopsis actions.
+*   Canvas visualizations retain virtual per-item semantic nodes and custom actions. The
+    accessibility tree must be checked on-device to ensure aggregate chart semantics do not create
+    duplicate or ambiguous TalkBack paths.
