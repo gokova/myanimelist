@@ -6,7 +6,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
+import com.gokova.myanimelist.core.datastore.di.SessionDataStore
 import com.google.crypto.tink.Aead
 import com.google.crypto.tink.KeyTemplates
 import com.google.crypto.tink.RegistryConfiguration
@@ -18,11 +18,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.runBlocking
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicReference
 import javax.inject.Inject
 import javax.inject.Singleton
-
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "auth_prefs")
 
 @Singleton
 @Suppress("TooManyFunctions")
@@ -30,6 +29,7 @@ class AuthPreferencesImpl
     @Inject
     constructor(
         @ApplicationContext private val context: Context,
+        @SessionDataStore private val dataStore: DataStore<Preferences>,
     ) : AuthPreferences {
         private val cachedAccessToken = AtomicReference<String?>(null)
         private val cachedRefreshToken = AtomicReference<String?>(null)
@@ -57,17 +57,16 @@ class AuthPreferencesImpl
             return Base64.encodeToString(encrypted, Base64.NO_WRAP)
         }
 
-        private fun decrypt(data: String): String? =
+        private fun decrypt(encryptedData: String): String? =
             try {
-                val decoded = Base64.decode(data, Base64.NO_WRAP)
-                val decrypted = aead.decrypt(decoded, null)
-                String(decrypted, Charsets.UTF_8)
+                val decoded = Base64.decode(encryptedData, Base64.NO_WRAP)
+                String(aead.decrypt(decoded, null), Charsets.UTF_8)
             } catch (_: Exception) {
                 null
             }
 
         private fun getDecryptedFlow(key: Preferences.Key<String>): Flow<String?> =
-            context.dataStore.data.map { prefs ->
+            dataStore.data.map { prefs ->
                 prefs[key]?.let { decrypt(it) }
             }
 
@@ -87,15 +86,28 @@ class AuthPreferencesImpl
 
         override val oauthState: Flow<String?> = getDecryptedFlow(KEY_OAUTH_STATE)
 
+        override val sessionId: Flow<String?> =
+            dataStore.data.map { prefs ->
+                if (prefs[KEY_ACCESS_TOKEN] != null) {
+                    prefs[KEY_SESSION_ID] ?: "legacy_session"
+                } else {
+                    null
+                }
+            }
+
         override suspend fun saveTokens(
             accessToken: String,
             refreshToken: String,
+            isNewSession: Boolean,
         ) {
             val encryptedAccess = encrypt(accessToken)
             val encryptedRefresh = encrypt(refreshToken)
-            context.dataStore.edit { prefs ->
+            dataStore.edit { prefs ->
                 prefs[KEY_ACCESS_TOKEN] = encryptedAccess
                 prefs[KEY_REFRESH_TOKEN] = encryptedRefresh
+                if (isNewSession || prefs[KEY_SESSION_ID] == null) {
+                    prefs[KEY_SESSION_ID] = UUID.randomUUID().toString()
+                }
                 // Atomically clean up temporary OAuth PKCE verifier and CSRF state in the same transaction
                 prefs.remove(KEY_CODE_VERIFIER)
                 prefs.remove(KEY_OAUTH_STATE)
@@ -106,11 +118,8 @@ class AuthPreferencesImpl
         }
 
         override suspend fun clearTokens() {
-            context.dataStore.edit { prefs ->
-                prefs.remove(KEY_ACCESS_TOKEN)
-                prefs.remove(KEY_REFRESH_TOKEN)
-                prefs.remove(KEY_CODE_VERIFIER)
-                prefs.remove(KEY_OAUTH_STATE)
+            dataStore.edit { prefs ->
+                prefs.clear()
             }
             // Clear in-memory cache only AFTER DataStore removal successfully completes
             cachedAccessToken.set(null)
@@ -123,14 +132,14 @@ class AuthPreferencesImpl
         ) {
             val encryptedVerifier = encrypt(verifier)
             val encryptedState = encrypt(state)
-            context.dataStore.edit { prefs ->
+            dataStore.edit { prefs ->
                 prefs[KEY_CODE_VERIFIER] = encryptedVerifier
                 prefs[KEY_OAUTH_STATE] = encryptedState
             }
         }
 
         override suspend fun clearOAuthSession() {
-            context.dataStore.edit { prefs ->
+            dataStore.edit { prefs ->
                 prefs.remove(KEY_CODE_VERIFIER)
                 prefs.remove(KEY_OAUTH_STATE)
             }
@@ -173,9 +182,10 @@ class AuthPreferencesImpl
         }
 
         companion object {
-            private val KEY_ACCESS_TOKEN = stringPreferencesKey("access_token")
-            private val KEY_REFRESH_TOKEN = stringPreferencesKey("refresh_token")
-            private val KEY_CODE_VERIFIER = stringPreferencesKey("code_verifier")
-            private val KEY_OAUTH_STATE = stringPreferencesKey("oauth_state")
+            internal val KEY_ACCESS_TOKEN = stringPreferencesKey("access_token")
+            internal val KEY_REFRESH_TOKEN = stringPreferencesKey("refresh_token")
+            internal val KEY_CODE_VERIFIER = stringPreferencesKey("code_verifier")
+            internal val KEY_OAUTH_STATE = stringPreferencesKey("oauth_state")
+            internal val KEY_SESSION_ID = stringPreferencesKey("session_id")
         }
     }

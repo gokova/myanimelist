@@ -6,7 +6,8 @@ A modern, reactive Android client for the [MyAnimeList API](https://myanimelist.
 
 ## Screenshots
 
-The screenshots below showcase the application flow, from authentication to anime tracking and visual taste analytics:
+The screenshots below show representative primary feature surfaces, from authentication to anime
+tracking, visual taste analytics, and recommendations.
 
 | 1. Authentication | 2. My Anime List | 3. Taste Analytics | 4. Taste Drill-down | 5. Recommendations |
 | :---: | :---: | :---: | :---: | :---: |
@@ -23,6 +24,7 @@ The screenshots below showcase the application flow, from authentication to anim
 *   **Smart Recommendation Engine (TF-IDF & Quality Scoring)**: Autonomous two-stage `WorkManager` pipeline (`FetchCandidatesWorker` + `EvaluateRecommendationsWorker`) evaluating seasonal and all-time anime against the user's personal taste profile using TF-IDF genre/theme weighting and global quality multiplier to produce ranked recommendations with match percentages.
 *   **New Seasons Discovery**: Automatically discovers upcoming, ongoing, and recently aired sequels, prequels, and side stories for anime in the user's list. Features polite request pacing, rich metadata enrichment, contextual relation badges (*"Sequel to..."*), and multiple sort orders (Release Date, Score, Title).
 *   **Anime Details**: Rich detail views featuring episode counts, synopsis, seasonal air dates, genres, and production metadata.
+*   **Profile & Session Controls**: Cached user profile details and anime statistics with background refresh feedback, plus an explicit logout confirmation flow.
 
 ---
 
@@ -33,10 +35,10 @@ The screenshots below showcase the application flow, from authentication to anim
 *   **Architecture**: Clean Architecture & MVI (Model-View-Intent)
 *   **Dependency Injection**: [Hilt](https://dagger.dev/hilt/)
 *   **Local Persistence**: [Room Database](https://developer.android.com/training/data-storage/room) & [Jetpack DataStore](https://developer.android.com/topic/libraries/architecture/datastore) (Google Tink AEAD encryption)
-*   **Networking**: [Retrofit 2](https://square.github.io/retrofit/) & [OkHttp 4](https://square.github.io/okhttp/)
+*   **Networking**: [Retrofit 3](https://square.github.io/retrofit/) & [OkHttp 5](https://square.github.io/okhttp/)
 *   **Serialization**: [Kotlinx Serialization](https://github.com/Kotlin/kotlinx.serialization)
 *   **Navigation**: Jetpack Navigation Compose with type-safe route serialization
-*   **Image Loading**: [Coil 3](https://coil-kt.github.io/coil/)
+*   **Image Loading**: [Coil 2](https://coil-kt.github.io/coil/)
 *   **Background Processing**: [WorkManager](https://developer.android.com/topic/libraries/architecture/workmanager)
 
 ---
@@ -51,14 +53,15 @@ The project enforces a **Feature-based Multi-Module** architecture to establish 
 │   ├── network/                # Retrofit API services, OkHttp client, Token Authenticator
 │   ├── database/               # Room database, DAOs, and database entities
 │   ├── datastore/              # Encrypted token storage and user preferences
-│   ├── domain/                 # Core domain models, shared Result/Resource wrappers
+│   ├── domain/                 # Core domain models, shared contracts, and use cases
 │   └── ui/                     # Design tokens, theme, typography, shapes, StandardPreviews
 └── feature/
     ├── auth/                   # OAuth 2.0 PKCE login and deep link redirect handling
     ├── mylist/                 # Anime catalog, status filtering, and local caching
     ├── taste/                  # Packed bubble chart analytics and bottom sheet drill-down
     ├── recommendation/         # Background recommendation engine and suggestions UI
-    └── details/                # Detailed anime views and metadata presentation
+    ├── details/                # Detailed anime views and metadata presentation
+    └── profile/                # User profile, anime statistics, refresh, and logout UI
 ```
 
 ---
@@ -67,9 +70,9 @@ The project enforces a **Feature-based Multi-Module** architecture to establish 
 
 *   **Static Analysis**: [Detekt](https://detekt.dev/) with zero-violation enforcement, 100-character line limit, and strict complexity checks.
 *   **Formatting**: [KtLint](https://pinterest.github.io/ktlint/) for idiomatic Kotlin style.
-*   **Accessibility (a11y)**: Full TalkBack support across all screens, including custom `Canvas` graphics equipped with virtual semantics nodes, `customActions`, and localized Android plural resources (`<plurals>`).
+*   **Accessibility (a11y)**: Uses localized content descriptions, Compose semantics, custom actions, and Android plural resources where the UI requires them.
 *   **UI State Coverage**: Loading, empty, cached, calculating, and error states preserve the surrounding layout and expose an actionable recovery path where appropriate.
-*   **Testing**: Comprehensive unit test suite covering Domain Use Cases, Data Mappers, and ViewModels using `kotlinx-coroutines-test`, MockK, and in-memory test fakes.
+*   **Testing**: Comprehensive unit test suite covering Domain Use Cases, Data Mappers, and ViewModels using `kotlinx-coroutines-test` and in-memory test fakes.
 *   **Zero Framework Leakage**: Pure Kotlin Domain layer with zero dependencies on Android framework classes.
 
 ---
@@ -77,9 +80,9 @@ The project enforces a **Feature-based Multi-Module** architecture to establish 
 ## Getting Started
 
 ### Prerequisites
-*   Android Studio Ladybug (2024.2.1) or newer
+*   Android Studio Quail 4 (2026.1.4) or newer
 *   JDK 17
-*   Android SDK 35 (`minSdk = 24`, `targetSdk = 35`)
+*   Android SDK 37 (`minSdk = 24`, `targetSdk = 37`)
 
 ### Configuration
 
@@ -123,6 +126,9 @@ Run the following Gradle commands to verify code quality and execute tests:
 # Check Kotlin code formatting
 ./gradlew ktlintCheck
 
+# Run Android lint
+./gradlew lintDebug
+
 # Build debug APK
 ./gradlew assembleDebug
 
@@ -144,3 +150,5 @@ All architectural decisions, design tokens, and feature specifications are maint
     *   [03: Taste Analytics (Packed Bubble Chart)](docs/03_taste_screen.md)
     *   [04: Smart Recommendation Engine & Screen](docs/04_recommendation_feature.md)
     *   [05: New Seasons of User's Anime](docs/05_new_seasons_feature.md)
+    *   [06: Anime Details Page & List Integration](docs/06_anime_details_feature.md)
+    *   [07: User Profile & Avatar Integration](docs/07_user_profile_screen.md)

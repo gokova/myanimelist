@@ -219,5 +219,10 @@ class AnimeDetailsRepositoryImplTest {
             numWatchedEpisodes: Int,
             score: Int,
         ): MyListStatusDto = updateStatusResult
+
+        override suspend fun getUserProfile(
+            userId: String,
+            fields: String,
+        ) = throw UnsupportedOperationException()
     }
 }

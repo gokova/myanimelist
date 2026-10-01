@@ -1,96 +1,75 @@
-# Feature 06: Anime Details Page & List Integration
+# Feature 06: Anime Details and List Integration
 
-## Overview
-The Anime Details feature provides a dedicated, full-screen, offline-first view displaying comprehensive metadata, synopsis, taxonomy tags (genres and themes), ratings, related works, and community recommendations for any anime. It also enables one-tap addition of unlisted anime directly to the user's personal list (`plan_to_watch`), automatically cleaning up corresponding recommendation or new season entries from local storage.
+| Field | Value |
+| --- | --- |
+| Status | Implemented |
+| Primary module | :feature:details |
+| Entry surface | AnimeDetailsRoute from list, taste, recommendation, and detail carousels |
+| Related systems | :core:database, :core:domain, :core:network, :feature:mylist, :feature:recommendation |
 
-The page is seamlessly accessible from any anime listing throughout the app:
-- My List (`MyListScreen`)
-- Taste Drill-down (`TasteBottomSheet`)
-- Recommendation Engine (`RecommendationScreen` - Genres & Themes)
-- New Seasons (`RecommendationScreen` - New Seasons)
-- Related Anime & Recommendations carousels within the Details page itself
+## Purpose
 
----
+Provide a full-screen, offline-first detail view for any anime and let the user add an unlisted
+title to Plan to Watch without leaving the context in which it was discovered.
 
-## Key Requirements & Agreed Design
+## User-facing behavior
 
-1. **Navigation**:
-   - Registered as `AnimeDetailsRoute(val animeId: Long)` in the root navigation graph (`MainActivity`).
-   - Renders as a full-screen destination over the bottom navigation bar/rail.
-   - Features a Material 3 `TopAppBar` with back navigation and anime title.
-   - Supports forward chaining: tapping any related anime or recommendation pushes a new `AnimeDetailsRoute` onto the backstack.
+- A card body opens the detail destination; a related-anime or recommendation card can push
+  another detail destination. Poster-preview behavior remains independent of detail navigation.
+- The screen immediately renders cached metadata if present and refreshes rich MAL details in the
+  background. A failed refresh keeps cache content and reports a recoverable error.
+- It displays title variants, scores, user-list status, synopsis, taxonomy, metadata, related
+  anime, and MAL recommendations. Layout adapts between compact and wide screens.
+- An anime not in the user list has an Add to List action. Success adds it as Plan to Watch,
+  removes it from recommendation/New Seasons discovery rows, and updates the displayed status.
 
-2. **Offline-First Data Strategy**:
-   - Instantly loads existing cached data from Room (`animes` and `user_anime_list` tables).
-   - Shows a subtle refreshing indicator while fetching fresh details from `GET /v2/anime/{anime_id}?fields=...`.
-   - On success: upserts latest core metadata into `AnimeEntity` in Room and updates the UI state with rich dynamic relations (related anime and recommendations).
-   - On failure: retains cached data and displays a non-blocking snackbar notification. If offline and no local record exists, displays an empty/error state with a Retry action.
+## Architecture
 
-3. **"Add to List" Integration**:
-   - If the anime is not in the user's list: displays a prominent primary CTA button ("Add to List").
-   - Tapping invokes `PUT /v2/anime/{anime_id}/my_list_status` with `status=plan_to_watch`, `num_watched_episodes=0`, `score=0`.
-   - On success:
-     - Persists the new entry in `user_anime_list` Room table.
-     - Automatically removes the anime record from `recommendations` and `new_season_animes` Room tables.
-     - Displays a confirmation Snackbar.
-     - Transitions the button into the theme-styled status chip ("Plan to Watch").
+| Layer | Responsibility |
+| --- | --- |
+| :feature:details domain | Defines detail, related, and recommendation models plus observe, refresh, and add-to-list use cases. |
+| :feature:details data | Reads cached rows, fetches MAL detail DTOs, maps data, and retains a small in-memory fresh-detail cache. |
+| :feature:details presentation | Owns refresh/add state and renders screen sections, error state, and responsive layouts. |
+| :core:database | Provides cached anime and user-list data, plus the transactional add-and-clean operation. |
+| :core:network | Retrieves rich anime details and updates the user's MAL list status. |
+| :core:domain taxonomy | Partitions displayed tags into genres and themes. |
 
-4. **Taxonomy & Metadata Presentation**:
-   - Splits tags into **Genres** and **Themes** using `AnimeTaxonomy` (`GENRE_NAMES` and `THEME_NAMES`).
-   - Displays English title as main title and Japanese/Romaji title as subtitle when distinct.
-   - Displays community score (with star badge) and, if in list, the user's personal score.
-   - Shows rank, popularity, scoring users, and total list users.
-   - Conditionally displays episode counts and formatted episode duration (omitted or adapted for movies/music).
-   - Renders "Related Anime" and "Recommendations" in horizontal scrolling carousels (`LazyRow`) with 2:3 posters, relation tags, and scores.
+## Data flow
 
-5. **List Item Interaction**:
-   - Tapping an anime card body navigates to `AnimeDetailsRoute`.
-   - Tapping the poster thumbnail continues to trigger `AnimePosterPreviewDialog` (zoom preview).
+1. AnimeDetailsRoute supplies its anime ID to AnimeDetailsViewModel.
+2. ObserveAnimeDetailsUseCase combines cached anime and user-list rows with any fresh in-memory
+   detail value, producing an immediate offline-first state.
+3. RefreshAnimeDetailsUseCase calls the MAL detail endpoint, upserts core metadata, stores any
+   returned list status, and updates the bounded fresh-detail cache.
+4. The ViewModel renders the newest available value and emits a recoverable event if refresh
+   fails without usable cache data.
+5. AddAnimeToMyListUseCase updates MAL with Plan to Watch and invokes the DAO transaction that
+   adds the user-list row while removing recommendation and New Seasons entries.
 
----
+## Implementation map
 
-## Architectural Breakdown
+| Path | Responsibility |
+| --- | --- |
+| feature/details/navigation/AnimeDetailsRoute.kt | Type-safe detail route carrying the anime ID. |
+| feature/details/presentation/AnimeDetailsScreen.kt and AnimeDetailsViewModel.kt | Stateful screen, presentation state, refresh, retry, add, and navigation events. |
+| feature/details/presentation/components/ | Header, metadata, synopsis, taxonomy, related carousel, and recommendation carousel. |
+| feature/details/domain/usecase/ObserveAnimeDetailsUseCase.kt | Observes locally available details. |
+| feature/details/domain/usecase/RefreshAnimeDetailsUseCase.kt | Fetches and maps up-to-date MAL details. |
+| feature/details/domain/usecase/AddAnimeToMyListUseCase.kt | Adds a title to Plan to Watch. |
+| feature/details/data/repository/AnimeDetailsRepositoryImpl.kt | Coordinates Room, MAL, and bounded fresh-detail cache access. |
+| feature/details/data/mapper/AnimeDetailsMapper.kt | Maps detail DTOs and Room entities to domain models. |
+| core/database/dao/UserAnimeListDao.kt | Supplies cached detail rows and performs add-and-clean persistence. |
 
-```
-:feature:details/
-├── data/
-│   ├── mapper/
-│   │   └── AnimeDetailsMapper.kt
-│   └── repository/
-│       └── AnimeDetailsRepositoryImpl.kt
-├── domain/
-│   ├── model/
-│   │   ├── AnimeDetails.kt
-│   │   ├── RelatedAnime.kt
-│   │   └── RecommendedAnimeItem.kt
-│   ├── repository/
-│   │   └── AnimeDetailsRepository.kt
-│   └── usecase/
-│       ├── GetAnimeDetailsUseCase.kt
-│       └── AddAnimeToMyListUseCase.kt
-├── presentation/
-│   ├── AnimeDetailsScreen.kt
-│   ├── AnimeDetailsViewModel.kt
-│   ├── AnimeDetailsUiState.kt
-│   ├── AnimeDetailsUiEvent.kt
-│   └── components/
-│       ├── AnimeDetailsHeader.kt
-│       ├── AnimeDetailsMetadata.kt
-│       ├── AnimeDetailsSynopsis.kt
-│       ├── AnimeDetailsTaxonomy.kt
-│       ├── RelatedAnimeCarousel.kt
-│       └── DetailRecommendationsCarousel.kt
-└── di/
-    └── DetailsModule.kt
+## Constraints
 
-:core:network/
-├── api/
-│   └── MalApiService.kt (updateMyListStatus, updated anime details fields)
-└── model/
-    └── MalAnimeListDtos.kt (recommendations in details, num_scoring_users)
+- Related and recommendation carousel data is intentionally a fresh-detail cache, whereas core
+  anime metadata and list status are persisted in Room.
+- The in-memory fresh-detail cache is limited to ten entries.
+- A details refresh must not remove useful cached content on a network failure.
+- Adding a title uses the MAL Plan to Watch status with zero watched episodes and score, then
+  updates local data transactionally.
 
-:core:database/
-├── dao/
-│   ├── RecommendationDao.kt (deleteRecommendation)
-│   └── UserAnimeListDao.kt (getUserAnimeItemById)
-```
+## Verification
+
+feature/details/src/test covers DTO/entity/domain mapping, repository caching and add-to-list
+behavior, use cases, and AnimeDetailsViewModel state/event handling.

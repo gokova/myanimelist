@@ -19,9 +19,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
@@ -38,7 +35,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.gokova.myanimelist.components.LogoutConfirmationDialog
 import com.gokova.myanimelist.components.MainTopAppBar
 import com.gokova.myanimelist.core.domain.logging.AppLog
 import com.gokova.myanimelist.core.ui.preview.StandardPreviews
@@ -52,28 +48,18 @@ import com.gokova.myanimelist.navigation.RecommendationsRoute
 import com.gokova.myanimelist.navigation.TasteRoute
 import kotlin.reflect.KClass
 
+data class MainAvatarState(
+    val avatarUrl: String? = null,
+    val onClick: () -> Unit = {},
+)
+
 @Composable
 fun MainScreen(
-    onLogoutConfirm: () -> Unit = {},
+    onProfileClick: () -> Unit = {},
     onAnimeClick: (Long) -> Unit = {},
+    avatarUrl: String? = null,
 ) {
     val navController = rememberNavController()
-    var showLogoutDialog by rememberSaveable { mutableStateOf(false) }
-
-    if (showLogoutDialog) {
-        LogoutConfirmationDialog(
-            onConfirm = {
-                AppLog.ui.i { "User confirmed logout in dialog" }
-                showLogoutDialog = false
-                onLogoutConfirm()
-            },
-            onDismiss = {
-                AppLog.ui.i { "User dismissed logout dialog" }
-                showLogoutDialog = false
-            },
-        )
-    }
-
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
     val matchedDestination =
@@ -98,10 +84,14 @@ fun MainScreen(
                 restoreState = true
             }
         },
-        onAvatarClick = {
-            AppLog.ui.i { "User clicked avatar (opening logout confirmation)" }
-            showLogoutDialog = true
-        },
+        avatarState =
+            MainAvatarState(
+                avatarUrl = avatarUrl,
+                onClick = {
+                    AppLog.ui.i { "User clicked avatar (navigating to profile)" }
+                    onProfileClick()
+                },
+            ),
     ) {
         MainNavHost(
             navController = navController,
@@ -139,7 +129,7 @@ private val EXPANDED_WIDTH_BREAKPOINT = 600.dp
 fun MainContent(
     selectedRouteClass: KClass<out Any>?,
     onNavigateToDestination: (TopLevelDestination<out Any>) -> Unit,
-    onAvatarClick: () -> Unit,
+    avatarState: MainAvatarState,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
@@ -155,7 +145,12 @@ fun MainContent(
                 onNavigateToDestination = onNavigateToDestination,
             )
             Scaffold(
-                topBar = { MainTopAppBar(onAvatarClick = onAvatarClick) },
+                topBar = {
+                    MainTopAppBar(
+                        onAvatarClick = avatarState.onClick,
+                        avatarUrl = avatarState.avatarUrl,
+                    )
+                },
                 modifier = Modifier.weight(1f).fillMaxHeight(),
             ) { paddingValues ->
                 Box(modifier = Modifier.padding(paddingValues)) {
@@ -165,7 +160,12 @@ fun MainContent(
         }
     } else {
         Scaffold(
-            topBar = { MainTopAppBar(onAvatarClick = onAvatarClick) },
+            topBar = {
+                MainTopAppBar(
+                    onAvatarClick = avatarState.onClick,
+                    avatarUrl = avatarState.avatarUrl,
+                )
+            },
             bottomBar = {
                 AppBottomBar(
                     selectedRouteClass = selectedRouteClass,
@@ -288,7 +288,7 @@ fun MainScreenPreview(
         MainContent(
             selectedRouteClass = destination.routeClass,
             onNavigateToDestination = {},
-            onAvatarClick = {},
+            avatarState = MainAvatarState(),
         ) {
             Box(
                 modifier = Modifier.fillMaxSize(),

@@ -22,6 +22,8 @@ import androidx.compose.ui.Modifier
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import androidx.navigation.NavDestination.Companion.hasRoute
+import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -30,6 +32,8 @@ import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
 import com.gokova.myanimelist.feature.auth.AuthScreen
 import com.gokova.myanimelist.feature.details.navigation.AnimeDetailsRoute
 import com.gokova.myanimelist.feature.details.presentation.AnimeDetailsScreen
+import com.gokova.myanimelist.feature.profile.navigation.ProfileRoute
+import com.gokova.myanimelist.feature.profile.presentation.ProfileScreen
 import com.gokova.myanimelist.navigation.AuthRoute
 import com.gokova.myanimelist.navigation.MainRoute
 import com.gokova.myanimelist.navigation.OAuthRedirectHandler
@@ -83,6 +87,7 @@ class MainActivity : ComponentActivity() {
                     is MainUiState.Authenticated -> {
                         AppNavigation(
                             isLoggedIn = state.isLoggedIn,
+                            avatarUrl = state.avatarUrl,
                             onLogout = viewModel::logout,
                             redirectHandler = redirectHandler,
                             onLaunchOAuth = ::launchOAuth,
@@ -95,6 +100,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        setIntent(intent)
         // A fallback Custom Tab has no ActivityResult callback. A redirect intent proves that
         // the browser returned with a result, so do not treat this resume as cancellation.
         fallbackCustomTabInProgress = false
@@ -134,6 +140,7 @@ class MainActivity : ComponentActivity() {
                 builder.setEphemeralBrowsingEnabled(true)
             }
             val customTabsIntent = builder.build()
+            packageName?.let { customTabsIntent.intent.setPackage(it) }
             customTabsIntent.launchUrl(this, uri)
         }
     }
@@ -142,48 +149,46 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AppNavigation(
     isLoggedIn: Boolean,
+    avatarUrl: String?,
     onLogout: () -> Unit,
     redirectHandler: OAuthRedirectHandler,
     onLaunchOAuth: (String) -> Unit,
 ) {
     val navController = rememberNavController()
-    val redirectResult by redirectHandler.redirectResult
 
     TrackNavigationChanges(navController)
-
-    LaunchedEffect(isLoggedIn) {
-        if (!isLoggedIn) {
-            AppLog.ui.i { "User not logged in, redirecting to AuthRoute" }
-            navController.navigate(AuthRoute) {
-                popUpTo(MainRoute) { inclusive = true }
-                launchSingleTop = true
-            }
-        }
-    }
+    ObserveAuthStateNavigation(isLoggedIn = isLoggedIn, navController = navController)
 
     NavHost(
         navController = navController,
         startDestination = if (isLoggedIn) MainRoute else AuthRoute,
     ) {
-        composable<AuthRoute> {
-            AuthScreen(
-                redirectResult = redirectResult,
-                onRedirectResultConsumed = redirectHandler::consumeResult,
-                onNavigateToOAuthUrl = onLaunchOAuth,
-                onAuthSuccess = {
+        authDestination(
+            redirectHandler = redirectHandler,
+            onLaunchOAuth = onLaunchOAuth,
+            onAuthSuccess = {
+                if (navController.currentDestination?.hasRoute<AuthRoute>() == true) {
                     AppLog.ui.i { "Authentication succeeded, navigating to MainRoute" }
                     navController.navigate(MainRoute) {
                         popUpTo(AuthRoute) { inclusive = true }
+                        launchSingleTop = true
                     }
-                },
-            )
-        }
+                }
+            },
+        )
         composable<MainRoute> {
             MainScreen(
-                onLogoutConfirm = onLogout,
+                avatarUrl = avatarUrl,
+                onProfileClick = { navController.navigate(ProfileRoute) },
                 onAnimeClick = { animeId ->
                     navController.navigate(AnimeDetailsRoute(animeId))
                 },
+            )
+        }
+        composable<ProfileRoute> {
+            ProfileScreen(
+                onBackClick = { navController.popBackStack() },
+                onLogoutConfirm = onLogout,
             )
         }
         composable<AnimeDetailsRoute> {
@@ -193,6 +198,47 @@ fun AppNavigation(
                     navController.navigate(AnimeDetailsRoute(animeId))
                 },
             )
+        }
+    }
+}
+
+private fun NavGraphBuilder.authDestination(
+    redirectHandler: OAuthRedirectHandler,
+    onLaunchOAuth: (String) -> Unit,
+    onAuthSuccess: () -> Unit,
+) {
+    composable<AuthRoute> {
+        val redirectResult by redirectHandler.redirectResult
+        AuthScreen(
+            redirectResult = redirectResult,
+            onRedirectResultConsumed = redirectHandler::consumeResult,
+            onNavigateToOAuthUrl = onLaunchOAuth,
+            onAuthSuccess = onAuthSuccess,
+        )
+    }
+}
+
+@Composable
+private fun ObserveAuthStateNavigation(
+    isLoggedIn: Boolean,
+    navController: NavController,
+) {
+    LaunchedEffect(isLoggedIn) {
+        if (!isLoggedIn) {
+            AppLog.ui.i { "User not logged in, redirecting to AuthRoute" }
+            navController.navigate(AuthRoute) {
+                popUpTo(MainRoute) { inclusive = true }
+                launchSingleTop = true
+            }
+        } else {
+            val isAtAuth = navController.currentDestination?.hasRoute<AuthRoute>() == true
+            if (isAtAuth) {
+                AppLog.ui.i { "User logged in, redirecting to MainRoute" }
+                navController.navigate(MainRoute) {
+                    popUpTo(AuthRoute) { inclusive = true }
+                    launchSingleTop = true
+                }
+            }
         }
     }
 }

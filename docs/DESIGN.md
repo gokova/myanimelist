@@ -96,12 +96,23 @@ To ensure accessibility, status chips and badges must **never** place white text
 | :--- | :--- | :--- | :--- | :--- |
 | **Watching** | `#E8F5E9` (Soft Green) | `#1B5E20` (Dark Forest) | 7.2:1 (Passes AA) | Active watching status chip / badge |
 | **Completed** | `#E3F2FD` (Soft Blue) | `#0D47A1` (Deep Navy) | 8.1:1 (Passes AA) | Finished series status chip / badge |
-| **On-Hold** | `#FFF8E1` (Soft Amber) | `#E65100` (Deep Amber) | 5.6:1 (Passes AA) | Paused series status chip / badge |
+| **On-Hold** | `#FFF8E1` (Soft Amber) | `#7A5500` (Deep Amber Gold) | 6.25:1 (Passes AA) | Paused series status chip / badge |
 | **Dropped** | `#FFEBEE` (Soft Red) | `#B71C1C` (Deep Crimson) | 6.8:1 (Passes AA) | Discontinued series status chip / badge |
-| **Plan to Watch** | `#F3E5F5` (Soft Purple) | `#4A148C` (Deep Purple) | 7.9:1 (Passes AA) | Wishlist / backlog status chip / badge |
+| **Plan to Watch** | `#ECEFF1` (Soft Slate Gray) | `#263238` (Dark Charcoal) | 12.8:1 (Passes AA) | Wishlist / backlog status chip / badge |
 
 > [!NOTE]
 > In addition to color, every status component **must** include an accompanying text label or icon (e.g., checkmark for Completed, pause icon for On-Hold) so status is never conveyed by color alone.
+
+#### 3.2.1 Status Chart & Data Visualization Colors
+Data visualization elements (such as segmented distribution bars and indicator dots) lack embedded contrasting text or icons. As a result, container colors (`Status*Container`) are too pale on light backgrounds and blend into white on dark backgrounds. Dedicated theme-adaptive chart colors (`StatusChartColors`) are used:
+
+| Status | Light Theme Hex (on `#EDF1F5`) | Contrast (Light) | Dark Theme Hex (on `#202429`) | Contrast (Dark) |
+| :--- | :--- | :--- | :--- | :--- |
+| **Watching** | `#2E7D32` (Rich Green) | 4.5:1 (Passes AA) | `#81C784` (Soft Mint Green) | 7.3:1 (Passes AA) |
+| **Completed** | `#1976D2` (Rich Blue) | 4.8:1 (Passes AA) | `#64B5F6` (Soft Sky Blue) | 6.5:1 (Passes AA) |
+| **On-Hold** | `#F57C00` (Rich Amber) | 3.8:1 (Passes UI) | `#FFD54F` (Soft Amber Gold) | 10.5:1 (Passes AA) |
+| **Dropped** | `#D32F2F` (Rich Red) | 5.0:1 (Passes AA) | `#E57373` (Soft Coral Red) | 5.2:1 (Passes AA) |
+| **Plan to Watch** | `#607D8B` (Rich Slate) | 4.2:1 (Passes AA) | `#B0BEC5` (Soft Slate Gray) | 7.0:1 (Passes AA) |
 
 ---
 

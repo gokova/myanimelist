@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="profile_screen_title">Profile</string>
+    <string name="profile_back_content_description">Navigate back</string>
+    <string name="profile_avatar_content_description">%1$s\'s avatar</string>
+    <string name="profile_joined_format">Joined %1$s</string>
+    <string name="profile_location_format">Location: %1$s</string>
+    <string name="profile_anime_stats_title">Anime Statistics</string>
+    <string name="profile_stat_days_watched">Days Watched</string>
+    <string name="profile_stat_mean_score">Mean Score</string>
+    <string name="profile_stat_total_entries">Total Anime</string>
+    <string name="profile_stat_episodes">Episodes</string>
+    <string name="profile_stat_rewatched">Rewatched</string>
+    <string name="profile_status_distribution_title">Status Distribution</string>
+    <string name="profile_status_watching">Watching</string>
+    <string name="profile_status_completed">Completed</string>
+    <string name="profile_status_on_hold">On-Hold</string>
+    <string name="profile_status_dropped">Dropped</string>
+    <string name="profile_status_plan_to_watch">Plan to Watch</string>
+    <string name="profile_logout_button">Log Out</string>
+    <string name="profile_score_format">%.2f</string>
+    <string name="profile_days_format">%.1f</string>
+    <string name="profile_count_format">%,d</string>
+    <string name="profile_percentage_format">(%.1f%%)</string>
+    <string name="profile_retry_button">Retry</string>
+    <string name="profile_load_failed">Failed to load profile</string>
+</resources>
