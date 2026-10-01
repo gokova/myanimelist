@@ -230,10 +230,46 @@ Rules:
 
 # Feature Documentation (Living Tech Specs)
 
-Whenever you start planning a new major feature, you **MUST** create a feature documentation file in this `docs/` folder **before** beginning any implementation.
-- **Chronological Naming:** Prefix the filename with a number (e.g., `01_authentication.md`).
-- **Living Document:** Use this file as a living "Tech Spec" to store your granular file-by-file implementation plan. This ensures your planned architecture and steps survive across multiple AI chat sessions.
-- **Finalization:** Once the feature is fully implemented, update the file to reflect the final data flow, use cases, and module interactions.
+The numbered files in docs are the canonical, source-backed technical specifications for major
+features. They are not release notes or scratch plans.
+
+## Creating and Maintaining a Spec
+
+- Before implementation starts, create one file in docs using the next two-digit chronological
+  number and a short lower_snake_case name, for example 08_feature_name.md. Do not reuse an
+  existing number.
+- Start its status as Planned or In progress. Update the same document in every change that
+  materially affects its user-visible behavior, data flow, module boundaries, persistence,
+  navigation, or verification coverage.
+- Once implemented, change the status to Implemented and rewrite plan-tense text as the behavior
+  that exists in source. Record remaining gaps under Constraints rather than leaving obsolete
+  future plans in the document.
+- If work is abandoned or replaced, retain the file for history and mark it Superseded or Partial,
+  identifying the replacement spec when one exists.
+
+## Required Format
+
+Every numbered feature spec must use this order and these headings:
+
+1. A Feature NN: Name title.
+2. A four-row metadata table: Status, Primary module, Entry surface, and Related systems.
+3. Purpose.
+4. User-facing behavior.
+5. Architecture.
+6. Data flow.
+7. Implementation map.
+8. Constraints.
+9. Verification.
+
+Use concise present-tense prose for implemented behavior. Architecture should identify each module
+or layer and its responsibility. Data flow should be a numbered end-to-end path. Implementation
+map must be a path-and-responsibility table covering the important source files and shared-module
+touchpoints; it does not need to duplicate every helper or DTO. Constraints must capture durable
+contracts, safety rules, and any known limitation. Verification must name the relevant test suites
+or state what still needs coverage.
+
+When two specs share a module or screen, keep each document focused on its own capability and
+cross-reference the other feature in prose. Do not duplicate its implementation map.
 
 ---
 

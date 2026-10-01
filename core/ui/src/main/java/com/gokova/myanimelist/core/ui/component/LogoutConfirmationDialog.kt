@@ -1,4 +1,4 @@
-package com.gokova.myanimelist.components
+package com.gokova.myanimelist.core.ui.component
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -21,7 +21,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import com.gokova.myanimelist.R
+import com.gokova.myanimelist.core.ui.R
 import com.gokova.myanimelist.core.ui.preview.StandardPreviews
 import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
 

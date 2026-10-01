@@ -88,7 +88,7 @@ val md_theme_dark_inversePrimary = Color(0xFF2065C0)
 val md_theme_dark_scrim = Color(0xFF000000)
 
 // --- Semantic Status Colors ---
-// Paired container and foreground colors to guarantee WCAG AA accessibility.
+// Paired container and foreground colors to guarantee WCAG AA accessibility for chips and badges.
 val StatusWatching = Color(0xFF2E7D32)
 val StatusWatchingContainer = Color(0xFFE8F5E9)
 val OnStatusWatchingContainer = Color(0xFF1B5E20)
@@ -97,19 +97,55 @@ val StatusCompleted = Color(0xFF1976D2)
 val StatusCompletedContainer = Color(0xFFE3F2FD)
 val OnStatusCompletedContainer = Color(0xFF0D47A1)
 
-val StatusOnHold = Color(0xFFF57C00)
+val StatusOnHold = Color(0xFFF1C83E)
 val StatusOnHoldContainer = Color(0xFFFFF8E1)
-val OnStatusOnHoldContainer = Color(0xFFE65100)
+val OnStatusOnHoldContainer = Color(0xFF7A5500)
 
 val StatusDropped = Color(0xFFD32F2F)
 val StatusDroppedContainer = Color(0xFFFFEBEE)
 val OnStatusDroppedContainer = Color(0xFFB71C1C)
 
-val StatusPlanToWatch = Color(0xFF7B1FA2)
-val StatusPlanToWatchContainer = Color(0xFFF3E5F5)
-val OnStatusPlanToWatchContainer = Color(0xFF4A148C)
+val StatusPlanToWatch = Color(0xFF757575)
+val StatusPlanToWatchContainer = Color(0xFFECEFF1)
+val OnStatusPlanToWatchContainer = Color(0xFF263238)
 
-// Legacy accent aliases
-val SoftGreen = Color(0xFF81C784)
-val SoftYellow = Color(0xFFFFD54F)
-val SoftRed = Color(0xFFE57373)
+// --- Semantic Status Colors for Data Visualization (Charts & Indicators) ---
+// Light theme uses rich, medium tones for crisp contrast against light surfaces.
+val StatusWatchingLight = Color(0xFF2E7D32)
+val StatusCompletedLight = Color(0xFF1976D2)
+val StatusOnHoldLight = Color(0xFFF57C00)
+val StatusDroppedLight = Color(0xFFD32F2F)
+val StatusPlanToWatchLight = Color(0xFF607D8B)
+
+// Dark theme uses soft, luminous pastel tones for high contrast and distinct hues on dark surfaces.
+val StatusWatchingDark = Color(0xFF81C784)
+val StatusCompletedDark = Color(0xFF64B5F6)
+val StatusOnHoldDark = Color(0xFFFFD54F)
+val StatusDroppedDark = Color(0xFFE57373)
+val StatusPlanToWatchDark = Color(0xFFB0BEC5)
+
+data class StatusChartColors(
+    val watching: Color,
+    val completed: Color,
+    val onHold: Color,
+    val dropped: Color,
+    val planToWatch: Color,
+)
+
+val LightStatusChartColors =
+    StatusChartColors(
+        watching = StatusWatchingLight,
+        completed = StatusCompletedLight,
+        onHold = StatusOnHoldLight,
+        dropped = StatusDroppedLight,
+        planToWatch = StatusPlanToWatchLight,
+    )
+
+val DarkStatusChartColors =
+    StatusChartColors(
+        watching = StatusWatchingDark,
+        completed = StatusCompletedDark,
+        onHold = StatusOnHoldDark,
+        dropped = StatusDroppedDark,
+        planToWatch = StatusPlanToWatchDark,
+    )

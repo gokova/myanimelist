@@ -154,6 +154,7 @@ dependencies {
     implementation(project(":feature:taste"))
     implementation(project(":feature:recommendation"))
     implementation(project(":feature:details"))
+    implementation(project(":feature:profile"))
 
     // Logging
     implementation(libs.timber)
@@ -177,6 +178,9 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.extended)
+
+    // Image Loading
+    implementation(libs.coil.compose)
 
     // Navigation & Serialization
     implementation(libs.androidx.navigation.compose)

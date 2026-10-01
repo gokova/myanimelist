@@ -28,10 +28,13 @@ private class FakeAuthPreferences : AuthPreferences {
     override val isLoggedIn: Flow<Boolean> = accessFlow.map { it != null }
     override val codeVerifier: Flow<String?> = verifierFlow
     override val oauthState: Flow<String?> = stateFlow
+    override val sessionId: Flow<String?> =
+        accessFlow.map { if (it != null) "test_session" else null }
 
     override suspend fun saveTokens(
         accessToken: String,
         refreshToken: String,
+        isNewSession: Boolean,
     ) {
         accessFlow.value = accessToken
         refreshFlow.value = refreshToken

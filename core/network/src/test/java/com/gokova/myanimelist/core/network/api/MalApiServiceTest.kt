@@ -6,6 +6,7 @@ import com.gokova.myanimelist.core.network.model.AnimeListResponseDto
 import com.gokova.myanimelist.core.network.model.AnimeNodeDto
 import com.gokova.myanimelist.core.network.model.GenreDto
 import com.gokova.myanimelist.core.network.model.StudioDto
+import com.gokova.myanimelist.core.network.model.UserDto
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -304,5 +305,86 @@ class MalApiServiceTest {
               ]
             }
             """.trimIndent()
+
+        private val MAL_USER_PROFILE_JSON =
+            """
+            {
+              "id": 6548478,
+              "name": "rin-0911-3",
+              "picture": "https://myanimelist.cdn-dena.com/images/userimages/6548478.jpg",
+              "gender": "male",
+              "birthday": "1990-01-01",
+              "location": "Tokyo",
+              "joined_at": "2017-09-11T10:27:46+00:00",
+              "anime_statistics": {
+                "num_items_watching": 2,
+                "num_items_completed": 1,
+                "num_items_on_hold": 0,
+                "num_items_dropped": 0,
+                "num_items_plan_to_watch": 997,
+                "num_items": 1000,
+                "num_days_watched": 0.09,
+                "num_days_watching": 0.04,
+                "num_days_completed": 0.05,
+                "num_days_on_hold": 0.0,
+                "num_days_dropped": 0.0,
+                "num_days": 0.09,
+                "num_episodes": 8,
+                "num_times_rewatched": 0,
+                "mean_score": 7.9
+              }
+            }
+            """.trimIndent()
+    }
+
+    @Test
+    fun `default user profile fields requests anime_statistics and picture`() {
+        val fields = MalApiService.DEFAULT_USER_FIELDS
+        assertTrue(fields.contains("anime_statistics"))
+        assertTrue(fields.contains("picture"))
+        assertEquals("@me", MalApiService.USER_ID_ME)
+    }
+
+    @Test
+    fun `deserializes representative MAL user profile response`() {
+        val json = Json { ignoreUnknownKeys = true }
+        val user = json.decodeFromString<UserDto>(MAL_USER_PROFILE_JSON)
+
+        assertEquals(6548478L, user.id)
+        assertEquals("rin-0911-3", user.name)
+        assertEquals(
+            "https://myanimelist.cdn-dena.com/images/userimages/6548478.jpg",
+            user.picture,
+        )
+        assertEquals("male", user.gender)
+        assertEquals("1990-01-01", user.birthday)
+        assertEquals("Tokyo", user.location)
+        assertEquals("2017-09-11T10:27:46+00:00", user.joinedAt)
+
+        val stats = user.animeStatistics
+        org.junit.Assert.assertNotNull(stats)
+        assertEquals(2, stats?.numItemsWatching)
+        assertEquals(1, stats?.numItemsCompleted)
+        assertEquals(0, stats?.numItemsOnHold)
+        assertEquals(0, stats?.numItemsDropped)
+        assertEquals(997, stats?.numItemsPlanToWatch)
+        assertEquals(1000, stats?.numItems)
+        assertEquals(8, stats?.numEpisodes)
+        assertEquals(7.9f, stats?.meanScore ?: 0f, 0.01f)
+    }
+
+    @Test
+    fun `deserializes user profile without optional fields`() {
+        val json = Json { ignoreUnknownKeys = true }
+        val user = json.decodeFromString<UserDto>("""{"id":123,"name":"test_user"}""")
+
+        assertEquals(123L, user.id)
+        assertEquals("test_user", user.name)
+        assertNull(user.picture)
+        assertNull(user.gender)
+        assertNull(user.birthday)
+        assertNull(user.location)
+        assertNull(user.joinedAt)
+        assertNull(user.animeStatistics)
     }
 }

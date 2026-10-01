@@ -810,5 +810,10 @@ class FetchNewSeasonsWorkerTest {
             numWatchedEpisodes: Int,
             score: Int,
         ): MyListStatusDto = throw UnsupportedOperationException()
+
+        override suspend fun getUserProfile(
+            userId: String,
+            fields: String,
+        ) = throw UnsupportedOperationException()
     }
 }

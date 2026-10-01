@@ -9,7 +9,6 @@
     <string name="details_added_to_plan_to_watch">Added to Plan to Watch</string>
     <string name="details_add_to_list_failed">Failed to add to list. Please check your connection.</string>
     <string name="details_offline_showing_cached">Showing cached details (offline)</string>
-    <string name="details_refresh_failed">Could not refresh details</string>
 
     <string name="details_synopsis_title">Synopsis</string>
     <string name="details_synopsis_read_more">Read more</string>
@@ -40,7 +39,6 @@
     <string name="details_info_scoring_users">Scoring Users</string>
 
     <string name="details_score_user">My Score: %1$d</string>
-    <string name="details_score_unrated">My Score: —</string>
     <string name="details_score_empty">—</string>
     <string name="details_score_format">%1$.2f</string>
     <string name="details_rank_format">#%1$d</string>

@@ -19,6 +19,9 @@ android {
 }
 
 dependencies {
+    // Domain
+    implementation(project(":core:domain"))
+
     // Coroutines
     implementation(libs.kotlinx.coroutines.core)
 
@@ -29,4 +32,8 @@ dependencies {
     // Dependency Injection (Hilt)
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
+
+    // Testing
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

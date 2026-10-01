@@ -64,6 +64,7 @@ class AuthRepositoryImpl
                         authPreferences.saveTokens(
                             accessToken = tokenResponse.accessToken,
                             refreshToken = tokenResponse.refreshToken,
+                            isNewSession = true,
                         )
                         Result.success(Unit)
                     },

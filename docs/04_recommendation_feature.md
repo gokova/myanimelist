@@ -1,140 +1,79 @@
-# Feature 04: Smart Recommendation Engine & Screen
+# Feature 04: Smart Recommendations
 
-## Overview
-This feature introduces the personalized recommendation engine and the Recommendation tab in the MyAnimeList client. It coordinates a two-stage background `WorkManager` pipeline (fetching top all-time and seasonal anime, followed by a TF-IDF taste evaluation against the user's personal anime list) and displays the top 500 recommendations categorized by Genre and Theme in a "Soft & Modern" Jetpack Compose UI adhering to `docs/DESIGN.md`.
+| Field | Value |
+| --- | --- |
+| Status | Implemented |
+| Primary module | :feature:recommendation |
+| Entry surface | RecommendationsRoute, Genres and Themes selections |
+| Related systems | :core:database, :core:domain, :core:network, WorkManager |
 
----
+## Purpose
 
-## Key Requirements & Agreed Design
+Generate genre- and theme-based recommendations from the user's MAL history, cache the ranked
+results locally, and expose them through the Recommendations destination. New Seasons is a
+separate capability documented in Feature 05, though it shares this destination.
 
-1. **Two-Stage WorkManager Pipeline**:
-   - **Stage 1 (`FetchCandidatesWorker`)**:
-     - Constraints: `NetworkType.CONNECTED`.
-     - Fetches 500 all-time top anime via `GET /v2/anime/ranking?ranking_type=all&limit=500`.
-     - Fetches 100 top anime by popularity (`anime_num_list_users`) across 4 seasons: Current season, Next season, Last season, and Two seasons ago via `GET /v2/anime/season/{year}/{season}?limit=100&sort=anime_num_list_users`.
-     - Filters out anime already present in the user's list (`user_anime_list`).
-     - Inserts candidate entities into `animes` and records their IDs into `recommendation_candidates`.
-   - **Stage 2 (`EvaluateRecommendationsWorker`)**:
-     - Constraints: Device Idle (`setRequiresDeviceIdle(true)`) for background periodic runs; relaxed when triggered manually by user.
-     - Evaluates candidate anime using the TF-IDF taste weighting × global quality score formula.
-     - Saves evaluated recommendations into `recommendations`.
-     - Prunes discarded candidates (those with `genre_rank > 500 AND theme_rank > 500`) from `animes` table using a safe delete query (`WHERE id IN (:discardedIds) AND id NOT IN (SELECT anime_id FROM user_anime_list)`).
-     - Clears the temporary `recommendation_candidates` table.
+## User-facing behavior
 
-2. **Scheduling & Triggers**:
-   - **Lazy Initial Scheduling**: Automatically enqueued as a `OneTimeWorkRequest` when the recommendation screen is opened if no recommendations exist yet and the user list has $\ge 5$ anime (using `ExistingWorkPolicy.KEEP` to avoid duplicate work). Later user list changes remain until the user manually recalculates.
-   - **Periodic Trigger**: Recurring schedule every 90 days (`PeriodicWorkRequestBuilder(90, TimeUnit.DAYS)`).
-   - **Manual Refresh**: "Recalculate" action on the screen allows forcing immediate re-evaluation.
+- The Recommendations screen presents Genres and Themes rankings, cards, match percentages, and
+  localized result counts. It retains distinct insufficient-data, calculating, error, and ready
+  states.
+- At least five user-list entries are required before recommendation work can produce results.
+- Opening the destination schedules periodic work and, when appropriate, initial calculation.
+  The user can explicitly recalculate without waiting for the background cadence.
+- Results are offline-first Room observations; background work updates the screen when it
+  completes.
 
-3. **Scoring Algorithm (TF-IDF & Quality Normalization)**:
-   - Partitions tags using `AnimeTaxonomy` into Genres and Themes.
-   - **Term Frequency (TF)**: Frequency of genre/theme in user's list, weighted by user rating when scored.
-   - **Inverse Document Frequency (IDF)**: $\log\left(\frac{N}{\text{candidate\_count}(tag) + 1}\right)$ to dampen ubiquitous tags (Action, Shounen) and boost niche tags (School, Organized Crime).
-   - **Quality Multiplier**: Scaled by MAL global score (`meanScore / 10.0`) and logarithmic popularity factor ($\log_{10}(\text{numListUsers})$).
-   - Computes `genre_score`, `genre_rank`, `theme_score`, `theme_rank`, and 0–100% Match Percentage.
+## Architecture
 
-4. **Database Architecture (`:core:database`)**:
-   - `RecommendationEntity`: Stores `anime_id`, `genre_score`, `genre_rank`, `theme_score`, `theme_rank`, `genre_match_percent`, `theme_match_percent`, and `calculated_at`.
-   - `RecommendationCandidateEntity`: Temp table storing candidate `anime_id` and `source`.
-   - `RecommendationItem`: Embedded relation joining `RecommendationEntity` with `AnimeEntity`.
-   - `RecommendationDao`: Room queries and atomic transactions for candidate management, scoring inserts, and safe pruning.
-   - Room migration `MIGRATION_2_3`.
+| Layer | Responsibility |
+| --- | --- |
+| :feature:recommendation data remote | Fetches top-ranked and seasonal MAL candidates. |
+| :feature:recommendation data work | Fetches candidates, evaluates them, and schedules initial, periodic, or manual runs. |
+| :feature:recommendation domain | Scores candidates and exposes observed results and engine state. |
+| :feature:recommendation presentation | Selects recommendation type and maps domain state to one immutable screen state. |
+| :core:database | Stores candidate IDs and ranked recommendation rows joined to cached anime metadata. |
+| :core:domain taxonomy | Keeps genre/theme partitioning consistent with Taste and Details. |
 
-5. **UI & Presentation (`:feature:recommendation`)**:
-   - "Soft & Modern" design language matching `docs/DESIGN.md`.
-   - Centered pill switch ("Genres" vs "Themes").
-   - Recommendation anime cards displaying:
-     - Poster thumbnail (`2:3` aspect ratio).
-     - Rank badge (`#1`, `#2`, etc.).
-     - Match percentage chip (`96% Match`).
-     - MAL score badge (`★ 8.4`).
-     - Media type, episode count, and release season tags.
-   - UI States:
-     - `EmptyInsufficientData`: Prompts user to add at least 5 anime to My List.
-     - `Calculating`: Informs user that recommendations are processing in background, with a "Calculate Now" CTA.
-     - `Success`: Displays Top 500 recommendations with localized plurals count header.
+## Data flow
 
----
+1. RecommendationViewModel schedules recommendation work and observes the selected Genres or
+   Themes data stream.
+2. RecommendationScheduler enqueues FetchCandidatesWorker for first-run, periodic (90-day), or
+   user-requested calculations.
+3. FetchCandidatesWorker retrieves ranked and seasonal candidates, excludes anime already in the
+   user's list or New Seasons cache, then persists candidate IDs and metadata.
+4. EvaluateRecommendationsWorker obtains the candidate and user-list sets, runs
+   RecommendationScorer, writes ranked results, safely prunes unused candidates, and clears the
+   temporary candidate table.
+5. RecommendationRepositoryImpl exposes Room results and engine state; the ViewModel maps them to
+   RecommendationUiState for the screen.
 
-## Architectural Breakdown
+## Implementation map
 
-```
-:feature:recommendation/
-├── data/
-│   ├── remote/
-│   │   ├── RecommendationRemoteDataSource.kt
-│   │   └── RecommendationRemoteDataSourceImpl.kt
-│   ├── repository/
-│   │   └── RecommendationRepositoryImpl.kt
-│   └── work/
-│       ├── FetchCandidatesWorker.kt
-│       ├── EvaluateRecommendationsWorker.kt
-│       └── RecommendationScheduler.kt
-├── domain/
-│   ├── algorithm/
-│   │   └── RecommendationScorer.kt
-│   ├── model/
-│   │   ├── RecommendedAnime.kt
-│   │   ├── RecommendationType.kt
-│   │   └── RecommendationState.kt
-│   ├── repository/
-│   │   └── RecommendationRepository.kt
-│   └── usecase/
-│       ├── ObserveRecommendationsUseCase.kt
-│       ├── ObserveRecommendationStateUseCase.kt
-│       └── TriggerRecommendationCalculationUseCase.kt
-├── presentation/
-│   ├── RecommendationScreen.kt
-│   ├── RecommendationViewModel.kt
-│   ├── RecommendationUiState.kt
-│   ├── RecommendationUiEvent.kt
-│   ├── RecommendationUiStatePreviewParameterProvider.kt
-│   └── components/
-│       ├── RecommendationCard.kt
-│       ├── RecommendationPillSelector.kt
-│       ├── RecommendationEmptyState.kt
-│       └── RecommendationHeader.kt
-└── di/
-    └── RecommendationModule.kt
+| Path | Responsibility |
+| --- | --- |
+| feature/recommendation/presentation/RecommendationScreen.kt and RecommendationViewModel.kt | Destination UI, selected pill, screen states, refresh handling, and permission prompt state. |
+| feature/recommendation/presentation/components/RecommendationCard.kt | Ranked card, match percentage, metadata, and detail-navigation action. |
+| feature/recommendation/data/remote/RecommendationRemoteDataSource*.kt | MAL ranking and seasonal candidate requests. |
+| feature/recommendation/data/work/FetchCandidatesWorker.kt | Candidate collection and local persistence. |
+| feature/recommendation/data/work/EvaluateRecommendationsWorker.kt | Candidate evaluation and result cleanup. |
+| feature/recommendation/data/work/RecommendationScheduler.kt | Unique initial, periodic, manual, and evaluation WorkManager requests. |
+| feature/recommendation/domain/algorithm/RecommendationScorer.kt | TF-IDF-style tag weighting, quality factors, ranks, and match percentages. |
+| feature/recommendation/data/repository/RecommendationRepositoryImpl.kt | Observes persisted results and calculation eligibility. |
+| core/database/dao/RecommendationDao.kt | Candidate, result, and safe-pruning database operations. |
 
-:core:database/
-├── dao/
-│   └── RecommendationDao.kt
-├── entity/
-│   ├── RecommendationEntity.kt
-│   └── RecommendationCandidateEntity.kt
-└── model/
-    └── RecommendationItem.kt
-```
+## Constraints
 
----
+- Candidate work requires connectivity; the regular evaluation path requires an idle device, while
+  an explicit user calculation relaxes that idle constraint.
+- Candidate cleanup must never remove anime retained by the user's list or the New Seasons cache.
+- Genre and theme rankings are stored independently for the same candidate set.
+- Background work uses unique names and appropriate existing-work policies to avoid duplicate
+  pipelines.
 
-## Data Flow
+## Verification
 
-```mermaid
-sequenceDiagram
-    participant Scheduler as RecommendationScheduler
-    participant FetchW as FetchCandidatesWorker
-    participant EvalW as EvaluateRecommendationsWorker
-    participant API as MalApiService
-    participant Scorer as RecommendationScorer
-    participant DB as RecommendationDao (Room)
-    participant UI as RecommendationScreen
-    participant VM as RecommendationViewModel
-
-    Scheduler->>FetchW: Enqueue FetchWorker (Network)
-    FetchW->>API: GET /v2/anime/ranking (Top 500)
-    FetchW->>API: GET /v2/anime/season (4 seasons x 100)
-    FetchW->>DB: Upsert AnimeEntity & Candidate IDs
-    FetchW-->>EvalW: Trigger EvaluateWorker (Idle)
-    EvalW->>DB: Get Candidates & UserAnimeList
-    EvalW->>Scorer: Calculate TF-IDF & Quality scores
-    Scorer-->>EvalW: Ranked recommendations
-    EvalW->>DB: Insert Top 500 recommendations
-    EvalW->>DB: Safe delete pruned candidates
-    EvalW->>DB: Clear candidates temp table
-
-    UI->>VM: Screen Entered / Init
-    VM->>DB: Observe recommendations (Flow)
-    DB-->>UI: Reactive emission of Top 500 list
-```
+feature/recommendation/src/test covers remote period calculation, mappers, repositories, scoring,
+worker scheduling, worker behavior, and RecommendationViewModel state mapping. Core database
+migration tests exercise the persistent schema used by the pipeline.

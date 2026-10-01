@@ -18,19 +18,24 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil.compose.SubcomposeAsyncImage
 import com.gokova.myanimelist.R
 import com.gokova.myanimelist.core.ui.preview.StandardPreviews
 import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
 import com.gokova.myanimelist.core.ui.theme.spacing
+
+private val AVATAR_SIZE = 40.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainTopAppBar(
     onAvatarClick: () -> Unit,
     modifier: Modifier = Modifier,
+    avatarUrl: String? = null,
 ) {
     CenterAlignedTopAppBar(
         modifier = modifier,
@@ -45,33 +50,10 @@ fun MainTopAppBar(
             )
         },
         actions = {
-            Box(
-                modifier =
-                    Modifier
-                        .padding(end = MaterialTheme.spacing.small)
-                        .size(MaterialTheme.spacing.minTouchTarget)
-                        .clip(CircleShape)
-                        .clickable(onClick = onAvatarClick),
-                contentAlignment = Alignment.Center,
-            ) {
-                Box(
-                    modifier =
-                        Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription =
-                            stringResource(
-                                R.string.main_avatar_content_description,
-                            ),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
+            AvatarButton(
+                onClick = onAvatarClick,
+                avatarUrl = avatarUrl,
+            )
         },
         colors =
             TopAppBarDefaults.topAppBarColors(
@@ -80,10 +62,68 @@ fun MainTopAppBar(
     )
 }
 
+@Composable
+private fun AvatarButton(
+    onClick: () -> Unit,
+    avatarUrl: String?,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier =
+            modifier
+                .padding(end = MaterialTheme.spacing.small)
+                .size(MaterialTheme.spacing.minTouchTarget)
+                .clip(CircleShape)
+                .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .size(AVATAR_SIZE)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (!avatarUrl.isNullOrBlank()) {
+                SubcomposeAsyncImage(
+                    model = avatarUrl,
+                    contentDescription =
+                        stringResource(
+                            R.string.main_avatar_content_description,
+                        ),
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.size(AVATAR_SIZE).clip(CircleShape),
+                    error = { AvatarPlaceholder() },
+                    loading = { AvatarPlaceholder() },
+                )
+            } else {
+                AvatarPlaceholder()
+            }
+        }
+    }
+}
+
+@Composable
+private fun AvatarPlaceholder(modifier: Modifier = Modifier) {
+    Icon(
+        imageVector = Icons.Default.Person,
+        contentDescription =
+            stringResource(
+                R.string.main_avatar_content_description,
+            ),
+        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = modifier,
+    )
+}
+
 @StandardPreviews
 @Composable
 internal fun MainTopAppBarPreview() {
     MyAnimeListTheme {
-        MainTopAppBar(onAvatarClick = {})
+        MainTopAppBar(
+            onAvatarClick = {},
+            avatarUrl = null,
+        )
     }
 }
