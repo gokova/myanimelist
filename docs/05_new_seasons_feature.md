@@ -37,13 +37,15 @@ MAL metadata, and present them as a third selection in the Recommendations desti
 
 1. RecommendationViewModel selects New Seasons and uses NewSeasonsInteractor to observe cached
    data, selected sort, and worker state.
-2. NewSeasonScheduler enqueues 30-day periodic work or a one-time initial/manual run.
-3. FetchNewSeasonsWorker reads the ordered user list and its persisted cursor, then requests
-   related-anime edges for each root.
+2. NewSeasonScheduler enqueues 30-day periodic work or a one-time initial/manual session with an
+   explicit session ID and exponential backoff for transient failures.
+3. FetchNewSeasonsWorker snapshots the ordered user list in NewSeasonSyncTracker, then requests
+   related-anime edges for each root in a bounded batch.
 4. The worker uses bounded-depth breadth-first traversal for continuation edges, de-duplicates
    visited IDs, excludes anime already in the user list, and fetches full metadata for candidates.
-5. It incrementally upserts suggestions, persists progress for retry, and on successful completion
-   prunes stale rows. Room updates the screen through NewSeasonRepositoryImpl.
+5. It incrementally upserts suggestions and persists the root cursor. A completed batch returns
+   success and appends a continuation work item; only transient failures return retry. The final
+   session prunes stale rows. Room updates the screen through NewSeasonRepositoryImpl.
 6. FetchCandidatesWorker also excludes New Seasons rows so general recommendations stay focused on
    unrelated discoveries.
 
@@ -55,7 +57,7 @@ MAL metadata, and present them as a third selection in the Recommendations desti
 | feature/recommendation/presentation/components/NewSeasonCard.kt | Renders suggestion metadata and its parent-relation badge. |
 | feature/recommendation/data/work/FetchNewSeasonsWorker.kt | Related-anime traversal, enrichment, persistence, retry, and stale-result cleanup. |
 | feature/recommendation/data/work/NewSeasonScheduler.kt | Creates unique initial, manual, and periodic WorkManager requests. |
-| feature/recommendation/data/work/NewSeasonSyncTracker.kt | Persists the current root and sync-start time for resumable processing. |
+| feature/recommendation/data/work/NewSeasonSyncTracker.kt | Persists session identity, root snapshot, cursor, and sync-start time for resumable processing. |
 | feature/recommendation/data/repository/NewSeasonRepositoryImpl.kt | Observes suggestions and maps calculation eligibility/state. |
 | feature/recommendation/data/mapper/NewSeasonMapper.kt | Maps database relations to NewSeasonAnime. |
 | feature/recommendation/domain/usecase/NewSeasonsInteractor.kt | Groups New Seasons observation, scheduling, and manual calculation use cases. |
@@ -67,14 +69,17 @@ MAL metadata, and present them as a third selection in the Recommendations desti
 - Only sequential continuation edges are recursively traversed. Other eligible relationships can
   appear as direct suggestions but do not expand the graph.
 - A visited-ID set prevents cycles and the worker paces requests; transient network and server
-  failures are retried while a missing anime is permanent for that item.
-- The current traversal has no global candidate-fetch cap. It must be bounded before this feature
-  can claim a strict overall runtime guarantee.
+  failures are retried with WorkManager backoff while a missing anime is permanent for that item.
+- Normal batch continuation returns success and is appended as a separate work item with
+  `APPEND_OR_REPLACE`; retry is not used as pagination. Each execution is bounded to ten roots and
+  fifty candidates per root, but the complete session can still span multiple work items and has no
+  global candidate-fetch cap.
 - Periodic work requires connectivity and idle time. Current initial and manual one-time requests
-  do not add a connectivity constraint, so retry handling remains important.
+  do not add a connectivity constraint, so transient network failures still rely on retry handling.
 
 ## Verification
 
 feature/recommendation/src/test covers New Seasons mapping, repository and ViewModel behavior,
-FetchNewSeasonsWorker handling, and the scheduler's work-request configuration. Core database
-migration tests cover the persisted New Seasons schema.
+FetchNewSeasonsWorker handling, resumable session state, successful batch continuation, transient
+retry behavior, stale continuation handling, and the scheduler's work-request configuration. Core
+database migration tests cover the persisted New Seasons schema.

@@ -5,6 +5,7 @@ import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.gokova.myanimelist.core.domain.logging.AppLog
+import com.gokova.myanimelist.feature.recommendation.data.work.RecommendationScheduler
 import com.gokova.myanimelist.logging.CrashlyticsTree
 import com.gokova.myanimelist.logging.TimberLogger
 import com.google.firebase.FirebaseApp
@@ -21,6 +22,9 @@ class MyAnimeListApplication :
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
 
+    @Inject
+    lateinit var recommendationScheduler: RecommendationScheduler
+
     override val workManagerConfiguration: Configuration
         get() =
             Configuration
@@ -33,6 +37,17 @@ class MyAnimeListApplication :
 
         initLogging()
         initCrashlytics()
+        migrateRecommendationPeriodicWork()
+    }
+
+    private fun migrateRecommendationPeriodicWork() {
+        runCatching {
+            recommendationScheduler.schedulePeriodicWork()
+        }.onFailure { error ->
+            AppLog.domain.e(error) {
+                "Failed to migrate recommendation periodic work during application startup"
+            }
+        }
     }
 
     private fun initLogging() {

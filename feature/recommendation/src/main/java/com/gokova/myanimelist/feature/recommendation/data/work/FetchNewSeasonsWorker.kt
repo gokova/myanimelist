@@ -26,6 +26,7 @@ import java.io.IOException
 import kotlin.time.Duration.Companion.milliseconds
 
 @HiltWorker
+@Suppress("LongParameterList")
 class FetchNewSeasonsWorker
     @AssistedInject
     constructor(
@@ -35,18 +36,34 @@ class FetchNewSeasonsWorker
         private val userAnimeListDao: UserAnimeListDao,
         private val newSeasonDao: NewSeasonDao,
         private val syncTracker: NewSeasonSyncTracker,
+        private val scheduler: NewSeasonScheduler,
     ) : CoroutineWorker(context, params) {
+        private val isManual: Boolean
+            get() = inputData.getBoolean(NewSeasonScheduler.KEY_IS_MANUAL, false)
+
         private val workScope: String
             get() =
-                if (inputData.getBoolean(NewSeasonScheduler.KEY_IS_MANUAL, false)) {
+                if (isManual) {
                     NewSeasonSyncTracker.SCOPE_MANUAL
                 } else {
                     NewSeasonSyncTracker.SCOPE_PERIODIC
                 }
 
+        private val sessionId: String
+            get() =
+                inputData.getString(NewSeasonScheduler.KEY_SESSION_ID)
+                    ?: "legacy-$workScope"
+
+        private val startsNewSession: Boolean
+            get() = inputData.getBoolean(NewSeasonScheduler.KEY_START_NEW_SESSION, true)
+
+        @Suppress("LongMethod")
         override suspend fun doWork(): Result =
             syncMutex.withLock {
-                AppLog.domain.i { "FetchNewSeasonsWorker started (attempt $runAttemptCount)" }
+                AppLog.domain.i {
+                    "FetchNewSeasonsWorker started (workId=$id, session=$sessionId, " +
+                        "scope=$workScope, attempt=$runAttemptCount)"
+                }
                 try {
                     val userAnimeList = userAnimeListDao.getAllUserAnime()
                     if (userAnimeList.size < MIN_USER_LIST_THRESHOLD) {
@@ -63,12 +80,20 @@ class FetchNewSeasonsWorker
                         syncTracker.reset(workScope)
                         Result.success()
                     } else {
-                        val hasMoreWorkOrErrors = processNewSeasons(userAnimeList)
-                        if (hasMoreWorkOrErrors) {
+                        val outcome = processNewSeasons(userAnimeList)
+                        if (outcome.hasRetryableErrors) {
                             AppLog.domain.i {
-                                "FetchNewSeasonsWorker batch complete, scheduling next batch"
+                                "FetchNewSeasonsWorker retrying failed batch " +
+                                    "(workId=$id, session=$sessionId)"
                             }
                             Result.retry()
+                        } else if (outcome.hasMoreWork) {
+                            scheduler.scheduleContinuation(isManual, sessionId)
+                            AppLog.domain.i {
+                                "FetchNewSeasonsWorker batch complete, continuation scheduled " +
+                                    "(workId=$id, session=$sessionId)"
+                            }
+                            Result.success()
                         } else {
                             Result.success()
                         }
@@ -98,10 +123,31 @@ class FetchNewSeasonsWorker
                 }
             }
 
-        private suspend fun processNewSeasons(userAnimeList: List<UserAnimeListItem>): Boolean {
-            if (runAttemptCount == 0) {
-                syncTracker.reset(workScope)
-                syncTracker.setSyncStartTime(System.currentTimeMillis(), workScope)
+        @Suppress("LongMethod", "ReturnCount")
+        private suspend fun processNewSeasons(
+            userAnimeList: List<UserAnimeListItem>,
+        ): BatchOutcome {
+            val sortedCurrentList = userAnimeList.sortedBy { it.anime.id }
+            val currentIds = sortedCurrentList.map { it.anime.id }
+            val currentSessionId = syncTracker.getSessionId(workScope)
+            if (currentSessionId == null || (startsNewSession && currentSessionId != sessionId)) {
+                syncTracker.startSession(
+                    sessionId = sessionId,
+                    userAnimeIds = currentIds,
+                    timestamp = System.currentTimeMillis(),
+                    scopeKey = workScope,
+                )
+            } else if (currentSessionId != sessionId) {
+                AppLog.domain.i { "Ignoring stale New Seasons continuation $sessionId" }
+                return BatchOutcome(hasMoreWork = false, hasRetryableErrors = false)
+            } else if (syncTracker.getUserAnimeIds(workScope) != currentIds) {
+                AppLog.domain.i { "User anime list changed; restarting New Seasons session" }
+                syncTracker.startSession(
+                    sessionId = sessionId,
+                    userAnimeIds = currentIds,
+                    timestamp = System.currentTimeMillis(),
+                    scopeKey = workScope,
+                )
             }
 
             val syncStartTime =
@@ -116,15 +162,14 @@ class FetchNewSeasonsWorker
                 }
             val lastProcessedId = syncTracker.getLastProcessedUserAnimeId(workScope)
 
-            val sortedUserList = userAnimeList.sortedBy { it.anime.id }
-            val remainingUserAnime = sortedUserList.filter { it.anime.id > lastProcessedId }
-            val userAnimeIds = userAnimeList.map { it.anime.id }.toSet()
+            val remainingUserAnime = sortedCurrentList.filter { it.anime.id > lastProcessedId }
+            val userAnimeIds = currentIds.toSet()
 
             if (remainingUserAnime.isEmpty()) {
                 AppLog.domain.i { "All user anime already processed, finalizing new seasons" }
                 pruneObsoleteSeasons(syncStartTime, userAnimeIds, emptySet())
                 syncTracker.reset(workScope)
-                return false
+                return BatchOutcome(hasMoreWork = false, hasRetryableErrors = false)
             }
 
             val currentBatch = remainingUserAnime.take(USER_ANIME_BATCH_SIZE)
@@ -144,9 +189,13 @@ class FetchNewSeasonsWorker
                 }
             }
 
-            return !isFinished
+            return BatchOutcome(
+                hasMoreWork = !isFinished,
+                hasRetryableErrors = batchResult.hasRetryableErrors,
+            )
         }
 
+        @Suppress("LoopWithTooManyJumpStatements")
         private suspend fun processBatch(
             currentBatch: List<UserAnimeListItem>,
             userAnimeIds: Set<Long>,
@@ -157,7 +206,11 @@ class FetchNewSeasonsWorker
             var stoppedOrFailed = false
 
             for (userItem in currentBatch) {
-                if (stoppedOrFailed || isStopped) {
+                if (stoppedOrFailed) {
+                    break
+                }
+                if (isStopped) {
+                    stoppedOrFailed = true
                     break
                 }
                 val parentId = userItem.anime.id
@@ -174,7 +227,7 @@ class FetchNewSeasonsWorker
 
             return BatchResult(
                 savedCount = state.savedAnimeIds.size,
-                hasRetryableErrors = failedParentAnimeIds.isNotEmpty(),
+                hasRetryableErrors = stoppedOrFailed,
                 failedParentAnimeIds = failedParentAnimeIds,
             )
         }
@@ -558,6 +611,11 @@ class FetchNewSeasonsWorker
             val savedCount: Int,
             val hasRetryableErrors: Boolean,
             val failedParentAnimeIds: Set<Long>,
+        )
+
+        private data class BatchOutcome(
+            val hasMoreWork: Boolean,
+            val hasRetryableErrors: Boolean,
         )
 
         private data class CandidateRelation(

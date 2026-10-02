@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.gokova.myanimelist.core.database.dao.NewSeasonDao
 import com.gokova.myanimelist.core.database.dao.RecommendationDao
 import com.gokova.myanimelist.core.database.dao.UserAnimeListDao
 import com.gokova.myanimelist.core.database.entity.AnimeEntity
@@ -25,11 +26,15 @@ class EvaluateRecommendationsWorker
         @Assisted params: WorkerParameters,
         private val recommendationDao: RecommendationDao,
         private val userAnimeListDao: UserAnimeListDao,
+        private val newSeasonDao: NewSeasonDao,
     ) : CoroutineWorker(context, params) {
         private val scorer = RecommendationScorer()
 
         override suspend fun doWork(): Result {
-            AppLog.domain.i { "EvaluateRecommendationsWorker started" }
+            val isManual = inputData.getBoolean(RecommendationScheduler.KEY_IS_MANUAL, false)
+            AppLog.domain.i {
+                "EvaluateRecommendationsWorker started (workId=$id, manual=$isManual)"
+            }
             return try {
                 val userAnimeList = userAnimeListDao.getAllUserAnime()
                 if (userAnimeList.size < MIN_USER_LIST_THRESHOLD) {
@@ -39,11 +44,18 @@ class EvaluateRecommendationsWorker
                     }
                     recommendationDao.clearCandidates()
                 } else {
-                    val candidateEntities = recommendationDao.getCandidateAnimes()
+                    val newSeasonAnimeIds = newSeasonDao.getNewSeasonAnimeIds().toSet()
+                    val candidateEntities =
+                        recommendationDao
+                            .getCandidateAnimes()
+                            .filter { it.id !in newSeasonAnimeIds }
                     if (candidateEntities.isNotEmpty()) {
                         processCandidates(userAnimeList, candidateEntities)
                     } else {
-                        AppLog.domain.i { "No candidates found in database to evaluate" }
+                        recommendationDao.clearCandidates()
+                        AppLog.domain.i {
+                            "No eligible candidates found in database to evaluate"
+                        }
                     }
                 }
                 Result.success()
@@ -52,7 +64,9 @@ class EvaluateRecommendationsWorker
             } catch (
                 @Suppress("TooGenericExceptionCaught") e: Exception,
             ) {
-                AppLog.domain.e(e) { "EvaluateRecommendationsWorker encountered error" }
+                AppLog.domain.e(e) {
+                    "EvaluateRecommendationsWorker encountered error (workId=$id)"
+                }
                 Result.failure()
             }
         }

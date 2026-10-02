@@ -32,7 +32,7 @@ class NewSeasonSchedulerWorkRequestTest {
     }
 
     @Test
-    fun `one time work request builds successfully with linear backoff`() {
+    fun `one time work request builds successfully with exponential backoff`() {
         val inputData =
             Data
                 .Builder()
@@ -43,7 +43,7 @@ class NewSeasonSchedulerWorkRequestTest {
             OneTimeWorkRequestBuilder<FetchNewSeasonsWorker>()
                 .setInputData(inputData)
                 .setBackoffCriteria(
-                    BackoffPolicy.LINEAR,
+                    BackoffPolicy.EXPONENTIAL,
                     WorkRequest.MIN_BACKOFF_MILLIS,
                     TimeUnit.MILLISECONDS,
                 ).build()

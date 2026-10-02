@@ -115,7 +115,10 @@ class RecommendationRepositoryImplTest {
             initialScheduled = true
         }
 
-        override fun enqueueEvaluation(isManual: Boolean) = Unit
+        override fun enqueueFetchAndEvaluation(
+            isManual: Boolean,
+            replaceExisting: Boolean,
+        ) = Unit
     }
 
     @Before

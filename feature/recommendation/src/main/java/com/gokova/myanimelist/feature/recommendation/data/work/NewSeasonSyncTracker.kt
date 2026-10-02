@@ -7,6 +7,17 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 interface NewSeasonSyncTracker {
+    fun getSessionId(scopeKey: String = DEFAULT_SCOPE): String?
+
+    fun getUserAnimeIds(scopeKey: String = DEFAULT_SCOPE): List<Long>
+
+    fun startSession(
+        sessionId: String,
+        userAnimeIds: List<Long>,
+        timestamp: Long,
+        scopeKey: String = DEFAULT_SCOPE,
+    )
+
     fun getLastProcessedUserAnimeId(scopeKey: String = DEFAULT_SCOPE): Long
 
     fun setLastProcessedUserAnimeId(
@@ -40,6 +51,33 @@ class NewSeasonSyncTrackerImpl
             context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         }
 
+        override fun getSessionId(scopeKey: String): String? =
+            prefs.getString(key(scopeKey, KEY_SESSION_ID), null)
+
+        override fun getUserAnimeIds(scopeKey: String): List<Long> =
+            prefs
+                .getString(key(scopeKey, KEY_USER_ANIME_IDS), null)
+                ?.split(IDS_SEPARATOR)
+                ?.mapNotNull { it.toLongOrNull() }
+                .orEmpty()
+
+        override fun startSession(
+            sessionId: String,
+            userAnimeIds: List<Long>,
+            timestamp: Long,
+            scopeKey: String,
+        ) {
+            prefs.edit {
+                putString(key(scopeKey, KEY_SESSION_ID), sessionId)
+                putString(
+                    key(scopeKey, KEY_USER_ANIME_IDS),
+                    userAnimeIds.joinToString(IDS_SEPARATOR),
+                )
+                putLong(key(scopeKey, KEY_LAST_PROCESSED_ID), -1L)
+                putLong(key(scopeKey, KEY_SYNC_START_TIME), timestamp)
+            }
+        }
+
         override fun getLastProcessedUserAnimeId(scopeKey: String): Long =
             prefs.getLong(key(scopeKey, KEY_LAST_PROCESSED_ID), -1L)
 
@@ -62,6 +100,8 @@ class NewSeasonSyncTrackerImpl
 
         override fun reset(scopeKey: String) {
             prefs.edit {
+                remove(key(scopeKey, KEY_SESSION_ID))
+                remove(key(scopeKey, KEY_USER_ANIME_IDS))
                 remove(key(scopeKey, KEY_LAST_PROCESSED_ID))
                 remove(key(scopeKey, KEY_SYNC_START_TIME))
             }
@@ -74,7 +114,10 @@ class NewSeasonSyncTrackerImpl
 
         companion object {
             private const val PREFS_NAME = "new_season_worker_prefs"
+            private const val KEY_SESSION_ID = "session_id"
+            private const val KEY_USER_ANIME_IDS = "user_anime_ids"
             private const val KEY_LAST_PROCESSED_ID = "last_processed_user_anime_id"
             private const val KEY_SYNC_START_TIME = "sync_start_time"
+            private const val IDS_SEPARATOR = ","
         }
     }

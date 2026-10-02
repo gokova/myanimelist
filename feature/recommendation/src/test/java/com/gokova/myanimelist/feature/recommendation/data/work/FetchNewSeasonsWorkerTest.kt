@@ -37,6 +37,7 @@ class FetchNewSeasonsWorkerTest {
     private lateinit var fakeNewSeasonDao: FakeNewSeasonDao
     private lateinit var fakeMalApiService: FakeMalApiService
     private lateinit var fakeSyncTracker: FakeNewSeasonSyncTracker
+    private lateinit var fakeScheduler: FakeNewSeasonScheduler
 
     @Before
     fun setUp() {
@@ -44,6 +45,7 @@ class FetchNewSeasonsWorkerTest {
         fakeNewSeasonDao = FakeNewSeasonDao()
         fakeMalApiService = FakeMalApiService()
         fakeSyncTracker = FakeNewSeasonSyncTracker()
+        fakeScheduler = FakeNewSeasonScheduler()
     }
 
     @Test
@@ -411,7 +413,7 @@ class FetchNewSeasonsWorkerTest {
         }
 
     @Test
-    fun `doWork chunks user anime into batches of 10 and retries for remaining batches`() =
+    fun `doWork chunks user anime into successful continuations`() =
         runTest {
             fakeUserAnimeListDao.userAnimeList = (1L..15L).map { createUserItem(it) }
             for (id in 1L..15L) {
@@ -431,7 +433,8 @@ class FetchNewSeasonsWorkerTest {
             val workerRun1 = createWorker(runAttemptCount = 0)
             val result1 = workerRun1.doWork()
 
-            assertEquals(Result.retry(), result1)
+            assertEquals(Result.success(), result1)
+            assertEquals(1, fakeScheduler.continuationCount)
             assertEquals(10L, fakeSyncTracker.lastProcessedId)
             assertEquals(10, fakeNewSeasonDao.savedNewSeasons.size)
             for (id in 11L..15L) {
@@ -445,6 +448,23 @@ class FetchNewSeasonsWorkerTest {
             assertEquals(Result.success(), result2)
             assertEquals(-1L, fakeSyncTracker.lastProcessedId)
             assertEquals(15, fakeNewSeasonDao.savedNewSeasons.size)
+        }
+
+    @Test
+    fun `doWork ignores stale continuation from a replaced session`() =
+        runTest {
+            fakeUserAnimeListDao.userAnimeList = (1L..5L).map { createUserItem(it) }
+            fakeSyncTracker.sessionIdMap[NewSeasonSyncTracker.SCOPE_PERIODIC] = "current-session"
+
+            val result =
+                createWorker(
+                    sessionId = "stale-session",
+                    startsNewSession = false,
+                ).doWork()
+
+            assertEquals(Result.success(), result)
+            assertTrue(fakeMalApiService.detailsMap.isEmpty())
+            assertEquals(0, fakeScheduler.continuationCount)
         }
 
     @Test
@@ -585,6 +605,8 @@ class FetchNewSeasonsWorkerTest {
     private fun createWorker(
         runAttemptCount: Int = 0,
         isManual: Boolean = false,
+        sessionId: String? = null,
+        startsNewSession: Boolean = true,
     ): FetchNewSeasonsWorker {
         val fakeContext =
             object : ContextWrapper(null) {
@@ -594,7 +616,12 @@ class FetchNewSeasonsWorkerTest {
             androidx.work.Data
                 .Builder()
                 .putBoolean(NewSeasonScheduler.KEY_IS_MANUAL, isManual)
-                .build()
+                .putBoolean(NewSeasonScheduler.KEY_START_NEW_SESSION, startsNewSession)
+                .apply {
+                    if (sessionId != null) {
+                        putString(NewSeasonScheduler.KEY_SESSION_ID, sessionId)
+                    }
+                }.build()
         val builder =
             TestListenableWorkerBuilder<FetchNewSeasonsWorker>(fakeContext)
                 .setInputData(inputData)
@@ -613,6 +640,7 @@ class FetchNewSeasonsWorkerTest {
                                 fakeUserAnimeListDao,
                                 fakeNewSeasonDao,
                                 fakeSyncTracker,
+                                fakeScheduler,
                             )
                     },
                 )
@@ -649,6 +677,8 @@ class FetchNewSeasonsWorkerTest {
     private class FakeNewSeasonSyncTracker : NewSeasonSyncTracker {
         val lastProcessedMap = mutableMapOf<String, Long>()
         val recordedSyncStartTimeMap = mutableMapOf<String, Long>()
+        val sessionIdMap = mutableMapOf<String, String>()
+        val userAnimeIdsMap = mutableMapOf<String, List<Long>>()
 
         var lastProcessedId: Long
             get() =
@@ -659,6 +689,23 @@ class FetchNewSeasonsWorkerTest {
                 lastProcessedMap[NewSeasonSyncTracker.SCOPE_PERIODIC] = value
                 lastProcessedMap[NewSeasonSyncTracker.DEFAULT_SCOPE] = value
             }
+
+        override fun getSessionId(scopeKey: String): String? = sessionIdMap[scopeKey]
+
+        override fun getUserAnimeIds(scopeKey: String): List<Long> =
+            userAnimeIdsMap[scopeKey].orEmpty()
+
+        override fun startSession(
+            sessionId: String,
+            userAnimeIds: List<Long>,
+            timestamp: Long,
+            scopeKey: String,
+        ) {
+            sessionIdMap[scopeKey] = sessionId
+            userAnimeIdsMap[scopeKey] = userAnimeIds
+            lastProcessedMap[scopeKey] = -1L
+            recordedSyncStartTimeMap[scopeKey] = timestamp
+        }
 
         override fun getLastProcessedUserAnimeId(scopeKey: String): Long =
             lastProcessedMap[scopeKey] ?: -1L
@@ -681,9 +728,32 @@ class FetchNewSeasonsWorkerTest {
         }
 
         override fun reset(scopeKey: String) {
+            sessionIdMap.remove(scopeKey)
+            userAnimeIdsMap.remove(scopeKey)
             lastProcessedMap[scopeKey] = -1L
             recordedSyncStartTimeMap[scopeKey] = 0L
         }
+    }
+
+    private class FakeNewSeasonScheduler : NewSeasonScheduler {
+        var continuationCount = 0
+
+        override fun schedulePeriodicWork() = Unit
+
+        override fun triggerImmediateCalculation() = Unit
+
+        override fun scheduleInitialCalculation() = Unit
+
+        override fun scheduleContinuation(
+            isManual: Boolean,
+            sessionId: String,
+        ) {
+            continuationCount++
+        }
+
+        override fun observeFetchWorkInfo(): Flow<List<androidx.work.WorkInfo>> = emptyFlow()
+
+        override suspend fun hasActiveOneTimeWork(): Boolean = false
     }
 
     private class FakeUserAnimeListDao : UserAnimeListDao {
