@@ -8,6 +8,7 @@ import com.gokova.myanimelist.core.database.dao.RecommendationDao
 import com.gokova.myanimelist.core.database.entity.RecommendationCandidateEntity
 import com.gokova.myanimelist.core.domain.logging.AppLog
 import com.gokova.myanimelist.core.network.model.AnimeNodeDto
+import com.gokova.myanimelist.core.network.util.isRetryableNetworkError
 import com.gokova.myanimelist.feature.recommendation.data.mapper.RecommendationMapper
 import com.gokova.myanimelist.feature.recommendation.data.remote.RecommendationRemoteDataSource
 import com.gokova.myanimelist.feature.recommendation.data.remote.SeasonalPeriodCalculator
@@ -15,7 +16,9 @@ import com.gokova.myanimelist.feature.recommendation.domain.model.Recommendation
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.CancellationException
-import java.io.IOException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import retrofit2.HttpException
 
 @HiltWorker
 class FetchCandidatesWorker
@@ -26,34 +29,59 @@ class FetchCandidatesWorker
         private val remoteDataSource: RecommendationRemoteDataSource,
         private val recommendationDao: RecommendationDao,
         private val seasonalCalculator: SeasonalPeriodCalculator,
-        private val scheduler: RecommendationScheduler,
+        private val newSeasonScheduler: NewSeasonScheduler,
     ) : CoroutineWorker(context, params) {
-        override suspend fun doWork(): Result {
-            AppLog.domain.i { "FetchCandidatesWorker started" }
-            return try {
-                val userAnimeIds = recommendationDao.getUserAnimeIds().toSet()
-                if (userAnimeIds.size < MIN_USER_LIST_THRESHOLD) {
-                    AppLog.domain.i {
-                        "User anime list has ${userAnimeIds.size} < " +
-                            "$MIN_USER_LIST_THRESHOLD, skipping"
-                    }
-                } else {
-                    val excludedAnimeIds = recommendationDao.getExcludedCandidateAnimeIds().toSet()
-                    fetchAndStoreCandidates(excludedAnimeIds)
+        private val isManual: Boolean
+            get() = inputData.getBoolean(RecommendationScheduler.KEY_IS_MANUAL, false)
+
+        override suspend fun doWork(): Result =
+            syncMutex.withLock {
+                AppLog.domain.i {
+                    "FetchCandidatesWorker started (workId=$id, manual=$isManual, " +
+                        "attempt=$runAttemptCount)"
                 }
-                Result.success()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: IOException) {
-                AppLog.domain.w(e) { "FetchCandidatesWorker failed due to network error" }
-                Result.retry()
-            } catch (
-                @Suppress("TooGenericExceptionCaught") e: Exception,
-            ) {
-                AppLog.domain.e(e) { "FetchCandidatesWorker encountered fatal error" }
-                Result.failure()
+                try {
+                    val userAnimeIds = recommendationDao.getUserAnimeIds().toSet()
+                    if (userAnimeIds.size < MIN_USER_LIST_THRESHOLD) {
+                        AppLog.domain.i {
+                            "User anime list has ${userAnimeIds.size} < " +
+                                "$MIN_USER_LIST_THRESHOLD, skipping"
+                        }
+                    } else {
+                        if (newSeasonScheduler.hasActiveOneTimeWork()) {
+                            AppLog.domain.i {
+                                "FetchCandidatesWorker waiting for New Seasons work " +
+                                    "(workId=$id)"
+                            }
+                            return@withLock Result.retry()
+                        }
+                        val excludedAnimeIds =
+                            recommendationDao
+                                .getExcludedCandidateAnimeIds()
+                                .toSet()
+                        fetchAndStoreCandidates(excludedAnimeIds)
+                    }
+                    Result.success()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (
+                    @Suppress("TooGenericExceptionCaught") e: Exception,
+                ) {
+                    if (isRetryableNetworkError(e)) {
+                        val status = (e as? HttpException)?.code()?.toString() ?: "network"
+                        AppLog.domain.w(e) {
+                            "FetchCandidatesWorker retryable failure " +
+                                "(workId=$id, status=$status)"
+                        }
+                        Result.retry()
+                    } else {
+                        AppLog.domain.e(e) {
+                            "FetchCandidatesWorker encountered fatal error (workId=$id)"
+                        }
+                        Result.failure()
+                    }
+                }
             }
-        }
 
         private suspend fun fetchAndStoreCandidates(excludedAnimeIds: Set<Long>) {
             val topRanking = remoteDataSource.fetchTopRankingAnime()
@@ -83,12 +111,13 @@ class FetchCandidatesWorker
             recommendationDao.upsertAnimes(animeEntities)
             recommendationDao.upsertCandidates(candidateEntities)
 
-            val isManual =
-                inputData.getBoolean(RecommendationScheduler.KEY_IS_MANUAL, false)
-            scheduler.enqueueEvaluation(isManual)
-
             AppLog.domain.i {
-                "FetchCandidatesWorker finished: ${allCandidates.size} candidates saved"
+                "FetchCandidatesWorker finished (workId=$id): " +
+                    "${allCandidates.size} candidates saved"
             }
+        }
+
+        companion object {
+            private val syncMutex = Mutex()
         }
     }

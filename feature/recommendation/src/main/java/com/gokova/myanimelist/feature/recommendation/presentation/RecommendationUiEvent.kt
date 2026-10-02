@@ -15,8 +15,4 @@ sealed interface RecommendationUiEvent {
     data object CalculateNow : RecommendationUiEvent
 
     data object Refresh : RecommendationUiEvent
-
-    data object ConfirmBackgroundSyncPrompt : RecommendationUiEvent
-
-    data object DismissBackgroundSyncPrompt : RecommendationUiEvent
 }

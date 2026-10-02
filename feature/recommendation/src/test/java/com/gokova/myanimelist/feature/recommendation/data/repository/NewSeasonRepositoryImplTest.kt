@@ -100,7 +100,15 @@ class NewSeasonRepositoryImplTest {
             initialScheduled = true
         }
 
+        override fun scheduleContinuation(
+            isManual: Boolean,
+            sessionId: String,
+        ) = Unit
+
         override fun observeFetchWorkInfo(): Flow<List<WorkInfo>> = workInfosFlow
+
+        override suspend fun hasActiveOneTimeWork(): Boolean =
+            workInfosFlow.value.any { it.state == WorkInfo.State.RUNNING }
     }
 
     @Before

@@ -37,10 +37,11 @@ separate capability documented in Feature 05, though it shares this destination.
 
 ## Data flow
 
-1. RecommendationViewModel schedules recommendation work and observes the selected Genres or
-   Themes data stream.
-2. RecommendationScheduler enqueues FetchCandidatesWorker for first-run, periodic (90-day), or
-   user-requested calculations.
+1. RecommendationViewModel schedules New Seasons before recommendation work and observes the
+   selected Genres or Themes data stream.
+2. RecommendationScheduler enqueues a fetch-to-evaluation chain for first-run and user-requested
+   calculations. A periodic trigger enqueues the same chain when its connected cadence fires; the
+   regular evaluation stage waits for device idle.
 3. FetchCandidatesWorker retrieves ranked and seasonal candidates, excludes anime already in the
    user's list or New Seasons cache, then persists candidate IDs and metadata.
 4. EvaluateRecommendationsWorker obtains the candidate and user-list sets, runs
@@ -53,27 +54,41 @@ separate capability documented in Feature 05, though it shares this destination.
 
 | Path | Responsibility |
 | --- | --- |
-| feature/recommendation/presentation/RecommendationScreen.kt and RecommendationViewModel.kt | Destination UI, selected pill, screen states, refresh handling, and permission prompt state. |
+| feature/recommendation/presentation/RecommendationScreen.kt and RecommendationViewModel.kt | Destination UI, selected pill, screen states, and refresh handling. |
 | feature/recommendation/presentation/components/RecommendationCard.kt | Ranked card, match percentage, metadata, and detail-navigation action. |
 | feature/recommendation/data/remote/RecommendationRemoteDataSource*.kt | MAL ranking and seasonal candidate requests. |
 | feature/recommendation/data/work/FetchCandidatesWorker.kt | Candidate collection and local persistence. |
 | feature/recommendation/data/work/EvaluateRecommendationsWorker.kt | Candidate evaluation and result cleanup. |
-| feature/recommendation/data/work/RecommendationScheduler.kt | Unique initial, periodic, manual, and evaluation WorkManager requests. |
+| feature/recommendation/data/work/RecommendationScheduler.kt and PeriodicRecommendationTriggerWorker.kt | Unique initial, periodic, manual, and fetch-to-evaluation WorkManager requests. |
 | feature/recommendation/domain/algorithm/RecommendationScorer.kt | TF-IDF-style tag weighting, quality factors, ranks, and match percentages. |
 | feature/recommendation/data/repository/RecommendationRepositoryImpl.kt | Observes persisted results and calculation eligibility. |
 | core/database/dao/RecommendationDao.kt | Candidate, result, and safe-pruning database operations. |
 
 ## Constraints
 
-- Candidate work requires connectivity; the regular evaluation path requires an idle device, while
-  an explicit user calculation relaxes that idle constraint.
+- Periodic candidate work is triggered only with connectivity; its evaluation stage uses the
+  idle-device constraint. Manual
+  candidate work has no network constraint so it can start immediately and relies on transient
+  error retry with explicit exponential backoff. The regular evaluation path requires an idle
+  device, while an explicit user calculation relaxes that idle constraint.
+- Recommendation fetch waits while an initial or manual New Seasons work chain is active. The
+  evaluator performs a final New Seasons ID exclusion immediately before scoring, so overlap or
+  a process restart cannot publish a New Season item as a recommendation.
+- Room recommendation observations and counts also exclude current New Seasons IDs, so an item
+  discovered by New Seasons disappears from the recommendation screen immediately even before a
+  new recommendation evaluation runs.
+- WorkManager owns the fetch-to-evaluation dependency; a successful fetch is the only path that
+  enables evaluation, avoiding a process-death gap between persistence and a second enqueue.
+- The screen does not interrupt first use with a battery-optimization exemption prompt. WorkManager
+  remains correct without an exemption; device-specific battery settings can affect timing only.
 - Candidate cleanup must never remove anime retained by the user's list or the New Seasons cache.
 - Genre and theme rankings are stored independently for the same candidate set.
 - Background work uses unique names and appropriate existing-work policies to avoid duplicate
-  pipelines.
+  pipelines. Candidate fetch requests use explicit exponential backoff, and transient HTTP 429/5xx
+  failures remain retryable after the data-source retry budget is exhausted.
 
 ## Verification
 
 feature/recommendation/src/test covers remote period calculation, mappers, repositories, scoring,
-worker scheduling, worker behavior, and RecommendationViewModel state mapping. Core database
-migration tests exercise the persistent schema used by the pipeline.
+worker scheduling, transient worker failures, and RecommendationViewModel state mapping. Core
+database migration tests exercise the persistent schema used by the pipeline.

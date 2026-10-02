@@ -13,8 +13,6 @@ import com.gokova.myanimelist.feature.recommendation.data.work.RecommendationSch
 import com.gokova.myanimelist.feature.recommendation.data.work.RecommendationSchedulerImpl
 import com.gokova.myanimelist.feature.recommendation.domain.repository.NewSeasonRepository
 import com.gokova.myanimelist.feature.recommendation.domain.repository.RecommendationRepository
-import com.gokova.myanimelist.feature.recommendation.presentation.BackgroundSyncPermissionManager
-import com.gokova.myanimelist.feature.recommendation.presentation.BackgroundSyncPermissionManagerImpl
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -54,12 +52,6 @@ abstract class RecommendationModule {
     @Binds
     @Singleton
     abstract fun bindNewSeasonSyncTracker(impl: NewSeasonSyncTrackerImpl): NewSeasonSyncTracker
-
-    @Binds
-    @Singleton
-    abstract fun bindBackgroundSyncPermissionManager(
-        impl: BackgroundSyncPermissionManagerImpl,
-    ): BackgroundSyncPermissionManager
 
     companion object {
         @Provides

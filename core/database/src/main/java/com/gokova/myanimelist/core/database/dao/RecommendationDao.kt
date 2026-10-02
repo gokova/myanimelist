@@ -14,17 +14,39 @@ import kotlinx.coroutines.flow.Flow
 @Suppress("TooManyFunctions")
 interface RecommendationDao {
     @Transaction
-    @Query("SELECT * FROM recommendations ORDER BY genre_rank ASC LIMIT :limit")
+    @Query(
+        """
+        SELECT r.* FROM recommendations r
+        WHERE r.anime_id NOT IN (SELECT anime_id FROM new_season_animes)
+        ORDER BY r.genre_rank ASC LIMIT :limit
+        """,
+    )
     fun observeRecommendationsByGenre(limit: Int = 500): Flow<List<RecommendationItem>>
 
     @Transaction
-    @Query("SELECT * FROM recommendations ORDER BY theme_rank ASC LIMIT :limit")
+    @Query(
+        """
+        SELECT r.* FROM recommendations r
+        WHERE r.anime_id NOT IN (SELECT anime_id FROM new_season_animes)
+        ORDER BY r.theme_rank ASC LIMIT :limit
+        """,
+    )
     fun observeRecommendationsByTheme(limit: Int = 500): Flow<List<RecommendationItem>>
 
-    @Query("SELECT COUNT(*) FROM recommendations")
+    @Query(
+        """
+        SELECT COUNT(*) FROM recommendations
+        WHERE anime_id NOT IN (SELECT anime_id FROM new_season_animes)
+        """,
+    )
     fun observeRecommendationCount(): Flow<Int>
 
-    @Query("SELECT COUNT(*) FROM recommendations")
+    @Query(
+        """
+        SELECT COUNT(*) FROM recommendations
+        WHERE anime_id NOT IN (SELECT anime_id FROM new_season_animes)
+        """,
+    )
     suspend fun getRecommendationCount(): Int
 
     @Upsert
