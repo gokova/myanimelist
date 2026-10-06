@@ -233,6 +233,8 @@ class MyListRepositoryImplTest {
 
         override fun observeAnimeEntityById(animeId: Long): Flow<AnimeEntity?> = flowOf(null)
 
+        override suspend fun getAnimeEntityById(animeId: Long): AnimeEntity? = null
+
         override suspend fun deleteRecommendation(animeId: Long): Int = 0
 
         override suspend fun deleteNewSeasonAnime(animeId: Long): Int = 0

@@ -1,6 +1,7 @@
 package com.gokova.myanimelist.feature.details.data.repository
 
 import com.gokova.myanimelist.core.database.dao.UserAnimeListDao
+import com.gokova.myanimelist.core.database.entity.AnimeEntity
 import com.gokova.myanimelist.core.database.entity.UserAnimeListEntity
 import com.gokova.myanimelist.core.domain.logging.AppLog
 import com.gokova.myanimelist.core.network.api.MalApiService
@@ -28,6 +29,7 @@ class AnimeDetailsRepositoryImpl
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
     ) : AnimeDetailsRepository {
         private val freshDetailsCache = MutableStateFlow<Map<Long, AnimeDetails>>(emptyMap())
+        private val freshEntityCache = MutableStateFlow<Map<Long, AnimeEntity>>(emptyMap())
 
         override fun observeAnimeDetails(animeId: Long): Flow<AnimeDetails?> =
             combine(
@@ -51,7 +53,15 @@ class AnimeDetailsRepositoryImpl
                 try {
                     val dto = malApiService.getAnimeDetails(animeId)
                     val entity = AnimeDetailsMapper.toAnimeEntity(dto)
-                    userAnimeListDao.upsertAnimes(listOf(entity))
+                    freshEntityCache.update { it.withBoundedEntry(animeId to entity) }
+
+                    val existingEntity = userAnimeListDao.getAnimeEntityById(animeId)
+                    val hasExistingTrackedEntity = existingEntity != null
+                    val isInRemoteUserList = dto.myListStatus != null
+
+                    if (hasExistingTrackedEntity || isInRemoteUserList) {
+                        userAnimeListDao.upsertAnimes(listOf(entity))
+                    }
 
                     dto.myListStatus?.let { statusDto ->
                         val userAnime =
@@ -91,6 +101,13 @@ class AnimeDetailsRepositoryImpl
                             score = 0,
                         )
 
+                    val existingEntity = userAnimeListDao.getAnimeEntityById(animeId)
+                    if (existingEntity == null) {
+                        freshEntityCache.value[animeId]?.let { cachedEntity ->
+                            userAnimeListDao.upsertAnimes(listOf(cachedEntity))
+                        }
+                    }
+
                     val userAnime =
                         UserAnimeListEntity(
                             animeId = animeId,
@@ -129,10 +146,10 @@ class AnimeDetailsRepositoryImpl
                 }
             }
 
-        private fun Map<Long, AnimeDetails>.withBoundedEntry(
-            entry: Pair<Long, AnimeDetails>,
+        private fun <K, V> Map<K, V>.withBoundedEntry(
+            entry: Pair<K, V>,
             maxSize: Int = MAX_CACHE_SIZE,
-        ): Map<Long, AnimeDetails> {
+        ): Map<K, V> {
             val updated = this - entry.first + entry
             return if (updated.size > maxSize) {
                 updated.entries.drop(updated.size - maxSize).associate { it.key to it.value }

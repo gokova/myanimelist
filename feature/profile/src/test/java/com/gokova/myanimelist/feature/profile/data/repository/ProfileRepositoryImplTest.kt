@@ -237,6 +237,14 @@ class ProfileRepositoryImplTest {
         override suspend fun getAnimeListNextPage(url: String): AnimeListResponseDto =
             throw UnsupportedOperationException()
 
+        override suspend fun searchAnime(
+            query: String,
+            limit: Int,
+            offset: Int,
+            fields: String,
+            nsfw: Boolean,
+        ): AnimeListResponseDto = throw UnsupportedOperationException()
+
         override suspend fun getAnimeRanking(
             rankingType: String,
             limit: Int,

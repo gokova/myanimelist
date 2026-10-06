@@ -84,6 +84,52 @@ class AnimeDetailsRepositoryImplTest {
         }
 
     @Test
+    fun `fetchFreshAnimeDetails for untracked anime does not persist to Room`() =
+        runTest(testDispatcher) {
+            val untrackedId = 9999L
+            fakeApi.detailsMap[untrackedId] =
+                AnimeDetailsDto(id = untrackedId, title = "Untracked Anime")
+
+            val result = repository.fetchFreshAnimeDetails(untrackedId)
+            advanceUntilIdle()
+
+            assertTrue(result.isSuccess)
+            assertEquals("Untracked Anime", result.getOrNull()?.displayTitle)
+            // Room should NOT contain this anime entity
+            assertEquals(null, fakeDao.getAnimeEntityById(untrackedId))
+        }
+
+    @Test
+    fun `addAnimeToPlanToWatch persists cached entity if not previously in Room`() =
+        runTest(testDispatcher) {
+            val untrackedId = 9999L
+            fakeApi.detailsMap[untrackedId] =
+                AnimeDetailsDto(id = untrackedId, title = "Untracked Anime")
+            repository.fetchFreshAnimeDetails(untrackedId)
+            advanceUntilIdle()
+
+            // Confirm not in Room before add
+            assertEquals(null, fakeDao.getAnimeEntityById(untrackedId))
+
+            fakeApi.updateStatusResult =
+                MyListStatusDto(
+                    status = "plan_to_watch",
+                    score = 0,
+                    numEpisodesWatched = 0,
+                    updatedAt = "2026-10-06T10:00:00Z",
+                )
+
+            val addResult = repository.addAnimeToPlanToWatch(untrackedId)
+            advanceUntilIdle()
+
+            assertTrue(addResult.isSuccess)
+            // Anime entity must now be persisted to Room to satisfy foreign key
+            val savedEntity = fakeDao.getAnimeEntityById(untrackedId)
+            assertTrue(savedEntity != null)
+            assertEquals("Untracked Anime", savedEntity?.title)
+        }
+
+    @Test
     fun `freshDetailsCache evicts oldest entries when exceeding max capacity`() =
         runTest(testDispatcher) {
             // Fetch 12 anime details (MAX_CACHE_SIZE is 10)
@@ -132,6 +178,9 @@ class AnimeDetailsRepositoryImplTest {
 
         override fun observeAnimeEntityById(animeId: Long): Flow<AnimeEntity?> =
             animeEntities.getOrPut(animeId) { MutableStateFlow(null) }
+
+        override suspend fun getAnimeEntityById(animeId: Long): AnimeEntity? =
+            animeEntities[animeId]?.value
 
         override suspend fun upsertAnimes(animes: List<AnimeEntity>) {
             animes.forEach { anime ->
@@ -196,6 +245,14 @@ class AnimeDetailsRepositoryImplTest {
 
         override suspend fun getAnimeListNextPage(url: String) =
             throw UnsupportedOperationException()
+
+        override suspend fun searchAnime(
+            query: String,
+            limit: Int,
+            offset: Int,
+            fields: String,
+            nsfw: Boolean,
+        ) = throw UnsupportedOperationException()
 
         override suspend fun getAnimeRanking(
             rankingType: String,

@@ -1,6 +1,7 @@
 package com.gokova.myanimelist.feature.auth.data.repository
 
 import com.gokova.myanimelist.core.datastore.AuthPreferences
+import com.gokova.myanimelist.core.domain.logging.AppLog
 import com.gokova.myanimelist.core.network.config.OAuthConfig
 import com.gokova.myanimelist.feature.auth.data.MalOAuthClient
 import com.gokova.myanimelist.feature.auth.data.pkce.PkceGenerator
@@ -27,7 +28,9 @@ class AuthRepositoryImpl
             val challenge = pkceGenerator.generateCodeChallenge(verifier)
             val state = pkceGenerator.generateState()
 
+            AppLog.data.i { "Saving OAuth PKCE state before browser launch" }
             authPreferences.saveOAuthSession(verifier = verifier, state = state)
+            AppLog.data.i { "OAuth PKCE state saved; building authorization URL" }
 
             return oAuthConfig.authorizeUrl
                 .toHttpUrl()

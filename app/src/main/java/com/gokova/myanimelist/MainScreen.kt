@@ -48,14 +48,16 @@ import com.gokova.myanimelist.navigation.RecommendationsRoute
 import com.gokova.myanimelist.navigation.TasteRoute
 import kotlin.reflect.KClass
 
-data class MainAvatarState(
+data class MainTopBarActions(
     val avatarUrl: String? = null,
-    val onClick: () -> Unit = {},
+    val onAvatarClick: () -> Unit = {},
+    val onSearchClick: () -> Unit = {},
 )
 
 @Composable
 fun MainScreen(
     onProfileClick: () -> Unit = {},
+    onSearchClick: () -> Unit = {},
     onAnimeClick: (Long) -> Unit = {},
     avatarUrl: String? = null,
 ) {
@@ -84,13 +86,14 @@ fun MainScreen(
                 restoreState = true
             }
         },
-        avatarState =
-            MainAvatarState(
+        topBarActions =
+            MainTopBarActions(
                 avatarUrl = avatarUrl,
-                onClick = {
+                onAvatarClick = {
                     AppLog.ui.i { "User clicked avatar (navigating to profile)" }
                     onProfileClick()
                 },
+                onSearchClick = onSearchClick,
             ),
     ) {
         MainNavHost(
@@ -129,7 +132,7 @@ private val EXPANDED_WIDTH_BREAKPOINT = 600.dp
 fun MainContent(
     selectedRouteClass: KClass<out Any>?,
     onNavigateToDestination: (TopLevelDestination<out Any>) -> Unit,
-    avatarState: MainAvatarState,
+    topBarActions: MainTopBarActions,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
@@ -147,8 +150,9 @@ fun MainContent(
             Scaffold(
                 topBar = {
                     MainTopAppBar(
-                        onAvatarClick = avatarState.onClick,
-                        avatarUrl = avatarState.avatarUrl,
+                        onAvatarClick = topBarActions.onAvatarClick,
+                        onSearchClick = topBarActions.onSearchClick,
+                        avatarUrl = topBarActions.avatarUrl,
                     )
                 },
                 modifier = Modifier.weight(1f).fillMaxHeight(),
@@ -162,8 +166,9 @@ fun MainContent(
         Scaffold(
             topBar = {
                 MainTopAppBar(
-                    onAvatarClick = avatarState.onClick,
-                    avatarUrl = avatarState.avatarUrl,
+                    onAvatarClick = topBarActions.onAvatarClick,
+                    onSearchClick = topBarActions.onSearchClick,
+                    avatarUrl = topBarActions.avatarUrl,
                 )
             },
             bottomBar = {
@@ -288,7 +293,7 @@ fun MainScreenPreview(
         MainContent(
             selectedRouteClass = destination.routeClass,
             onNavigateToDestination = {},
-            avatarState = MainAvatarState(),
+            topBarActions = MainTopBarActions(),
         ) {
             Box(
                 modifier = Modifier.fillMaxSize(),
