@@ -26,6 +26,15 @@ interface MalApiService {
         @Url url: String,
     ): AnimeListResponseDto
 
+    @GET("v2/anime")
+    suspend fun searchAnime(
+        @Query("q") query: String,
+        @Query("limit") limit: Int = DEFAULT_SEARCH_LIMIT,
+        @Query("offset") offset: Int = 0,
+        @Query("fields") fields: String = DEFAULT_ANIME_LIST_FIELDS,
+        @Query("nsfw") nsfw: Boolean = true,
+    ): AnimeListResponseDto
+
     @GET("v2/anime/ranking")
     suspend fun getAnimeRanking(
         @Query("ranking_type") rankingType: String = "all",
@@ -71,6 +80,7 @@ interface MalApiService {
             "id,name,picture,gender,birthday,location,joined_at,anime_statistics," +
                 "time_zone,is_supporter"
         const val DEFAULT_PAGE_LIMIT = 500
+        const val DEFAULT_SEARCH_LIMIT = 20
         const val DEFAULT_ANIME_LIST_FIELDS =
             "id,title,main_picture,alternative_titles,media_type,status,num_episodes," +
                 "start_season,mean,genres,studios,source,synopsis,rating,rank,popularity," +

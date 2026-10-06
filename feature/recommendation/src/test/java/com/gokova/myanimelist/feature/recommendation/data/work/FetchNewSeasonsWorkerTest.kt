@@ -778,6 +778,8 @@ class FetchNewSeasonsWorkerTest {
 
         override fun observeAnimeEntityById(animeId: Long): Flow<AnimeEntity?> = emptyFlow()
 
+        override suspend fun getAnimeEntityById(animeId: Long): AnimeEntity? = null
+
         override suspend fun deleteRecommendation(animeId: Long): Int = 0
 
         override suspend fun deleteNewSeasonAnime(animeId: Long): Int = 0
@@ -857,6 +859,14 @@ class FetchNewSeasonsWorkerTest {
 
         override suspend fun getAnimeListNextPage(url: String) =
             throw UnsupportedOperationException()
+
+        override suspend fun searchAnime(
+            query: String,
+            limit: Int,
+            offset: Int,
+            fields: String,
+            nsfw: Boolean,
+        ) = throw UnsupportedOperationException()
 
         override suspend fun getAnimeRanking(
             rankingType: String,

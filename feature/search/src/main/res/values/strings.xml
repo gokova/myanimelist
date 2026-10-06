@@ -1,0 +1,29 @@
+<resources>
+    <string name="search_placeholder">Search anime…</string>
+    <string name="search_validation_hint">Enter at least 3 characters to search</string>
+    <string name="search_empty_title">No anime found</string>
+    <string name="search_empty_description">Try searching for a different title or keyword</string>
+    <string name="search_error_title">Search failed</string>
+    <string name="search_error_message">Unable to load search results. Please check your connection.</string>
+    <string name="search_retry">Retry</string>
+    <string name="search_back_content_description">Navigate back</string>
+    <string name="search_clear_content_description">Clear search query</string>
+    <string name="search_action_content_description">Search anime</string>
+    <string name="search_match_percent">%1$d%% Match</string>
+    <string name="search_load_more_error">Failed to load more results. Tap to retry.</string>
+    <string name="search_poster_content_description">Poster for %s</string>
+    <string name="search_status_watching">Watching</string>
+    <string name="search_status_completed">Completed</string>
+    <string name="search_status_on_hold">On Hold</string>
+    <string name="search_status_dropped">Dropped</string>
+    <string name="search_status_plan_to_watch">Plan to Watch</string>
+    <string name="search_score_format">%.1f</string>
+    <string name="search_score_unrated">—</string>
+    <plurals name="search_episodes_count">
+        <item quantity="one">%d&#160;ep</item>
+        <item quantity="other">%d&#160;eps</item>
+    </plurals>
+    <string name="search_episodes_unknown">\?&#160;eps</string>
+    <string name="search_initial_title">Search MyAnimeList</string>
+    <string name="search_initial_description">Find anime titles, check ratings, and see your personal taste match.</string>
+</resources>

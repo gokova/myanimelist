@@ -25,4 +25,4 @@ dependencyResolutionManagement {
 rootProject.name = "My Anime List"
 include(":app")
 include(":core:network", ":core:database", ":core:datastore", ":core:ui", ":core:domain")
-include(":feature:auth", ":feature:mylist", ":feature:taste", ":feature:recommendation", ":feature:details", ":feature:profile")
+include(":feature:auth", ":feature:mylist", ":feature:taste", ":feature:recommendation", ":feature:details", ":feature:profile", ":feature:search")

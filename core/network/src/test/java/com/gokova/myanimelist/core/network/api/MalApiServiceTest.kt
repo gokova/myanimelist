@@ -23,6 +23,11 @@ class MalApiServiceTest {
     }
 
     @Test
+    fun `default search limit is 20`() {
+        assertEquals(20, MalApiService.DEFAULT_SEARCH_LIMIT)
+    }
+
+    @Test
     fun `default anime list fields requests all required catalog metadata`() {
         val fields = MalApiService.DEFAULT_ANIME_LIST_FIELDS
         val expectedFields =

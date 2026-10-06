@@ -155,6 +155,7 @@ dependencies {
     implementation(project(":feature:recommendation"))
     implementation(project(":feature:details"))
     implementation(project(":feature:profile"))
+    implementation(project(":feature:search"))
 
     // Logging
     implementation(libs.timber)

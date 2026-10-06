@@ -35,6 +35,9 @@ interface UserAnimeListDao {
     @Query("SELECT * FROM animes WHERE id = :animeId")
     fun observeAnimeEntityById(animeId: Long): Flow<AnimeEntity?>
 
+    @Query("SELECT * FROM animes WHERE id = :animeId")
+    suspend fun getAnimeEntityById(animeId: Long): AnimeEntity?
+
     @Upsert
     suspend fun upsertAnimes(animes: List<AnimeEntity>)
 

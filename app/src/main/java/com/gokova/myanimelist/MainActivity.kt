@@ -34,6 +34,8 @@ import com.gokova.myanimelist.feature.details.navigation.AnimeDetailsRoute
 import com.gokova.myanimelist.feature.details.presentation.AnimeDetailsScreen
 import com.gokova.myanimelist.feature.profile.navigation.ProfileRoute
 import com.gokova.myanimelist.feature.profile.presentation.ProfileScreen
+import com.gokova.myanimelist.feature.search.navigation.SearchRoute
+import com.gokova.myanimelist.feature.search.presentation.SearchScreen
 import com.gokova.myanimelist.navigation.AuthRoute
 import com.gokova.myanimelist.navigation.MainRoute
 import com.gokova.myanimelist.navigation.OAuthRedirectHandler
@@ -180,6 +182,7 @@ fun AppNavigation(
             MainScreen(
                 avatarUrl = avatarUrl,
                 onProfileClick = { navController.navigate(ProfileRoute) },
+                onSearchClick = { navController.navigate(SearchRoute) },
                 onAnimeClick = { animeId ->
                     navController.navigate(AnimeDetailsRoute(animeId))
                 },
@@ -189,6 +192,14 @@ fun AppNavigation(
             ProfileScreen(
                 onBackClick = { navController.popBackStack() },
                 onLogoutConfirm = onLogout,
+            )
+        }
+        composable<SearchRoute> {
+            SearchScreen(
+                onBackClick = { navController.popBackStack() },
+                onAnimeClick = { animeId ->
+                    navController.navigate(AnimeDetailsRoute(animeId))
+                },
             )
         }
         composable<AnimeDetailsRoute> {

@@ -8,9 +8,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
@@ -34,6 +36,7 @@ private val AVATAR_SIZE = 40.dp
 @Composable
 fun MainTopAppBar(
     onAvatarClick: () -> Unit,
+    onSearchClick: () -> Unit,
     modifier: Modifier = Modifier,
     avatarUrl: String? = null,
 ) {
@@ -50,6 +53,14 @@ fun MainTopAppBar(
             )
         },
         actions = {
+            IconButton(onClick = onSearchClick) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription =
+                        stringResource(R.string.main_search_content_description),
+                    tint = MaterialTheme.colorScheme.onSurface,
+                )
+            }
             AvatarButton(
                 onClick = onAvatarClick,
                 avatarUrl = avatarUrl,
@@ -123,6 +134,7 @@ internal fun MainTopAppBarPreview() {
     MyAnimeListTheme {
         MainTopAppBar(
             onAvatarClick = {},
+            onSearchClick = {},
             avatarUrl = null,
         )
     }
