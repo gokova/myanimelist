@@ -253,5 +253,7 @@ class SearchRepositoryImplTest {
         override suspend fun addAnimeToUserListAndClean(userAnime: UserAnimeListEntity) {
             // No-op for test fake
         }
+
+        override suspend fun deleteUserAnime(animeId: Long): Int = 0
     }
 }

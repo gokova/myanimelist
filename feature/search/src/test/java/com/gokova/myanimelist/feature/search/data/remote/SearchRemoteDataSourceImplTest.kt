@@ -12,6 +12,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
+import retrofit2.Response
 import java.io.IOException
 
 class SearchRemoteDataSourceImplTest {
@@ -134,10 +135,14 @@ class SearchRemoteDataSourceImplTest {
 
         override suspend fun updateMyListStatus(
             animeId: Long,
-            status: String,
-            numWatchedEpisodes: Int,
-            score: Int,
+            status: String?,
+            isRewatching: Boolean?,
+            score: Int?,
+            numWatchedEpisodes: Int?,
         ): MyListStatusDto = throw UnsupportedOperationException()
+
+        override suspend fun deleteMyListStatus(animeId: Long): Response<Unit> =
+            throw UnsupportedOperationException()
 
         override suspend fun getUserProfile(
             userId: String,

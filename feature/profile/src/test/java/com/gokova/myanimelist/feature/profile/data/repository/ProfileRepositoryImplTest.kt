@@ -19,6 +19,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
+import retrofit2.Response
 import java.io.IOException
 
 class ProfileRepositoryImplTest {
@@ -268,9 +269,13 @@ class ProfileRepositoryImplTest {
 
         override suspend fun updateMyListStatus(
             animeId: Long,
-            status: String,
-            numWatchedEpisodes: Int,
-            score: Int,
+            status: String?,
+            isRewatching: Boolean?,
+            score: Int?,
+            numWatchedEpisodes: Int?,
         ): MyListStatusDto = throw UnsupportedOperationException()
+
+        override suspend fun deleteMyListStatus(animeId: Long): Response<Unit> =
+            throw UnsupportedOperationException()
     }
 }

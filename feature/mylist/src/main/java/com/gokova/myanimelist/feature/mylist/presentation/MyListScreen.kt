@@ -40,6 +40,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gokova.myanimelist.core.ui.component.AnimePosterPreviewDialog
+import com.gokova.myanimelist.core.ui.component.editlist.EditAnimeStatusBottomSheet
+import com.gokova.myanimelist.core.ui.component.editlist.EditAnimeStatusSheetActions
 import com.gokova.myanimelist.core.ui.preview.StandardPreviews
 import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
 import com.gokova.myanimelist.core.ui.theme.spacing
@@ -47,44 +49,24 @@ import com.gokova.myanimelist.feature.mylist.domain.model.ListFilterCategory
 import com.gokova.myanimelist.feature.mylist.domain.model.SortOption
 import com.gokova.myanimelist.feature.mylist.domain.model.UserAnime
 import com.gokova.myanimelist.feature.mylist.presentation.components.AnimeCard
+import com.gokova.myanimelist.feature.mylist.presentation.components.AnimeCardActions
 import com.gokova.myanimelist.feature.mylist.presentation.components.MyListCategoryTabs
 import com.gokova.myanimelist.feature.mylist.presentation.components.MyListEmptyState
 import com.gokova.myanimelist.feature.mylist.presentation.components.MyListHeader
+import com.gokova.myanimelist.core.ui.R as CoreUiR
 
 @Composable
 fun MyListScreen(
+    onAnimeClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MyListViewModel = hiltViewModel(),
-    onAnimeClick: (Long) -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    val resources = LocalResources.current
 
-    LaunchedEffect(Unit) {
-        viewModel.events.collect { event ->
-            when (event) {
-                is MyListUiEvent.ShowSnackbar -> {
-                    val message = resources.getString(event.messageRes)
-                    val actionLabel = event.actionRes?.let { resources.getString(it) }
-                    val result =
-                        snackbarHostState.showSnackbar(
-                            message = message,
-                            actionLabel = actionLabel,
-                            duration =
-                                if (event.isError) {
-                                    SnackbarDuration.Long
-                                } else {
-                                    SnackbarDuration.Short
-                                },
-                        )
-                    if (result == SnackbarResult.ActionPerformed) {
-                        viewModel.onRetrySync()
-                    }
-                }
-            }
-        }
-    }
+    MyListEventsEffect(viewModel = viewModel, snackbarHostState = snackbarHostState)
+
+    val sheetActions = rememberMyListSheetActions(viewModel = viewModel)
 
     MyListContent(
         uiState = uiState,
@@ -93,18 +75,131 @@ fun MyListScreen(
             MyListActions(
                 onCategorySelected = viewModel::onCategorySelected,
                 onSortSelected = viewModel::onSortOptionSelected,
-                onRefresh = viewModel::onRefresh,
+                onRefresh = { viewModel.onSync(isPullToRefresh = true) },
                 onAnimeClick = onAnimeClick,
+                onQuickIncrement = viewModel::onQuickIncrement,
+                onEditClick = viewModel::setEditingAnime,
+                onSheetActions = sheetActions,
             ),
         modifier = modifier,
     )
 }
+
+@Composable
+private fun MyListEventsEffect(
+    viewModel: MyListViewModel,
+    snackbarHostState: SnackbarHostState,
+) {
+    val resources = LocalResources.current
+
+    LaunchedEffect(viewModel) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is MyListUiEvent.ShowSnackbar -> {
+                    val message = resources.getString(event.messageRes)
+                    val actionLabel = event.actionRes?.let { resources.getString(it) }
+                    val duration =
+                        if (event.isError) {
+                            SnackbarDuration.Long
+                        } else {
+                            SnackbarDuration.Short
+                        }
+                    val result =
+                        snackbarHostState.showSnackbar(
+                            message = message,
+                            actionLabel = actionLabel,
+                            duration = duration,
+                        )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.onSync(force = true)
+                    }
+                }
+                is MyListUiEvent.ShowCompletionPrompt -> {
+                    showPromptSnackbar(
+                        snackbarHostState = snackbarHostState,
+                        message =
+                            resources.getString(
+                                CoreUiR.string.edit_list_status_completed_prompt,
+                            ),
+                        actionLabel =
+                            resources.getString(
+                                CoreUiR.string.edit_list_status_completed_action,
+                            ),
+                        onAction = { viewModel.onMarkStatus(event.animeId, "completed") },
+                    )
+                }
+                is MyListUiEvent.ShowWatchingPrompt -> {
+                    showPromptSnackbar(
+                        snackbarHostState = snackbarHostState,
+                        message =
+                            resources.getString(
+                                CoreUiR.string.edit_list_status_watching_prompt,
+                            ),
+                        actionLabel =
+                            resources.getString(
+                                CoreUiR.string.edit_list_status_watching_action,
+                            ),
+                        onAction = { viewModel.onMarkStatus(event.animeId, "watching") },
+                    )
+                }
+            }
+        }
+    }
+}
+
+private suspend fun showPromptSnackbar(
+    snackbarHostState: SnackbarHostState,
+    message: String,
+    actionLabel: String,
+    onAction: () -> Unit,
+) {
+    val result =
+        snackbarHostState.showSnackbar(
+            message = message,
+            actionLabel = actionLabel,
+            duration = SnackbarDuration.Long,
+        )
+    if (result == SnackbarResult.ActionPerformed) {
+        onAction()
+    }
+}
+
+@Composable
+private fun rememberMyListSheetActions(viewModel: MyListViewModel): EditAnimeStatusSheetActions =
+    remember(viewModel) {
+        EditAnimeStatusSheetActions(
+            onStatusChange = { status ->
+                viewModel.updateEditingSheet { it.copy(status = status) }
+            },
+            onEpisodesChange = { ep ->
+                viewModel.updateEditingSheet { it.copy(episodesWatched = ep) }
+            },
+            onScoreChange = { score ->
+                viewModel.updateEditingSheet { it.copy(score = score) }
+            },
+            onRewatchingChange = { rewatching ->
+                viewModel.updateEditingSheet { it.copy(isRewatching = rewatching) }
+            },
+            onSave = viewModel::onSaveEditSheet,
+            onRequestDelete = {
+                viewModel.updateEditingSheet { it.copy(showDeleteConfirmation = true) }
+            },
+            onConfirmDelete = viewModel::onConfirmDeleteFromList,
+            onDismissDeleteConfirmation = {
+                viewModel.updateEditingSheet { it.copy(showDeleteConfirmation = false) }
+            },
+            onDismiss = { viewModel.setEditingAnime(null) },
+        )
+    }
 
 data class MyListActions(
     val onCategorySelected: (ListFilterCategory) -> Unit,
     val onSortSelected: (SortOption) -> Unit,
     val onRefresh: () -> Unit,
     val onAnimeClick: (Long) -> Unit = {},
+    val onQuickIncrement: (UserAnime) -> Unit = {},
+    val onEditClick: (UserAnime) -> Unit = {},
+    val onSheetActions: EditAnimeStatusSheetActions? = null,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -126,28 +221,22 @@ fun MyListContent(
         PullToRefreshBox(
             isRefreshing = uiState.isRefreshing,
             onRefresh = actions.onRefresh,
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
+            modifier = Modifier.fillMaxSize().padding(paddingValues),
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 MyListCategoryTabs(
                     selectedCategory = uiState.selectedCategory,
                     onCategorySelected = actions.onCategorySelected,
                 )
-
                 MyListHeader(
                     totalCount = uiState.animeList.size,
                     selectedSort = uiState.selectedSort,
                     onSortSelected = actions.onSortSelected,
                 )
-
                 MyListBody(
                     uiState = uiState,
-                    onRefresh = actions.onRefresh,
+                    actions = actions,
                     onPosterClick = { previewAnime = it },
-                    onAnimeClick = actions.onAnimeClick,
                 )
             }
         }
@@ -161,6 +250,13 @@ fun MyListContent(
             onDismiss = { previewAnime = null },
         )
     }
+
+    if (uiState.editingSheetState != null && actions.onSheetActions != null) {
+        EditAnimeStatusBottomSheet(
+            state = uiState.editingSheetState,
+            actions = actions.onSheetActions,
+        )
+    }
 }
 
 private val EXPANDED_WIDTH_BREAKPOINT = 600.dp
@@ -168,9 +264,8 @@ private val EXPANDED_WIDTH_BREAKPOINT = 600.dp
 @Composable
 private fun MyListBody(
     uiState: MyListUiState,
-    onRefresh: () -> Unit,
+    actions: MyListActions,
     onPosterClick: (UserAnime) -> Unit,
-    onAnimeClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (uiState.animeList.isEmpty() && !uiState.isLoadingInitial) {
@@ -179,7 +274,7 @@ private fun MyListBody(
             contentAlignment = Alignment.Center,
         ) {
             MyListEmptyState(
-                onSyncClick = onRefresh,
+                onSyncClick = actions.onRefresh,
                 modifier = Modifier.padding(bottom = MaterialTheme.spacing.huge),
             )
         }
@@ -198,16 +293,16 @@ private fun MyListBody(
 
         if (isExpanded) {
             MyListGrid(
-                animeList = uiState.animeList,
+                uiState = uiState,
+                actions = actions,
                 onPosterClick = onPosterClick,
-                onAnimeClick = onAnimeClick,
                 modifier = modifier,
             )
         } else {
             MyListColumn(
-                animeList = uiState.animeList,
+                uiState = uiState,
+                actions = actions,
                 onPosterClick = onPosterClick,
-                onAnimeClick = onAnimeClick,
                 modifier = modifier,
             )
         }
@@ -218,9 +313,9 @@ private val GRID_CELL_MIN_SIZE = 240.dp
 
 @Composable
 private fun MyListGrid(
-    animeList: List<UserAnime>,
+    uiState: MyListUiState,
+    actions: MyListActions,
     onPosterClick: (UserAnime) -> Unit,
-    onAnimeClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyVerticalGrid(
@@ -233,19 +328,23 @@ private fun MyListGrid(
                 top = MaterialTheme.spacing.extraSmall,
                 bottom = MaterialTheme.spacing.large,
             ),
-        verticalArrangement =
-            Arrangement.spacedBy(MaterialTheme.spacing.medium),
-        horizontalArrangement =
-            Arrangement.spacedBy(MaterialTheme.spacing.medium),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium),
+        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium),
     ) {
         items(
-            items = animeList,
+            items = uiState.animeList,
             key = { it.id },
         ) { anime ->
             AnimeCard(
                 anime = anime,
-                onPosterClick = { onPosterClick(anime) },
-                onCardClick = { onAnimeClick(anime.id) },
+                actions =
+                    AnimeCardActions(
+                        onPosterClick = { onPosterClick(anime) },
+                        onCardClick = { actions.onAnimeClick(anime.id) },
+                        onEditClick = { actions.onEditClick(anime) },
+                        onQuickIncrement = { actions.onQuickIncrement(anime) },
+                    ),
+                isSavingProgress = uiState.savingProgressAnimeIds.contains(anime.id),
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -254,9 +353,9 @@ private fun MyListGrid(
 
 @Composable
 private fun MyListColumn(
-    animeList: List<UserAnime>,
+    uiState: MyListUiState,
+    actions: MyListActions,
     onPosterClick: (UserAnime) -> Unit,
-    onAnimeClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -268,17 +367,22 @@ private fun MyListColumn(
                 top = MaterialTheme.spacing.extraSmall,
                 bottom = MaterialTheme.spacing.large,
             ),
-        verticalArrangement =
-            Arrangement.spacedBy(MaterialTheme.spacing.medium),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium),
     ) {
         items(
-            items = animeList,
+            items = uiState.animeList,
             key = { it.id },
         ) { anime ->
             AnimeCard(
                 anime = anime,
-                onPosterClick = { onPosterClick(anime) },
-                onCardClick = { onAnimeClick(anime.id) },
+                actions =
+                    AnimeCardActions(
+                        onPosterClick = { onPosterClick(anime) },
+                        onCardClick = { actions.onAnimeClick(anime.id) },
+                        onEditClick = { actions.onEditClick(anime) },
+                        onQuickIncrement = { actions.onQuickIncrement(anime) },
+                    ),
+                isSavingProgress = uiState.savingProgressAnimeIds.contains(anime.id),
                 modifier = Modifier.fillMaxWidth(),
             )
         }

@@ -1,8 +1,10 @@
 package com.gokova.myanimelist.feature.mylist.di
 
+import com.gokova.myanimelist.core.domain.repository.UserAnimeListStatusRepository
 import com.gokova.myanimelist.feature.mylist.data.remote.AnimeListRemoteDataSource
 import com.gokova.myanimelist.feature.mylist.data.remote.AnimeListRemoteDataSourceImpl
 import com.gokova.myanimelist.feature.mylist.data.repository.MyListRepositoryImpl
+import com.gokova.myanimelist.feature.mylist.data.repository.UserAnimeListStatusRepositoryImpl
 import com.gokova.myanimelist.feature.mylist.domain.repository.MyListRepository
 import dagger.Binds
 import dagger.Module
@@ -22,4 +24,10 @@ abstract class MyListModule {
     abstract fun bindAnimeListRemoteDataSource(
         impl: AnimeListRemoteDataSourceImpl,
     ): AnimeListRemoteDataSource
+
+    @Binds
+    @Singleton
+    abstract fun bindUserAnimeListStatusRepository(
+        impl: UserAnimeListStatusRepositoryImpl,
+    ): UserAnimeListStatusRepository
 }

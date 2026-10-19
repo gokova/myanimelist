@@ -5,4 +5,53 @@
     <string name="logout_dialog_message">Are you sure you want to log out of your MyAnimeList account?</string>
     <string name="logout_dialog_confirm">Log Out</string>
     <string name="logout_dialog_cancel">Cancel</string>
+
+    <!-- Edit List Status -->
+    <string name="edit_list_status_title">Edit list status</string>
+    <string name="edit_list_status_close">Close</string>
+    <string name="edit_list_status_save">Save</string>
+    <string name="edit_list_status_saving">Saving…</string>
+    <string name="edit_list_status_section_status">Status</string>
+    <string name="edit_list_status_section_progress">Progress</string>
+    <string name="edit_list_status_section_score">Score</string>
+    <string name="edit_list_status_episodes_format">%1$d / %2$s ep</string>
+    <string name="edit_list_status_episodes_unknown">\?</string>
+    <string name="edit_list_status_decrement">Decrease episodes</string>
+    <string name="edit_list_status_increment">Increase episodes</string>
+    <string name="edit_list_status_rewatching">I am rewatching this series</string>
+    <string name="edit_list_status_remove">Remove from list</string>
+    <string name="edit_list_status_delete_title">Remove from List?</string>
+    <string name="edit_list_status_delete_message">Are you sure you want to remove \"%1$s\" from your anime list? This will remove your progress and score on MyAnimeList.</string>
+    <string name="edit_list_status_delete_confirm">Remove</string>
+    <string name="edit_list_status_delete_cancel">Cancel</string>
+    <string name="edit_list_status_edit_button">Edit</string>
+    <string name="edit_list_status_quick_add">+1</string>
+    <string name="edit_list_status_quick_saving">Saving…</string>
+    <string name="edit_list_status_completed_prompt">Reached final episode. Mark as Completed?</string>
+    <string name="edit_list_status_completed_action">Mark Completed</string>
+    <string name="edit_list_status_watching_prompt">Episode count reduced. Mark as Watching?</string>
+    <string name="edit_list_status_watching_action">Mark Watching</string>
+    <string name="edit_list_status_error_retry">Retry</string>
+    <string name="edit_list_status_update_error">Failed to update list status</string>
+    <string name="edit_list_status_delete_error">Failed to remove from list</string>
+
+    <!-- Status Labels -->
+    <string name="status_watching">Watching</string>
+    <string name="status_completed">Completed</string>
+    <string name="status_on_hold">On Hold</string>
+    <string name="status_dropped">Dropped</string>
+    <string name="status_plan_to_watch">Plan to Watch</string>
+
+    <!-- Score Labels -->
+    <string name="score_not_rated">Not rated</string>
+    <string name="score_10">Masterpiece</string>
+    <string name="score_9">Great</string>
+    <string name="score_8">Very Good</string>
+    <string name="score_7">Good</string>
+    <string name="score_6">Fine</string>
+    <string name="score_5">Average</string>
+    <string name="score_4">Bad</string>
+    <string name="score_3">Very Bad</string>
+    <string name="score_2">Horrible</string>
+    <string name="score_1">Appalling</string>
 </resources>

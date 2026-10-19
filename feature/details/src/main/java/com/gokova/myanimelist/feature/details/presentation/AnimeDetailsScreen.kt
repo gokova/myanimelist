@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,6 +23,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -45,20 +45,16 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gokova.myanimelist.core.ui.component.AnimePosterPreviewDialog
+import com.gokova.myanimelist.core.ui.component.editlist.EditAnimeStatusBottomSheet
+import com.gokova.myanimelist.core.ui.component.editlist.EditAnimeStatusSheetActions
 import com.gokova.myanimelist.core.ui.preview.StandardPreviews
 import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
 import com.gokova.myanimelist.core.ui.theme.spacing
 import com.gokova.myanimelist.feature.details.R
 import com.gokova.myanimelist.feature.details.domain.model.AnimeDetails
-import com.gokova.myanimelist.feature.details.presentation.components.AnimeDetailsHeader
-import com.gokova.myanimelist.feature.details.presentation.components.AnimeDetailsMetadata
-import com.gokova.myanimelist.feature.details.presentation.components.AnimeDetailsSynopsis
-import com.gokova.myanimelist.feature.details.presentation.components.AnimeDetailsTaxonomy
-import com.gokova.myanimelist.feature.details.presentation.components.DetailRecommendationsCarousel
-import com.gokova.myanimelist.feature.details.presentation.components.RelatedAnimeCarousel
-
-private const val WIDE_PRIMARY_WEIGHT = 0.62f
-private const val WIDE_DISCOVERY_WEIGHT = 0.38f
+import com.gokova.myanimelist.feature.details.presentation.components.CompactAnimeDetailsLayout
+import com.gokova.myanimelist.feature.details.presentation.components.WideAnimeDetailsLayout
+import com.gokova.myanimelist.core.ui.R as CoreUiR
 
 // Details needs to enter its two-pane landscape treatment on phone-sized
 // landscape windows too; the rest of the app already treats 600.dp as the
@@ -75,9 +71,42 @@ fun AnimeDetailsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    val resources = LocalResources.current
 
-    LaunchedEffect(Unit) {
+    AnimeDetailsEventsEffect(
+        viewModel = viewModel,
+        snackbarHostState = snackbarHostState,
+        onBackClick = onBackClick,
+        onAnimeClick = onAnimeClick,
+    )
+
+    val sheetActions = rememberAnimeDetailsSheetActions(viewModel = viewModel)
+
+    AnimeDetailsContent(
+        uiState = uiState,
+        snackbarHostState = snackbarHostState,
+        actions =
+            AnimeDetailsActions(
+                onBackClick = onBackClick,
+                onRefresh = viewModel::onRefresh,
+                onRetry = viewModel::onRetry,
+                onAddToList = viewModel::onAddToList,
+                onAnimeClick = onAnimeClick,
+                onEditStatusClick = { viewModel.setEditingSheet(open = true) },
+                onSheetActions = sheetActions,
+            ),
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun AnimeDetailsEventsEffect(
+    viewModel: AnimeDetailsViewModel,
+    snackbarHostState: SnackbarHostState,
+    onBackClick: () -> Unit,
+    onAnimeClick: (Long) -> Unit,
+) {
+    val resources = LocalResources.current
+    LaunchedEffect(viewModel) {
         viewModel.events.collect { event ->
             when (event) {
                 is AnimeDetailsUiEvent.ShowSnackbar -> {
@@ -91,6 +120,34 @@ fun AnimeDetailsScreen(
                             },
                     )
                 }
+                is AnimeDetailsUiEvent.ShowCompletionPrompt -> {
+                    showActionSnackbar(
+                        snackbarHostState = snackbarHostState,
+                        message =
+                            resources.getString(
+                                CoreUiR.string.edit_list_status_completed_prompt,
+                            ),
+                        actionLabel =
+                            resources.getString(
+                                CoreUiR.string.edit_list_status_completed_action,
+                            ),
+                        onAction = { viewModel.onMarkStatus("completed") },
+                    )
+                }
+                is AnimeDetailsUiEvent.ShowWatchingPrompt -> {
+                    showActionSnackbar(
+                        snackbarHostState = snackbarHostState,
+                        message =
+                            resources.getString(
+                                CoreUiR.string.edit_list_status_watching_prompt,
+                            ),
+                        actionLabel =
+                            resources.getString(
+                                CoreUiR.string.edit_list_status_watching_action,
+                            ),
+                        onAction = { viewModel.onMarkStatus("watching") },
+                    )
+                }
                 is AnimeDetailsUiEvent.NavigateToDetails -> {
                     onAnimeClick(event.animeId)
                 }
@@ -100,21 +157,54 @@ fun AnimeDetailsScreen(
             }
         }
     }
-
-    AnimeDetailsContent(
-        uiState = uiState,
-        snackbarHostState = snackbarHostState,
-        actions =
-            AnimeDetailsActions(
-                onBackClick = onBackClick,
-                onRefresh = viewModel::onRefresh,
-                onRetry = viewModel::onRetry,
-                onAddToList = viewModel::onAddToList,
-                onAnimeClick = onAnimeClick,
-            ),
-        modifier = modifier,
-    )
 }
+
+private suspend fun showActionSnackbar(
+    snackbarHostState: SnackbarHostState,
+    message: String,
+    actionLabel: String,
+    onAction: () -> Unit,
+) {
+    val result =
+        snackbarHostState.showSnackbar(
+            message = message,
+            actionLabel = actionLabel,
+            duration = SnackbarDuration.Long,
+        )
+    if (result == SnackbarResult.ActionPerformed) {
+        onAction()
+    }
+}
+
+@Composable
+private fun rememberAnimeDetailsSheetActions(
+    viewModel: AnimeDetailsViewModel,
+): EditAnimeStatusSheetActions =
+    remember(viewModel) {
+        EditAnimeStatusSheetActions(
+            onStatusChange = { status ->
+                viewModel.updateEditingSheet { it.copy(status = status) }
+            },
+            onEpisodesChange = { ep ->
+                viewModel.updateEditingSheet { it.copy(episodesWatched = ep) }
+            },
+            onScoreChange = { score ->
+                viewModel.updateEditingSheet { it.copy(score = score) }
+            },
+            onRewatchingChange = { rewatching ->
+                viewModel.updateEditingSheet { it.copy(isRewatching = rewatching) }
+            },
+            onSave = viewModel::onSaveEditSheet,
+            onRequestDelete = {
+                viewModel.updateEditingSheet { it.copy(showDeleteConfirmation = true) }
+            },
+            onConfirmDelete = viewModel::onConfirmDeleteFromList,
+            onDismissDeleteConfirmation = {
+                viewModel.updateEditingSheet { it.copy(showDeleteConfirmation = false) }
+            },
+            onDismiss = { viewModel.setEditingSheet(open = false) },
+        )
+    }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -136,40 +226,12 @@ fun AnimeDetailsContent(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = modifier.fillMaxSize(),
     ) { paddingValues ->
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-        ) {
-            when {
-                uiState.isLoading && uiState.details == null -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                }
-                uiState.details == null && uiState.errorMessageRes != null -> {
-                    AnimeDetailsErrorState(
-                        messageRes = uiState.errorMessageRes,
-                        canRetry = uiState.canRetry,
-                        onRetry = actions.onRetry,
-                        modifier = Modifier.align(Alignment.Center),
-                    )
-                }
-                uiState.details != null -> {
-                    PullToRefreshBox(
-                        isRefreshing = uiState.isRefreshing,
-                        onRefresh = actions.onRefresh,
-                        modifier = Modifier.fillMaxSize(),
-                    ) {
-                        AnimeDetailsBody(
-                            details = uiState.details,
-                            isAddingToList = uiState.isAddingToList,
-                            actions = actions,
-                            onPosterClick = { previewPoster = uiState.details },
-                        )
-                    }
-                }
-            }
-        }
+        AnimeDetailsContentBody(
+            uiState = uiState,
+            actions = actions,
+            onPosterClick = { previewPoster = it },
+            modifier = Modifier.padding(paddingValues),
+        )
     }
 
     previewPoster?.let { details ->
@@ -179,6 +241,51 @@ fun AnimeDetailsContent(
             title = details.displayTitle,
             onDismiss = { previewPoster = null },
         )
+    }
+
+    if (uiState.editingSheetState != null && actions.onSheetActions != null) {
+        EditAnimeStatusBottomSheet(
+            state = uiState.editingSheetState,
+            actions = actions.onSheetActions,
+        )
+    }
+}
+
+@Composable
+private fun AnimeDetailsContentBody(
+    uiState: AnimeDetailsUiState,
+    actions: AnimeDetailsActions,
+    onPosterClick: (AnimeDetails) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier.fillMaxSize()) {
+        when {
+            uiState.isLoading && uiState.details == null -> {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            }
+            uiState.details == null && uiState.errorMessageRes != null -> {
+                AnimeDetailsErrorState(
+                    messageRes = uiState.errorMessageRes,
+                    canRetry = uiState.canRetry,
+                    onRetry = actions.onRetry,
+                    modifier = Modifier.align(Alignment.Center),
+                )
+            }
+            uiState.details != null -> {
+                PullToRefreshBox(
+                    isRefreshing = uiState.isRefreshing,
+                    onRefresh = actions.onRefresh,
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    AnimeDetailsBody(
+                        details = uiState.details,
+                        isAddingToList = uiState.isAddingToList,
+                        actions = actions,
+                        onPosterClick = { onPosterClick(uiState.details) },
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -260,83 +367,6 @@ private fun AnimeDetailsBody(
                 Spacer(modifier = Modifier.height(MaterialTheme.spacing.medium))
             }
         }
-    }
-}
-
-@Composable
-private fun WideAnimeDetailsLayout(
-    details: AnimeDetails,
-    isAddingToList: Boolean,
-    actions: AnimeDetailsActions,
-    onPosterClick: () -> Unit,
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraLarge),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraLarge),
-            verticalAlignment = Alignment.Top,
-        ) {
-            Column(
-                modifier = Modifier.weight(WIDE_PRIMARY_WEIGHT),
-                verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.large),
-            ) {
-                AnimeDetailsHeader(
-                    details = details,
-                    isAddingToList = isAddingToList,
-                    onAddToList = actions.onAddToList,
-                    onPosterClick = onPosterClick,
-                )
-                AnimeDetailsSynopsis(synopsis = details.synopsis)
-            }
-
-            Column(
-                modifier = Modifier.weight(WIDE_DISCOVERY_WEIGHT),
-                verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.large),
-            ) {
-                AnimeDetailsMetadata(details = details)
-                AnimeDetailsTaxonomy(genres = details.genres, themes = details.themes)
-            }
-        }
-
-        RelatedAnimeCarousel(
-            relatedAnime = details.relatedAnime,
-            onAnimeClick = actions.onAnimeClick,
-        )
-        DetailRecommendationsCarousel(
-            recommendations = details.recommendations,
-            onAnimeClick = actions.onAnimeClick,
-        )
-    }
-}
-
-@Composable
-private fun CompactAnimeDetailsLayout(
-    details: AnimeDetails,
-    isAddingToList: Boolean,
-    actions: AnimeDetailsActions,
-    onPosterClick: () -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.large)) {
-        AnimeDetailsHeader(
-            details = details,
-            isAddingToList = isAddingToList,
-            onAddToList = actions.onAddToList,
-            onPosterClick = onPosterClick,
-        )
-        AnimeDetailsSynopsis(synopsis = details.synopsis)
-        AnimeDetailsMetadata(details = details)
-        AnimeDetailsTaxonomy(genres = details.genres, themes = details.themes)
-        RelatedAnimeCarousel(
-            relatedAnime = details.relatedAnime,
-            onAnimeClick = actions.onAnimeClick,
-        )
-        DetailRecommendationsCarousel(
-            recommendations = details.recommendations,
-            onAnimeClick = actions.onAnimeClick,
-        )
     }
 }
 

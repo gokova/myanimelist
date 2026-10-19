@@ -18,6 +18,7 @@ android {
 
 dependencies {
     implementation(libs.kotlinx.coroutines.core)
+    compileOnly(libs.javax.inject)
 
     testImplementation(libs.junit)
 }

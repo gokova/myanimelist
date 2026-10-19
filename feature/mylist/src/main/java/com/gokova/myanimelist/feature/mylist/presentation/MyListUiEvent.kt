@@ -6,4 +6,14 @@ sealed interface MyListUiEvent {
         val actionRes: Int? = null,
         val isError: Boolean = false,
     ) : MyListUiEvent
+
+    data class ShowCompletionPrompt(
+        val animeId: Long,
+        val title: String,
+    ) : MyListUiEvent
+
+    data class ShowWatchingPrompt(
+        val animeId: Long,
+        val title: String,
+    ) : MyListUiEvent
 }
