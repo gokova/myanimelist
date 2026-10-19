@@ -52,6 +52,8 @@ class AnimeDetailsMapperTest {
         assertEquals("Shingeki no Kyojin", domain.subtitleTitle)
         assertEquals("completed", domain.userStatus)
         assertEquals(9, domain.userScore)
+        assertEquals(25, domain.numWatchedEpisodes)
+        assertFalse(domain.isRewatching)
         assertTrue(domain.isInUserList)
         assertEquals(listOf("Action"), domain.genres)
         assertEquals(listOf("Gore"), domain.themes)

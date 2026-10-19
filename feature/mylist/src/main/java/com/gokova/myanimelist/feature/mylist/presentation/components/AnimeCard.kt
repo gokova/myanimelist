@@ -14,10 +14,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -43,17 +45,18 @@ import com.gokova.myanimelist.core.ui.theme.spacing
 import com.gokova.myanimelist.feature.mylist.R
 import com.gokova.myanimelist.feature.mylist.domain.model.AiringStatus
 import com.gokova.myanimelist.feature.mylist.domain.model.UserAnime
+import com.gokova.myanimelist.feature.mylist.domain.model.UserAnimeStatus
 
 @Composable
 fun AnimeCard(
     anime: UserAnime,
     modifier: Modifier = Modifier,
-    onPosterClick: (() -> Unit)? = null,
-    onCardClick: (() -> Unit)? = null,
+    actions: AnimeCardActions = AnimeCardActions(),
+    isSavingProgress: Boolean = false,
 ) {
     val cardClickableModifier =
-        if (onCardClick != null) {
-            Modifier.clickable(role = Role.Button, onClick = onCardClick)
+        if (actions.onCardClick != null) {
+            Modifier.clickable(role = Role.Button, onClick = actions.onCardClick)
         } else {
             Modifier
         }
@@ -82,11 +85,13 @@ fun AnimeCard(
             PosterThumbnail(
                 imageUrl = anime.thumbnailUrl,
                 title = anime.displayTitle,
-                onPosterClick = onPosterClick,
+                onPosterClick = actions.onPosterClick,
             )
 
             AnimeCardDetails(
                 anime = anime,
+                actions = actions,
+                isSavingProgress = isSavingProgress,
                 modifier = Modifier.weight(1f),
             )
         }
@@ -96,6 +101,8 @@ fun AnimeCard(
 @Composable
 private fun AnimeCardDetails(
     anime: UserAnime,
+    actions: AnimeCardActions,
+    isSavingProgress: Boolean,
     modifier: Modifier = Modifier,
 ) {
     BoxWithConstraints(modifier = modifier) {
@@ -129,12 +136,69 @@ private fun AnimeCardDetails(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 ScoreBadge(score = anime.userScore)
-                AnimeStatusChip(
-                    status = anime.userStatus,
-                    compact = useCompactStatusChip,
+                val isKnownTotal = anime.totalEpisodes != null && anime.totalEpisodes > 0
+                val canQuickIncrement = !isKnownTotal || anime.watchedEpisodes < anime.totalEpisodes
+                AnimeCardActionsRow(
+                    userStatus = anime.userStatus,
+                    actions = actions,
+                    isSavingProgress = isSavingProgress,
+                    useCompactStatusChip = useCompactStatusChip,
+                    canQuickIncrement = canQuickIncrement,
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun AnimeCardActionsRow(
+    userStatus: UserAnimeStatus,
+    actions: AnimeCardActions,
+    isSavingProgress: Boolean,
+    useCompactStatusChip: Boolean,
+    canQuickIncrement: Boolean,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.none),
+    ) {
+        if (userStatus == UserAnimeStatus.WATCHING &&
+            actions.onQuickIncrement != null
+        ) {
+            QuickIncrementButton(
+                isSaving = isSavingProgress,
+                enabled = canQuickIncrement,
+                onClick = actions.onQuickIncrement,
+            )
+        }
+
+        if (actions.onEditClick != null) {
+            IconButton(
+                onClick = actions.onEditClick,
+                enabled = !isSavingProgress,
+                modifier = Modifier.size(MaterialTheme.spacing.minTouchTarget),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription =
+                        stringResource(
+                            com.gokova.myanimelist.core.ui.R.string.edit_list_status_edit_button,
+                        ),
+                    tint =
+                        if (isSavingProgress) {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+        }
+
+        AnimeStatusChip(
+            status = userStatus,
+            compact = useCompactStatusChip,
+        )
     }
 }
 

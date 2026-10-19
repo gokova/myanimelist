@@ -26,4 +26,6 @@ data class AnimeDetails(
     val durationSeconds: Int?,
     val relatedAnime: List<RelatedAnime> = emptyList(),
     val recommendations: List<DetailRecommendation> = emptyList(),
+    val numWatchedEpisodes: Int = 0,
+    val isRewatching: Boolean = false,
 )

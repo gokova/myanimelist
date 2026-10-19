@@ -4,6 +4,8 @@ import com.gokova.myanimelist.core.network.model.AnimeDetailsDto
 import com.gokova.myanimelist.core.network.model.AnimeListResponseDto
 import com.gokova.myanimelist.core.network.model.MyListStatusDto
 import com.gokova.myanimelist.core.network.model.UserDto
+import retrofit2.Response
+import retrofit2.http.DELETE
 import retrofit2.http.Field
 import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
@@ -63,10 +65,16 @@ interface MalApiService {
     @PUT("v2/anime/{anime_id}/my_list_status")
     suspend fun updateMyListStatus(
         @Path("anime_id") animeId: Long,
-        @Field("status") status: String = "plan_to_watch",
-        @Field("num_watched_episodes") numWatchedEpisodes: Int = 0,
-        @Field("score") score: Int = 0,
+        @Field("status") status: String? = null,
+        @Field("is_rewatching") isRewatching: Boolean? = null,
+        @Field("score") score: Int? = null,
+        @Field("num_watched_episodes") numWatchedEpisodes: Int? = null,
     ): MyListStatusDto
+
+    @DELETE("v2/anime/{anime_id}/my_list_status")
+    suspend fun deleteMyListStatus(
+        @Path("anime_id") animeId: Long,
+    ): Response<Unit>
 
     @GET("v2/users/{user_id}")
     suspend fun getUserProfile(

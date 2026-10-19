@@ -98,6 +98,8 @@ class RecommendationRepositoryImplTest {
         override suspend fun deleteRecommendation(animeId: Long): Int = 0
 
         override suspend fun deleteNewSeasonAnime(animeId: Long): Int = 0
+
+        override suspend fun deleteUserAnime(animeId: Long): Int = 0
     }
 
     private class FakeRecommendationScheduler : RecommendationScheduler {

@@ -1,5 +1,6 @@
 package com.gokova.myanimelist.feature.mylist.presentation
 
+import com.gokova.myanimelist.core.ui.component.editlist.EditAnimeStatusSheetState
 import com.gokova.myanimelist.feature.mylist.domain.model.ListFilterCategory
 import com.gokova.myanimelist.feature.mylist.domain.model.SortOption
 import com.gokova.myanimelist.feature.mylist.domain.model.UserAnime
@@ -11,4 +12,6 @@ data class MyListUiState(
     val isSyncing: Boolean = false,
     val isRefreshing: Boolean = false,
     val isLoadingInitial: Boolean = true,
+    val editingSheetState: EditAnimeStatusSheetState? = null,
+    val savingProgressAnimeIds: Set<Long> = emptySet(),
 )

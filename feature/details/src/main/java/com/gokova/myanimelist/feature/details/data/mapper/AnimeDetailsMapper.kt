@@ -85,6 +85,8 @@ object AnimeDetailsMapper {
             durationSeconds = entity.averageEpisodeDuration,
             relatedAnime = emptyList(),
             recommendations = emptyList(),
+            numWatchedEpisodes = userAnime?.numEpisodesWatched ?: 0,
+            isRewatching = userAnime?.isRewatching ?: false,
         )
     }
 
@@ -136,6 +138,9 @@ object AnimeDetailsMapper {
             durationSeconds = dto.averageEpisodeDuration,
             relatedAnime = dto.toRelatedAnimeList(),
             recommendations = dto.toDetailRecommendations(),
+            numWatchedEpisodes =
+                userAnime?.numEpisodesWatched ?: dto.myListStatus?.numEpisodesWatched ?: 0,
+            isRewatching = userAnime?.isRewatching ?: dto.myListStatus?.isRewatching ?: false,
         )
     }
 

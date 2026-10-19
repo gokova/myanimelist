@@ -783,6 +783,8 @@ class FetchNewSeasonsWorkerTest {
         override suspend fun deleteRecommendation(animeId: Long): Int = 0
 
         override suspend fun deleteNewSeasonAnime(animeId: Long): Int = 0
+
+        override suspend fun deleteUserAnime(animeId: Long): Int = 0
     }
 
     private class FakeNewSeasonDao : NewSeasonDao {
@@ -886,10 +888,14 @@ class FetchNewSeasonsWorkerTest {
 
         override suspend fun updateMyListStatus(
             animeId: Long,
-            status: String,
-            numWatchedEpisodes: Int,
-            score: Int,
+            status: String?,
+            isRewatching: Boolean?,
+            score: Int?,
+            numWatchedEpisodes: Int?,
         ): MyListStatusDto = throw UnsupportedOperationException()
+
+        override suspend fun deleteMyListStatus(animeId: Long): Response<Unit> =
+            throw UnsupportedOperationException()
 
         override suspend fun getUserProfile(
             userId: String,

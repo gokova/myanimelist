@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -46,13 +47,15 @@ import com.gokova.myanimelist.core.ui.theme.componentSizes
 import com.gokova.myanimelist.core.ui.theme.spacing
 import com.gokova.myanimelist.feature.details.R
 import com.gokova.myanimelist.feature.details.domain.model.AnimeDetails
+import com.gokova.myanimelist.feature.details.presentation.AnimeDetailsActions
 import java.util.Locale
+import com.gokova.myanimelist.core.ui.R as CoreUiR
 
 @Composable
 fun AnimeDetailsHeader(
     details: AnimeDetails,
     isAddingToList: Boolean,
-    onAddToList: () -> Unit,
+    actions: AnimeDetailsActions,
     onPosterClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -87,7 +90,8 @@ fun AnimeDetailsHeader(
                 isInUserList = details.isInUserList,
                 userStatus = details.userStatus,
                 isAddingToList = isAddingToList,
-                onAddToList = onAddToList,
+                onAddToList = actions.onAddToList,
+                onEditStatusClick = actions.onEditStatusClick,
             )
         }
     }
@@ -200,20 +204,34 @@ private fun HeaderAction(
     userStatus: String?,
     isAddingToList: Boolean,
     onAddToList: () -> Unit,
+    onEditStatusClick: () -> Unit,
 ) {
     if (isInUserList) {
         val (containerColor, contentColor, labelRes) = getStatusColorAndLabel(userStatus)
         Surface(
+            onClick = onEditStatusClick,
             shape = MaterialTheme.shapes.small,
             color = containerColor,
         ) {
-            Text(
-                text = stringResource(labelRes),
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                color = contentColor,
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-            )
+            ) {
+                Text(
+                    text = stringResource(labelRes),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = contentColor,
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription =
+                        stringResource(CoreUiR.string.edit_list_status_edit_button),
+                    tint = contentColor,
+                    modifier = Modifier.size(14.dp),
+                )
+            }
         }
     } else {
         Button(

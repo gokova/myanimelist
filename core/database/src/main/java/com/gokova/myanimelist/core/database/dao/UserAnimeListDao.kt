@@ -69,4 +69,7 @@ interface UserAnimeListDao {
         deleteRecommendation(userAnime.animeId)
         deleteNewSeasonAnime(userAnime.animeId)
     }
+
+    @Query("DELETE FROM user_anime_list WHERE anime_id = :animeId")
+    suspend fun deleteUserAnime(animeId: Long): Int
 }

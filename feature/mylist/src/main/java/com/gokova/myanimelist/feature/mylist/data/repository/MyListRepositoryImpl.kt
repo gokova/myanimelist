@@ -1,6 +1,7 @@
 package com.gokova.myanimelist.feature.mylist.data.repository
 
 import com.gokova.myanimelist.core.database.dao.UserAnimeListDao
+import com.gokova.myanimelist.core.database.util.UserAnimeListSyncCoordinator
 import com.gokova.myanimelist.core.datastore.SyncPreferences
 import com.gokova.myanimelist.core.domain.logging.AppLog
 import com.gokova.myanimelist.feature.mylist.data.mapper.AnimeListMapper
@@ -24,6 +25,7 @@ class MyListRepositoryImpl
         private val dao: UserAnimeListDao,
         private val remoteDataSource: AnimeListRemoteDataSource,
         private val syncPreferences: SyncPreferences,
+        private val syncCoordinator: UserAnimeListSyncCoordinator = UserAnimeListSyncCoordinator(),
     ) : MyListRepository {
         override fun observeUserAnimeList(category: ListFilterCategory): Flow<List<UserAnime>> {
             AppLog.data.d { "observeUserAnimeList for category=${category.name}" }
@@ -56,17 +58,19 @@ class MyListRepositoryImpl
 
                     emit(SyncStatus.Started)
 
-                    val allEntries = remoteDataSource.fetchAllUserAnime()
-                    AppLog.data.i { "Fetched ${allEntries.size} anime entries from MAL API" }
-                    val animes = allEntries.map { AnimeListMapper.toAnimeEntity(it) }
-                    val userAnimeList =
-                        allEntries.map { AnimeListMapper.toUserAnimeListEntity(it) }
+                    syncCoordinator.withLock {
+                        val allEntries = remoteDataSource.fetchAllUserAnime()
+                        AppLog.data.i { "Fetched ${allEntries.size} anime entries from MAL API" }
+                        val animes = allEntries.map { AnimeListMapper.toAnimeEntity(it) }
+                        val userAnimeList =
+                            allEntries.map { AnimeListMapper.toUserAnimeListEntity(it) }
 
-                    dao.syncUserAnimeList(animes, userAnimeList)
-                    AppLog.data.d {
-                        "Persisted ${animes.size} animes & ${userAnimeList.size} records to Room"
+                        dao.syncUserAnimeList(animes, userAnimeList)
+                        AppLog.data.d {
+                            "Persisted ${animes.size} animes & ${userAnimeList.size} records to Room"
+                        }
+                        syncPreferences.updateLastAnimeListSyncTimestamp(currentTime)
                     }
-                    syncPreferences.updateLastAnimeListSyncTimestamp(currentTime)
 
                     emit(SyncStatus.Completed)
                 } catch (e: CancellationException) {

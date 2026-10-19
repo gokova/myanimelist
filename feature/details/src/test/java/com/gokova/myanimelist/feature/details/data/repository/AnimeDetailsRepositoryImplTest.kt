@@ -22,6 +22,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import retrofit2.Response
 import java.sql.SQLException
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -159,6 +160,148 @@ class AnimeDetailsRepositoryImplTest {
             assertFalse(details1?.recommendations?.isNotEmpty() == true)
         }
 
+    @Test
+    fun `fetchFreshAnimeDetails does not overwrite newer local status with stale remote status`() =
+        runTest(testDispatcher) {
+            val animeId = 42L
+            val localEntity =
+                AnimeEntity(
+                    id = animeId,
+                    title = "Test Anime",
+                    titleEnglish = null,
+                    mainPictureMedium = null,
+                    mainPictureLarge = null,
+                    mediaType = null,
+                    airingStatus = null,
+                    numEpisodes = 24,
+                    startSeasonYear = null,
+                    startSeasonSeason = null,
+                    meanScore = null,
+                )
+            fakeDao.upsertAnimes(listOf(localEntity))
+            fakeDao.upsertUserAnimeList(
+                listOf(
+                    UserAnimeListEntity(
+                        animeId = animeId,
+                        status = "watching",
+                        score = 8,
+                        numEpisodesWatched = 15,
+                        updatedAt = "2026-10-19T14:30:00Z",
+                        isRewatching = false,
+                    ),
+                ),
+            )
+
+            fakeApi.detailsMap[animeId] =
+                AnimeDetailsDto(
+                    id = animeId,
+                    title = "Test Anime",
+                    numEpisodes = 24,
+                    myListStatus =
+                        MyListStatusDto(
+                            status = "watching",
+                            score = 7,
+                            numEpisodesWatched = 10,
+                            updatedAt = "2026-10-19T14:00:00Z",
+                            isRewatching = false,
+                        ),
+                )
+
+            val result = repository.fetchFreshAnimeDetails(animeId)
+            advanceUntilIdle()
+
+            assertTrue(result.isSuccess)
+            val details = result.getOrNull()
+            assertEquals(15, details?.numWatchedEpisodes)
+            assertEquals(8, details?.userScore)
+
+            val localInDb = fakeDao.getUserAnimeById(animeId)?.userAnime
+            assertEquals(15, localInDb?.numEpisodesWatched)
+            assertEquals(8, localInDb?.score)
+            assertEquals("2026-10-19T14:30:00Z", localInDb?.updatedAt)
+        }
+
+    @Test
+    fun `fetchFreshAnimeDetails updates local status when remote status is newer`() =
+        runTest(testDispatcher) {
+            val animeId = 43L
+            val localEntity =
+                AnimeEntity(
+                    id = animeId,
+                    title = "Test Anime 2",
+                    titleEnglish = null,
+                    mainPictureMedium = null,
+                    mainPictureLarge = null,
+                    mediaType = null,
+                    airingStatus = null,
+                    numEpisodes = 12,
+                    startSeasonYear = null,
+                    startSeasonSeason = null,
+                    meanScore = null,
+                )
+            fakeDao.upsertAnimes(listOf(localEntity))
+            fakeDao.upsertUserAnimeList(
+                listOf(
+                    UserAnimeListEntity(
+                        animeId = animeId,
+                        status = "watching",
+                        score = 7,
+                        numEpisodesWatched = 3,
+                        updatedAt = "2026-10-19T12:00:00Z",
+                        isRewatching = false,
+                    ),
+                ),
+            )
+
+            fakeApi.detailsMap[animeId] =
+                AnimeDetailsDto(
+                    id = animeId,
+                    title = "Test Anime 2",
+                    numEpisodes = 12,
+                    myListStatus =
+                        MyListStatusDto(
+                            status = "watching",
+                            score = 9,
+                            numEpisodesWatched = 6,
+                            updatedAt = "2026-10-19T13:00:00Z",
+                            isRewatching = false,
+                        ),
+                )
+
+            val result = repository.fetchFreshAnimeDetails(animeId)
+            advanceUntilIdle()
+
+            assertTrue(result.isSuccess)
+            val details = result.getOrNull()
+            assertEquals(6, details?.numWatchedEpisodes)
+            assertEquals(9, details?.userScore)
+
+            val localInDb = fakeDao.getUserAnimeById(animeId)?.userAnime
+            assertEquals(6, localInDb?.numEpisodesWatched)
+            assertEquals(9, localInDb?.score)
+            assertEquals("2026-10-19T13:00:00Z", localInDb?.updatedAt)
+        }
+
+    @Test
+    fun `fetchFreshAnimeDetails does not restore deleted anime when remote myListStatus is null`() =
+        runTest(testDispatcher) {
+            val animeId = 44L
+            fakeApi.detailsMap[animeId] =
+                AnimeDetailsDto(
+                    id = animeId,
+                    title = "Deleted Anime",
+                    myListStatus = null,
+                )
+
+            val result = repository.fetchFreshAnimeDetails(animeId)
+            advanceUntilIdle()
+
+            assertTrue(result.isSuccess)
+            val details = result.getOrNull()
+            assertEquals(false, details?.isInUserList)
+            assertEquals(null, fakeDao.getUserAnimeById(animeId))
+        }
+
     private class FakeUserAnimeListDao : UserAnimeListDao {
         val animeEntities = mutableMapOf<Long, MutableStateFlow<AnimeEntity?>>()
         val userAnimeItems = mutableMapOf<Long, MutableStateFlow<UserAnimeListItem?>>()
@@ -225,6 +368,11 @@ class AnimeDetailsRepositoryImplTest {
             cleanedUserAnimes.add(userAnime)
             upsertUserAnimeList(listOf(userAnime))
         }
+
+        override suspend fun deleteUserAnime(animeId: Long): Int {
+            userAnimeItems.remove(animeId)
+            return 1
+        }
     }
 
     private class FakeMalApiService : MalApiService {
@@ -272,10 +420,14 @@ class AnimeDetailsRepositoryImplTest {
 
         override suspend fun updateMyListStatus(
             animeId: Long,
-            status: String,
-            numWatchedEpisodes: Int,
-            score: Int,
+            status: String?,
+            isRewatching: Boolean?,
+            score: Int?,
+            numWatchedEpisodes: Int?,
         ): MyListStatusDto = updateStatusResult
+
+        override suspend fun deleteMyListStatus(animeId: Long): Response<Unit> =
+            Response.success(Unit)
 
         override suspend fun getUserProfile(
             userId: String,
