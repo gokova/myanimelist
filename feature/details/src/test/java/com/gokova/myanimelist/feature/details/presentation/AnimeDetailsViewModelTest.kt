@@ -5,14 +5,20 @@ import com.gokova.myanimelist.core.domain.model.UpdateUserAnimeStatusParams
 import com.gokova.myanimelist.core.domain.model.UserAnimeListUpdate
 import com.gokova.myanimelist.core.domain.repository.UserAnimeListStatusRepository
 import com.gokova.myanimelist.core.domain.usecase.DeleteAnimeFromListUseCase
+import com.gokova.myanimelist.core.domain.usecase.IgnoredAnimeInteractor
+import com.gokova.myanimelist.core.domain.usecase.ObserveIsAnimeNotInterestedUseCase
+import com.gokova.myanimelist.core.domain.usecase.RemoveAnimeFromNotInterestedUseCase
+import com.gokova.myanimelist.core.domain.usecase.SetAnimeNotInterestedUseCase
 import com.gokova.myanimelist.core.domain.usecase.UpdateAnimeStatusUseCase
 import com.gokova.myanimelist.core.ui.component.editlist.withStatus
 import com.gokova.myanimelist.feature.details.R
 import com.gokova.myanimelist.feature.details.domain.model.AnimeDetails
 import com.gokova.myanimelist.feature.details.domain.usecase.AddAnimeToMyListUseCase
+import com.gokova.myanimelist.feature.details.domain.usecase.AnimeStatusInteractor
 import com.gokova.myanimelist.feature.details.domain.usecase.ObserveAnimeDetailsUseCase
 import com.gokova.myanimelist.feature.details.domain.usecase.RefreshAnimeDetailsUseCase
 import com.gokova.myanimelist.feature.details.fakes.FakeAnimeDetailsRepository
+import com.gokova.myanimelist.feature.details.fakes.FakeIgnoredAnimeRepository
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -45,6 +51,10 @@ class AnimeDetailsViewModelTest {
     private lateinit var addUseCase: AddAnimeToMyListUseCase
     private lateinit var updateUseCase: UpdateAnimeStatusUseCase
     private lateinit var deleteUseCase: DeleteAnimeFromListUseCase
+
+    private lateinit var fakeIgnoredRepository: FakeIgnoredAnimeRepository
+    private lateinit var statusInteractor: AnimeStatusInteractor
+    private lateinit var ignoredAnimeInteractor: IgnoredAnimeInteractor
 
     private val testDetails =
         AnimeDetails(
@@ -83,6 +93,14 @@ class AnimeDetailsViewModelTest {
         addUseCase = AddAnimeToMyListUseCase(repository)
         updateUseCase = UpdateAnimeStatusUseCase(statusRepository)
         deleteUseCase = DeleteAnimeFromListUseCase(statusRepository)
+        statusInteractor = AnimeStatusInteractor(updateUseCase, deleteUseCase)
+        fakeIgnoredRepository = FakeIgnoredAnimeRepository()
+        ignoredAnimeInteractor =
+            IgnoredAnimeInteractor(
+                observeIsIgnored = ObserveIsAnimeNotInterestedUseCase(fakeIgnoredRepository),
+                setNotInterested = SetAnimeNotInterestedUseCase(fakeIgnoredRepository),
+                removeNotInterested = RemoveAnimeFromNotInterestedUseCase(fakeIgnoredRepository),
+            )
     }
 
     @After
@@ -97,8 +115,8 @@ class AnimeDetailsViewModelTest {
             observeAnimeDetailsUseCase = observeUseCase,
             refreshAnimeDetailsUseCase = refreshUseCase,
             addAnimeToMyListUseCase = addUseCase,
-            updateAnimeStatusUseCase = updateUseCase,
-            deleteAnimeFromListUseCase = deleteUseCase,
+            statusInteractor = statusInteractor,
+            ignoredAnimeInteractor = ignoredAnimeInteractor,
         )
     }
 
@@ -643,6 +661,109 @@ class AnimeDetailsViewModelTest {
 
             assertEquals(42L, statusRepository.lastDeletedAnimeId)
             assertNull(viewModel.uiState.value.editingSheetState)
+        }
+
+    @Test
+    fun `onToggleNotInterested marks anime as not interested when not ignored`() =
+        runTest {
+            repository.emitDetails(testDetails)
+            repository.fetchResult = Result.success(testDetails)
+
+            val viewModel = createViewModel()
+            advanceUntilIdle()
+
+            assertFalse(viewModel.uiState.value.isNotInterested)
+
+            viewModel.onToggleNotInterested()
+            advanceUntilIdle()
+
+            assertTrue(viewModel.uiState.value.isNotInterested)
+            assertTrue(fakeIgnoredRepository.isIgnored(42L))
+            val event = viewModel.events.first()
+            assertTrue(event is AnimeDetailsUiEvent.ShowSnackbar)
+            assertEquals(
+                R.string.details_snackbar_marked_not_interested,
+                (event as AnimeDetailsUiEvent.ShowSnackbar).messageRes,
+            )
+        }
+
+    @Test
+    fun `onToggleNotInterested removes anime from not interested when already ignored`() =
+        runTest {
+            fakeIgnoredRepository.setAnimeNotInterested(42L, "Test Anime")
+            repository.emitDetails(testDetails)
+            repository.fetchResult = Result.success(testDetails)
+
+            val viewModel = createViewModel()
+            advanceUntilIdle()
+
+            assertTrue(viewModel.uiState.value.isNotInterested)
+
+            viewModel.onToggleNotInterested()
+            advanceUntilIdle()
+
+            assertFalse(viewModel.uiState.value.isNotInterested)
+            assertFalse(fakeIgnoredRepository.isIgnored(42L))
+            val event = viewModel.events.first()
+            assertTrue(event is AnimeDetailsUiEvent.ShowSnackbar)
+            assertEquals(
+                R.string.details_snackbar_removed_not_interested,
+                (event as AnimeDetailsUiEvent.ShowSnackbar).messageRes,
+            )
+        }
+
+    @Test
+    fun `onToggleNotInterested rapid consecutive calls ignore second call while in flight`() =
+        runTest {
+            repository.emitDetails(testDetails)
+            repository.fetchResult = Result.success(testDetails)
+
+            val viewModel = createViewModel()
+            advanceUntilIdle()
+
+            val events = mutableListOf<AnimeDetailsUiEvent>()
+            val job = launch { viewModel.events.collect { events.add(it) } }
+
+            viewModel.onToggleNotInterested()
+            viewModel.onToggleNotInterested()
+            advanceUntilIdle()
+
+            job.cancel()
+
+            assertTrue(viewModel.uiState.value.isNotInterested)
+            assertTrue(fakeIgnoredRepository.isIgnored(42L))
+            assertEquals(1, events.size)
+            assertTrue(events.first() is AnimeDetailsUiEvent.ShowSnackbar)
+        }
+
+    @Test
+    fun `onToggleNotInterested does nothing when details are null`() =
+        runTest {
+            val viewModel = createViewModel()
+            advanceUntilIdle()
+
+            viewModel.onToggleNotInterested()
+            advanceUntilIdle()
+
+            assertFalse(viewModel.uiState.value.isNotInterested)
+            assertFalse(fakeIgnoredRepository.isIgnored(42L))
+        }
+
+    @Test
+    fun `onToggleNotInterested does nothing when anime is in user list`() =
+        runTest {
+            val inListDetails = testDetails.copy(isInUserList = true)
+            repository.emitDetails(inListDetails)
+            repository.fetchResult = Result.success(inListDetails)
+
+            val viewModel = createViewModel()
+            advanceUntilIdle()
+
+            viewModel.onToggleNotInterested()
+            advanceUntilIdle()
+
+            assertFalse(viewModel.uiState.value.isNotInterested)
+            assertFalse(fakeIgnoredRepository.isIgnored(42L))
         }
 
     private class FakeUserAnimeListStatusRepository : UserAnimeListStatusRepository {

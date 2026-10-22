@@ -48,6 +48,10 @@
     <string name="recommendation_metadata_separator"> • </string>
     <string name="recommendation_zoom_poster_description">Zoom poster for %s</string>
 
+    <string name="recommendation_action_not_interested">Not Interested</string>
+    <string name="recommendation_snackbar_marked_not_interested">%s marked as not interested</string>
+    <string name="recommendation_snackbar_undo">Undo</string>
+
     <string name="background_sync_dialog_title">Allow Background Sync</string>
     <string name="background_sync_dialog_message">To discover new seasons and recommendations seamlessly when your phone is locked, please allow MyAnimeList to run unrestricted in battery settings.</string>
     <string name="background_sync_dialog_confirm">Open Settings</string>

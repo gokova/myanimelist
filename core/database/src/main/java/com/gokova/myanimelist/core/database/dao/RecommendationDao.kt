@@ -18,6 +18,7 @@ interface RecommendationDao {
         """
         SELECT r.* FROM recommendations r
         WHERE r.anime_id NOT IN (SELECT anime_id FROM new_season_animes)
+          AND r.anime_id NOT IN (SELECT anime_id FROM ignored_animes)
         ORDER BY r.genre_rank ASC LIMIT :limit
         """,
     )
@@ -28,6 +29,7 @@ interface RecommendationDao {
         """
         SELECT r.* FROM recommendations r
         WHERE r.anime_id NOT IN (SELECT anime_id FROM new_season_animes)
+          AND r.anime_id NOT IN (SELECT anime_id FROM ignored_animes)
         ORDER BY r.theme_rank ASC LIMIT :limit
         """,
     )
@@ -37,6 +39,7 @@ interface RecommendationDao {
         """
         SELECT COUNT(*) FROM recommendations
         WHERE anime_id NOT IN (SELECT anime_id FROM new_season_animes)
+          AND anime_id NOT IN (SELECT anime_id FROM ignored_animes)
         """,
     )
     fun observeRecommendationCount(): Flow<Int>
@@ -45,6 +48,7 @@ interface RecommendationDao {
         """
         SELECT COUNT(*) FROM recommendations
         WHERE anime_id NOT IN (SELECT anime_id FROM new_season_animes)
+          AND anime_id NOT IN (SELECT anime_id FROM ignored_animes)
         """,
     )
     suspend fun getRecommendationCount(): Int
@@ -63,6 +67,8 @@ interface RecommendationDao {
         SELECT anime_id FROM user_anime_list
         UNION
         SELECT anime_id FROM new_season_animes
+        UNION
+        SELECT anime_id FROM ignored_animes
         """,
     )
     suspend fun getExcludedCandidateAnimeIds(): List<Long>
@@ -97,6 +103,7 @@ interface RecommendationDao {
           AND id NOT IN (SELECT anime_id FROM new_season_animes)
           AND id NOT IN (SELECT parent_anime_id FROM new_season_animes)
           AND id NOT IN (SELECT anime_id FROM recommendation_candidates)
+          AND id NOT IN (SELECT anime_id FROM ignored_animes)
         """,
     )
     suspend fun deleteNonUserData(animeIds: List<Long>): Int

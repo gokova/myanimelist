@@ -18,7 +18,7 @@ private const val WIDE_DISCOVERY_WEIGHT = 0.38f
 @Composable
 fun WideAnimeDetailsLayout(
     details: AnimeDetails,
-    isAddingToList: Boolean,
+    headerState: AnimeDetailsHeaderState,
     actions: AnimeDetailsActions,
     onPosterClick: () -> Unit,
 ) {
@@ -37,7 +37,7 @@ fun WideAnimeDetailsLayout(
             ) {
                 AnimeDetailsHeader(
                     details = details,
-                    isAddingToList = isAddingToList,
+                    headerState = headerState,
                     actions = actions,
                     onPosterClick = onPosterClick,
                 )
@@ -67,14 +67,14 @@ fun WideAnimeDetailsLayout(
 @Composable
 fun CompactAnimeDetailsLayout(
     details: AnimeDetails,
-    isAddingToList: Boolean,
+    headerState: AnimeDetailsHeaderState,
     actions: AnimeDetailsActions,
     onPosterClick: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.large)) {
         AnimeDetailsHeader(
             details = details,
-            isAddingToList = isAddingToList,
+            headerState = headerState,
             actions = actions,
             onPosterClick = onPosterClick,
         )

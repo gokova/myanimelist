@@ -282,5 +282,7 @@ class UserAnimeListStatusRepositoryImplTest {
         override suspend fun deleteRecommendation(animeId: Long): Int = 0
 
         override suspend fun deleteNewSeasonAnime(animeId: Long): Int = 0
+
+        override suspend fun deleteIgnoredAnime(animeId: Long): Int = 0
     }
 }

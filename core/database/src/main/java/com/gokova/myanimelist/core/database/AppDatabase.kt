@@ -6,10 +6,12 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.gokova.myanimelist.core.database.converter.AnimeTypeConverters
+import com.gokova.myanimelist.core.database.dao.IgnoredAnimeDao
 import com.gokova.myanimelist.core.database.dao.NewSeasonDao
 import com.gokova.myanimelist.core.database.dao.RecommendationDao
 import com.gokova.myanimelist.core.database.dao.UserAnimeListDao
 import com.gokova.myanimelist.core.database.entity.AnimeEntity
+import com.gokova.myanimelist.core.database.entity.IgnoredAnimeEntity
 import com.gokova.myanimelist.core.database.entity.NewSeasonAnimeEntity
 import com.gokova.myanimelist.core.database.entity.RecommendationCandidateEntity
 import com.gokova.myanimelist.core.database.entity.RecommendationEntity
@@ -22,8 +24,9 @@ import com.gokova.myanimelist.core.database.entity.UserAnimeListEntity
         RecommendationEntity::class,
         RecommendationCandidateEntity::class,
         NewSeasonAnimeEntity::class,
+        IgnoredAnimeEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = false,
 )
 @TypeConverters(AnimeTypeConverters::class)
@@ -33,6 +36,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun recommendationDao(): RecommendationDao
 
     abstract fun newSeasonDao(): NewSeasonDao
+
+    abstract fun ignoredAnimeDao(): IgnoredAnimeDao
 
     companion object {
         val MIGRATION_1_2 =
@@ -69,7 +74,7 @@ abstract class AppDatabase : RoomDatabase() {
                             `calculated_at` INTEGER NOT NULL,
                             PRIMARY KEY(`anime_id`),
                             FOREIGN KEY(`anime_id`) REFERENCES `animes`(`id`)
-                                ON UPDATE NO ACTION ON DELETE CASCADE
+                                 ON UPDATE NO ACTION ON DELETE CASCADE
                         )
                         """.trimIndent(),
                     )
@@ -92,7 +97,7 @@ abstract class AppDatabase : RoomDatabase() {
                             `source` TEXT NOT NULL,
                             PRIMARY KEY(`anime_id`),
                             FOREIGN KEY(`anime_id`) REFERENCES `animes`(`id`)
-                                ON UPDATE NO ACTION ON DELETE CASCADE
+                                 ON UPDATE NO ACTION ON DELETE CASCADE
                         )
                         """.trimIndent(),
                     )
@@ -117,9 +122,9 @@ abstract class AppDatabase : RoomDatabase() {
                             `created_at` INTEGER NOT NULL,
                             PRIMARY KEY(`anime_id`),
                             FOREIGN KEY(`anime_id`) REFERENCES `animes`(`id`)
-                                ON UPDATE NO ACTION ON DELETE CASCADE,
+                                 ON UPDATE NO ACTION ON DELETE CASCADE,
                             FOREIGN KEY(`parent_anime_id`) REFERENCES `animes`(`id`)
-                                ON UPDATE NO ACTION ON DELETE CASCADE
+                                 ON UPDATE NO ACTION ON DELETE CASCADE
                         )
                         """.trimIndent(),
                     )
@@ -158,7 +163,7 @@ abstract class AppDatabase : RoomDatabase() {
                             `calculated_at` INTEGER NOT NULL,
                             PRIMARY KEY(`anime_id`),
                             FOREIGN KEY(`anime_id`) REFERENCES `animes`(`id`)
-                                ON UPDATE NO ACTION ON DELETE NO ACTION
+                                 ON UPDATE NO ACTION ON DELETE NO ACTION
                         )
                         """.trimIndent(),
                     )
@@ -187,7 +192,7 @@ abstract class AppDatabase : RoomDatabase() {
                             `source` TEXT NOT NULL,
                             PRIMARY KEY(`anime_id`),
                             FOREIGN KEY(`anime_id`) REFERENCES `animes`(`id`)
-                                ON UPDATE NO ACTION ON DELETE NO ACTION
+                                 ON UPDATE NO ACTION ON DELETE NO ACTION
                         )
                         """.trimIndent(),
                     )
@@ -216,9 +221,9 @@ abstract class AppDatabase : RoomDatabase() {
                             `created_at` INTEGER NOT NULL,
                             PRIMARY KEY(`anime_id`),
                             FOREIGN KEY(`anime_id`) REFERENCES `animes`(`id`)
-                                ON UPDATE NO ACTION ON DELETE NO ACTION,
+                                 ON UPDATE NO ACTION ON DELETE NO ACTION,
                             FOREIGN KEY(`parent_anime_id`) REFERENCES `animes`(`id`)
-                                ON UPDATE NO ACTION ON DELETE NO ACTION
+                                 ON UPDATE NO ACTION ON DELETE NO ACTION
                         )
                         """.trimIndent(),
                     )
@@ -236,6 +241,24 @@ abstract class AppDatabase : RoomDatabase() {
                         "CREATE INDEX IF NOT EXISTS " +
                             "`index_new_season_animes_parent_anime_id` ON " +
                             "`new_season_animes` (`parent_anime_id`)",
+                    )
+                }
+            }
+
+        val MIGRATION_5_6 =
+            object : Migration(5, 6) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL(
+                        """
+                        CREATE TABLE IF NOT EXISTS `ignored_animes` (
+                            `anime_id` INTEGER NOT NULL,
+                            `title` TEXT NOT NULL,
+                            `title_english` TEXT,
+                            `picture_url` TEXT,
+                            `created_at` INTEGER NOT NULL,
+                            PRIMARY KEY(`anime_id`)
+                        )
+                        """.trimIndent(),
                     )
                 }
             }

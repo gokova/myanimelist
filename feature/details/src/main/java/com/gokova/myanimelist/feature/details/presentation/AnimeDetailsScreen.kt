@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -53,6 +55,7 @@ import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
 import com.gokova.myanimelist.core.ui.theme.spacing
 import com.gokova.myanimelist.feature.details.R
 import com.gokova.myanimelist.feature.details.domain.model.AnimeDetails
+import com.gokova.myanimelist.feature.details.presentation.components.AnimeDetailsHeaderState
 import com.gokova.myanimelist.feature.details.presentation.components.CompactAnimeDetailsLayout
 import com.gokova.myanimelist.feature.details.presentation.components.WideAnimeDetailsLayout
 import com.gokova.myanimelist.core.ui.R as CoreUiR
@@ -93,6 +96,7 @@ fun AnimeDetailsScreen(
                 onAddToList = viewModel::onAddToList,
                 onAnimeClick = onAnimeClick,
                 onEditStatusClick = { viewModel.setEditingSheet(open = true) },
+                onToggleNotInterested = viewModel::onToggleNotInterested,
                 onSheetActions = sheetActions,
             ),
         modifier = modifier,
@@ -221,7 +225,10 @@ fun AnimeDetailsContent(
         topBar = {
             AnimeDetailsTopBar(
                 title = uiState.details?.displayTitle,
+                canToggleNotInterested = uiState.details?.let { !it.isInUserList } == true,
+                isNotInterested = uiState.isNotInterested,
                 onBackClick = actions.onBackClick,
+                onToggleNotInterested = actions.onToggleNotInterested,
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -279,8 +286,7 @@ private fun AnimeDetailsContentBody(
                     modifier = Modifier.fillMaxSize(),
                 ) {
                     AnimeDetailsBody(
-                        details = uiState.details,
-                        isAddingToList = uiState.isAddingToList,
+                        uiState = uiState,
                         actions = actions,
                         onPosterClick = { onPosterClick(uiState.details) },
                     )
@@ -294,7 +300,10 @@ private fun AnimeDetailsContentBody(
 @Composable
 private fun AnimeDetailsTopBar(
     title: String?,
+    canToggleNotInterested: Boolean,
+    isNotInterested: Boolean,
     onBackClick: () -> Unit,
+    onToggleNotInterested: () -> Unit,
 ) {
     TopAppBar(
         title = {
@@ -317,6 +326,34 @@ private fun AnimeDetailsTopBar(
                 )
             }
         },
+        actions = {
+            if (canToggleNotInterested) {
+                IconButton(onClick = onToggleNotInterested) {
+                    Icon(
+                        imageVector =
+                            if (isNotInterested) {
+                                Icons.Filled.VisibilityOff
+                            } else {
+                                Icons.Outlined.VisibilityOff
+                            },
+                        contentDescription =
+                            stringResource(
+                                if (isNotInterested) {
+                                    R.string.details_action_remove_not_interested
+                                } else {
+                                    R.string.details_action_mark_not_interested
+                                },
+                            ),
+                        tint =
+                            if (isNotInterested) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                    )
+                }
+            }
+        },
         colors =
             TopAppBarDefaults.topAppBarColors(
                 containerColor = MaterialTheme.colorScheme.surface,
@@ -328,12 +365,19 @@ private fun AnimeDetailsTopBar(
 
 @Composable
 private fun AnimeDetailsBody(
-    details: AnimeDetails,
-    isAddingToList: Boolean,
+    uiState: AnimeDetailsUiState,
     actions: AnimeDetailsActions,
     onPosterClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val details = uiState.details ?: return
+    val headerState =
+        remember(uiState.isAddingToList, uiState.isNotInterested) {
+            AnimeDetailsHeaderState(
+                isAddingToList = uiState.isAddingToList,
+                isNotInterested = uiState.isNotInterested,
+            )
+        }
     BoxWithConstraints(
         modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.TopCenter,
@@ -351,14 +395,14 @@ private fun AnimeDetailsBody(
                 if (isWideLayout) {
                     WideAnimeDetailsLayout(
                         details = details,
-                        isAddingToList = isAddingToList,
+                        headerState = headerState,
                         actions = actions,
                         onPosterClick = onPosterClick,
                     )
                 } else {
                     CompactAnimeDetailsLayout(
                         details = details,
-                        isAddingToList = isAddingToList,
+                        headerState = headerState,
                         actions = actions,
                         onPosterClick = onPosterClick,
                     )

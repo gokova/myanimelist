@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -54,7 +55,7 @@ import com.gokova.myanimelist.core.ui.R as CoreUiR
 @Composable
 fun AnimeDetailsHeader(
     details: AnimeDetails,
-    isAddingToList: Boolean,
+    headerState: AnimeDetailsHeaderState,
     actions: AnimeDetailsActions,
     onPosterClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -84,14 +85,45 @@ fun AnimeDetailsHeader(
                 userScore = details.userScore,
             )
 
+            if (headerState.isNotInterested) {
+                NotInterestedBadge()
+            }
+
             Spacer(modifier = Modifier.height(MaterialTheme.spacing.extraSmall))
 
             HeaderAction(
                 isInUserList = details.isInUserList,
                 userStatus = details.userStatus,
-                isAddingToList = isAddingToList,
+                isAddingToList = headerState.isAddingToList,
                 onAddToList = actions.onAddToList,
                 onEditStatusClick = actions.onEditStatusClick,
+            )
+        }
+    }
+}
+
+@Composable
+private fun NotInterestedBadge() {
+    Surface(
+        shape = MaterialTheme.shapes.extraSmall,
+        color = MaterialTheme.colorScheme.surfaceVariant,
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.VisibilityOff,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(14.dp),
+            )
+            Text(
+                text = stringResource(R.string.details_badge_not_interested),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -160,9 +192,9 @@ private fun HeaderScores(
             color = MaterialTheme.colorScheme.tertiaryContainer,
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
             ) {
                 Icon(
                     imageVector = Icons.Default.Star,
@@ -172,26 +204,27 @@ private fun HeaderScores(
                 )
                 Text(
                     text =
-                        meanScore?.let { stringResource(R.string.details_score_format, it) }
-                            ?: stringResource(R.string.details_score_empty),
-                    style = MaterialTheme.typography.labelSmall,
+                        meanScore?.let {
+                            stringResource(R.string.details_score_format, it)
+                        } ?: stringResource(R.string.details_score_empty),
+                    style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onTertiaryContainer,
                 )
             }
         }
 
-        if (userScore != null) {
+        if (userScore != null && userScore > 0) {
             Surface(
                 shape = MaterialTheme.shapes.extraSmall,
                 color = MaterialTheme.colorScheme.primaryContainer,
             ) {
                 Text(
                     text = stringResource(R.string.details_score_user, userScore),
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Medium,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                 )
             }
         }

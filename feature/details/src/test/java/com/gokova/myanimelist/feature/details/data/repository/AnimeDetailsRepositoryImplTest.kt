@@ -363,6 +363,8 @@ class AnimeDetailsRepositoryImplTest {
 
         override suspend fun deleteNewSeasonAnime(animeId: Long): Int = 1
 
+        override suspend fun deleteIgnoredAnime(animeId: Long): Int = 1
+
         override suspend fun addAnimeToUserListAndClean(userAnime: UserAnimeListEntity) {
             transactionException?.let { throw it }
             cleanedUserAnimes.add(userAnime)

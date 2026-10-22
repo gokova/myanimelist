@@ -15,4 +15,15 @@ sealed interface RecommendationUiEvent {
     data object CalculateNow : RecommendationUiEvent
 
     data object Refresh : RecommendationUiEvent
+
+    data class MarkNotInterested(
+        val animeId: Long,
+        val title: String,
+        val titleEnglish: String? = null,
+        val pictureUrl: String? = null,
+    ) : RecommendationUiEvent
+
+    data class UndoNotInterested(
+        val animeId: Long,
+    ) : RecommendationUiEvent
 }

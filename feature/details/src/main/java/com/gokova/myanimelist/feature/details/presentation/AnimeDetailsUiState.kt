@@ -8,6 +8,7 @@ data class AnimeDetailsUiState(
     val isLoading: Boolean = true,
     val isRefreshing: Boolean = false,
     val isAddingToList: Boolean = false,
+    val isNotInterested: Boolean = false,
     val details: AnimeDetails? = null,
     @StringRes val errorMessageRes: Int? = null,
     val canRetry: Boolean = false,
