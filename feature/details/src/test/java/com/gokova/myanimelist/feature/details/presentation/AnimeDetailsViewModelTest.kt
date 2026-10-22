@@ -6,6 +6,7 @@ import com.gokova.myanimelist.core.domain.model.UserAnimeListUpdate
 import com.gokova.myanimelist.core.domain.repository.UserAnimeListStatusRepository
 import com.gokova.myanimelist.core.domain.usecase.DeleteAnimeFromListUseCase
 import com.gokova.myanimelist.core.domain.usecase.UpdateAnimeStatusUseCase
+import com.gokova.myanimelist.core.ui.component.editlist.withStatus
 import com.gokova.myanimelist.feature.details.R
 import com.gokova.myanimelist.feature.details.domain.model.AnimeDetails
 import com.gokova.myanimelist.feature.details.domain.usecase.AddAnimeToMyListUseCase
@@ -382,6 +383,60 @@ class AnimeDetailsViewModelTest {
             val state = viewModel.uiState.value
             assertNull(state.editingSheetState)
             assertEquals(101, state.details?.numWatchedEpisodes)
+        }
+
+    @Test
+    fun `updateEditingSheet withStatus completed sets episodes to total when total is known`() =
+        runTest {
+            val details =
+                testDetails.copy(
+                    isInUserList = true,
+                    userStatus = "watching",
+                    numWatchedEpisodes = 5,
+                    numEpisodes = 24,
+                )
+            repository.emitDetails(details)
+            repository.fetchResult = Result.success(details)
+
+            val viewModel = createViewModel()
+            advanceUntilIdle()
+
+            viewModel.setEditingSheet(open = true)
+            advanceUntilIdle()
+
+            viewModel.updateEditingSheet { it.withStatus("completed") }
+
+            val sheet = viewModel.uiState.value.editingSheetState
+            assertNotNull(sheet)
+            assertEquals("completed", sheet?.status)
+            assertEquals(24, sheet?.episodesWatched)
+        }
+
+    @Test
+    fun `updateEditingSheet withStatus completed preserves episodes when total is zero`() =
+        runTest {
+            val ongoingDetails =
+                testDetails.copy(
+                    isInUserList = true,
+                    userStatus = "watching",
+                    numWatchedEpisodes = 50,
+                    numEpisodes = 0,
+                )
+            repository.emitDetails(ongoingDetails)
+            repository.fetchResult = Result.success(ongoingDetails)
+
+            val viewModel = createViewModel()
+            advanceUntilIdle()
+
+            viewModel.setEditingSheet(open = true)
+            advanceUntilIdle()
+
+            viewModel.updateEditingSheet { it.withStatus("completed") }
+
+            val sheet = viewModel.uiState.value.editingSheetState
+            assertNotNull(sheet)
+            assertEquals("completed", sheet?.status)
+            assertEquals(50, sheet?.episodesWatched)
         }
 
     @Test

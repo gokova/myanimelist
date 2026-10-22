@@ -5,6 +5,7 @@ import com.gokova.myanimelist.core.domain.model.UserAnimeListUpdate
 import com.gokova.myanimelist.core.domain.repository.UserAnimeListStatusRepository
 import com.gokova.myanimelist.core.domain.usecase.DeleteAnimeFromListUseCase
 import com.gokova.myanimelist.core.domain.usecase.UpdateAnimeStatusUseCase
+import com.gokova.myanimelist.core.ui.component.editlist.withStatus
 import com.gokova.myanimelist.feature.mylist.R
 import com.gokova.myanimelist.feature.mylist.domain.model.AiringStatus
 import com.gokova.myanimelist.feature.mylist.domain.model.ListFilterCategory
@@ -350,6 +351,70 @@ class MyListViewModelTest {
             assertEquals("Kino's Journey", prompt.title)
 
             job.cancel()
+        }
+
+    @Test
+    fun `updateEditingSheet withStatus completed sets episodes to total when total is known`() =
+        runTest {
+            val statusRepo = FakeUserAnimeListStatusRepository()
+            val viewModel = createViewModel(statusRepository = statusRepo)
+
+            val collectJob = launch { viewModel.uiState.collect {} }
+            advanceUntilIdle()
+
+            val anime =
+                createAnime(
+                    id = 45L,
+                    title = "Monster",
+                    status = UserAnimeStatus.WATCHING,
+                    score = 9,
+                    watchedEpisodes = 10,
+                ).copy(totalEpisodes = 74)
+
+            viewModel.setEditingAnime(anime)
+            advanceUntilIdle()
+
+            viewModel.updateEditingSheet { it.withStatus("completed") }
+            advanceUntilIdle()
+
+            val sheet = viewModel.uiState.value.editingSheetState
+            assertNotNull(sheet)
+            assertEquals("completed", sheet?.status)
+            assertEquals(74, sheet?.episodesWatched)
+
+            collectJob.cancel()
+        }
+
+    @Test
+    fun `updateEditingSheet withStatus completed preserves episodes when total is zero`() =
+        runTest {
+            val statusRepo = FakeUserAnimeListStatusRepository()
+            val viewModel = createViewModel(statusRepository = statusRepo)
+
+            val collectJob = launch { viewModel.uiState.collect {} }
+            advanceUntilIdle()
+
+            val ongoingAnime =
+                createAnime(
+                    id = 46L,
+                    title = "One Piece",
+                    status = UserAnimeStatus.WATCHING,
+                    score = 9,
+                    watchedEpisodes = 1050,
+                ).copy(totalEpisodes = 0)
+
+            viewModel.setEditingAnime(ongoingAnime)
+            advanceUntilIdle()
+
+            viewModel.updateEditingSheet { it.withStatus("completed") }
+            advanceUntilIdle()
+
+            val sheet = viewModel.uiState.value.editingSheetState
+            assertNotNull(sheet)
+            assertEquals("completed", sheet?.status)
+            assertEquals(1050, sheet?.episodesWatched)
+
+            collectJob.cancel()
         }
 
     @Test
