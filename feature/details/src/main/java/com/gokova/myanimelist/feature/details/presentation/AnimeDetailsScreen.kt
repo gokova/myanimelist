@@ -47,6 +47,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gokova.myanimelist.core.ui.component.AnimePosterPreviewDialog
 import com.gokova.myanimelist.core.ui.component.editlist.EditAnimeStatusBottomSheet
 import com.gokova.myanimelist.core.ui.component.editlist.EditAnimeStatusSheetActions
+import com.gokova.myanimelist.core.ui.component.editlist.withStatus
 import com.gokova.myanimelist.core.ui.preview.StandardPreviews
 import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
 import com.gokova.myanimelist.core.ui.theme.spacing
@@ -183,7 +184,7 @@ private fun rememberAnimeDetailsSheetActions(
     remember(viewModel) {
         EditAnimeStatusSheetActions(
             onStatusChange = { status ->
-                viewModel.updateEditingSheet { it.copy(status = status) }
+                viewModel.updateEditingSheet { it.withStatus(status) }
             },
             onEpisodesChange = { ep ->
                 viewModel.updateEditingSheet { it.copy(episodesWatched = ep) }

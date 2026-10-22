@@ -29,8 +29,8 @@ The Edit My List feature gives users direct, authoritative control over their an
 ### 2.3 Edit List Status Bottom Sheet
 The bottom sheet provides:
 - **Header:** Anime title, dismiss (`X`) button, and `Save` button (showing loading spinner while saving).
-- **Status Selector:** 5 status choices (`Watching`, `Completed`, `Plan to Watch`, `On Hold`, `Dropped`) styled with semantic container and text colors from `docs/DESIGN.md`.
-- **Progress Stepper:** `[ - ]` and `[ + ]` stepper controls alongside an episode count showing current episodes vs total episodes (or `?` when unknown).
+- **Status Selector:** 5 status choices (`Watching`, `Completed`, `Plan to Watch`, `On Hold`, `Dropped`) styled with semantic container and text colors from `docs/DESIGN.md`. Selecting `Completed` automatically updates watched episodes to total episodes when the total is known (`totalEpisodes > 0`). For ongoing/airing anime with unknown/zero total episodes (e.g. One Piece), watched episodes are preserved unchanged.
+- **Progress Stepper & Inline Entry:** `[ - ]` and `[ + ]` stepper controls alongside a compact outlined text box for the watched episode count and total episode indicator (e.g., `[-] [ 74 ] / 74 ep [+]` or `[-] [ 1050 ] / ? ep [+]`). Tapping the number focuses a numeric keypad with all digits selected for instant overwrite, with automatic clamping to total episodes when known, and fallback to `0` if unfocused while empty.
 - **Score Selector:** Horizontal selector featuring `Not rated` (`-`) and `10` down to `1`, accompanied by official MAL rating labels (e.g. 10: Masterpiece, 9: Great, 8: Very Good).
 - **Rewatching Toggle:** A checkbox indicating "I am rewatching this series".
 - **Remove from List:** A destructive action in red with a confirmation `AlertDialog` ("Remove from List?") that calls the MAL DELETE API and removes the entry locally.

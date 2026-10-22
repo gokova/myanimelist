@@ -15,6 +15,8 @@
     <string name="edit_list_status_section_progress">Progress</string>
     <string name="edit_list_status_section_score">Score</string>
     <string name="edit_list_status_episodes_format">%1$d / %2$s ep</string>
+    <string name="edit_list_status_episodes_total_format">/ %1$s ep</string>
+    <string name="edit_list_status_episodes_input_content_description">Watched episodes</string>
     <string name="edit_list_status_episodes_unknown">\?</string>
     <string name="edit_list_status_decrement">Decrease episodes</string>
     <string name="edit_list_status_increment">Increase episodes</string>

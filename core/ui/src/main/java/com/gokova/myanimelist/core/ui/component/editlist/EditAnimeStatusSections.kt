@@ -157,7 +157,7 @@ fun EpisodeStepperSection(
         Spacer(modifier = Modifier.height(8.dp))
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             StepperIconButton(
                 icon = Icons.Default.Remove,
@@ -166,15 +166,18 @@ fun EpisodeStepperSection(
                 onClick = { onEpisodesChange(episodesWatched - 1) },
             )
 
+            EpisodeNumberInputField(
+                episodesWatched = episodesWatched,
+                totalEpisodes = totalEpisodes,
+                onEpisodesChange = onEpisodesChange,
+                enabled = enabled,
+            )
+
             Text(
-                text =
-                    stringResource(
-                        R.string.edit_list_status_episodes_format,
-                        episodesWatched,
-                        totalStr,
-                    ),
+                text = stringResource(R.string.edit_list_status_episodes_total_format, totalStr),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             StepperIconButton(

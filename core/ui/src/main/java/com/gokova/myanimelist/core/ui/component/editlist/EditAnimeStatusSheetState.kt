@@ -29,3 +29,15 @@ data class EditAnimeStatusSheetActions(
     val onDismissDeleteConfirmation: () -> Unit,
     val onDismiss: () -> Unit,
 )
+
+fun EditAnimeStatusSheetState.withStatus(newStatus: String): EditAnimeStatusSheetState {
+    val total = totalEpisodes
+    val isKnownTotal = total != null && total > 0
+    val newEpisodes =
+        if (newStatus.equals("completed", ignoreCase = true) && isKnownTotal) {
+            total
+        } else {
+            episodesWatched
+        }
+    return copy(status = newStatus, episodesWatched = newEpisodes)
+}
