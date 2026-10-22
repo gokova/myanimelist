@@ -3,6 +3,7 @@ package com.gokova.myanimelist.feature.recommendation.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gokova.myanimelist.core.domain.logging.AppLog
+import com.gokova.myanimelist.core.domain.usecase.IgnoredAnimeInteractor
 import com.gokova.myanimelist.feature.recommendation.domain.model.NewSeasonAnime
 import com.gokova.myanimelist.feature.recommendation.domain.model.NewSeasonSortOption
 import com.gokova.myanimelist.feature.recommendation.domain.model.NewSeasonState
@@ -17,12 +18,14 @@ import com.gokova.myanimelist.feature.recommendation.domain.usecase.TriggerRecom
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -37,7 +40,11 @@ class RecommendationViewModel
         private val triggerCalculationUseCase: TriggerRecommendationCalculationUseCase,
         private val scheduleRecommendationWorkUseCase: ScheduleRecommendationWorkUseCase,
         private val newSeasons: NewSeasonsInteractor,
+        private val ignoredAnimeInteractor: IgnoredAnimeInteractor,
     ) : ViewModel() {
+        private val effectChannel = Channel<RecommendationSideEffect>(Channel.BUFFERED)
+        val sideEffects: Flow<RecommendationSideEffect> = effectChannel.receiveAsFlow()
+
         private val selectedType = MutableStateFlow(RecommendationType.GENRE)
         private val newSeasonSort = MutableStateFlow(NewSeasonSortOption.RELEASE_DATE_DESC)
 
@@ -145,6 +152,49 @@ class RecommendationViewModel
                 RecommendationUiEvent.CalculateNow,
                 RecommendationUiEvent.Refresh,
                 -> handleRefresh()
+                is RecommendationUiEvent.MarkNotInterested -> handleMarkNotInterested(event)
+                is RecommendationUiEvent.UndoNotInterested -> handleUndoNotInterested(event)
+            }
+        }
+
+        private fun handleMarkNotInterested(event: RecommendationUiEvent.MarkNotInterested) {
+            AppLog.ui.i { "User marked anime ${event.animeId} as not interested" }
+            viewModelScope.launch {
+                try {
+                    ignoredAnimeInteractor.setNotInterested(
+                        animeId = event.animeId,
+                        title = event.title,
+                        titleEnglish = event.titleEnglish,
+                        pictureUrl = event.pictureUrl,
+                    )
+                    effectChannel.send(
+                        RecommendationSideEffect.ShowUndoNotInterestedSnackbar(
+                            animeId = event.animeId,
+                            animeTitle = event.titleEnglish ?: event.title,
+                        ),
+                    )
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (
+                    @Suppress("TooGenericExceptionCaught") e: Exception,
+                ) {
+                    AppLog.ui.e(e) { "Failed to mark anime as not interested" }
+                }
+            }
+        }
+
+        private fun handleUndoNotInterested(event: RecommendationUiEvent.UndoNotInterested) {
+            AppLog.ui.i { "User undo not interested for anime ${event.animeId}" }
+            viewModelScope.launch {
+                try {
+                    ignoredAnimeInteractor.removeNotInterested(event.animeId)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (
+                    @Suppress("TooGenericExceptionCaught") e: Exception,
+                ) {
+                    AppLog.ui.e(e) { "Failed to undo not interested" }
+                }
             }
         }
 

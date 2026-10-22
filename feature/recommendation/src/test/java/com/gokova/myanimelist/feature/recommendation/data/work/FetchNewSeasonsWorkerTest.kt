@@ -7,9 +7,11 @@ import androidx.work.ListenableWorker.Result
 import androidx.work.WorkerFactory
 import androidx.work.WorkerParameters
 import androidx.work.testing.TestListenableWorkerBuilder
+import com.gokova.myanimelist.core.database.dao.IgnoredAnimeDao
 import com.gokova.myanimelist.core.database.dao.NewSeasonDao
 import com.gokova.myanimelist.core.database.dao.UserAnimeListDao
 import com.gokova.myanimelist.core.database.entity.AnimeEntity
+import com.gokova.myanimelist.core.database.entity.IgnoredAnimeEntity
 import com.gokova.myanimelist.core.database.entity.NewSeasonAnimeEntity
 import com.gokova.myanimelist.core.database.entity.UserAnimeListEntity
 import com.gokova.myanimelist.core.database.model.NewSeasonAnimeItem
@@ -35,6 +37,7 @@ import java.net.SocketTimeoutException
 class FetchNewSeasonsWorkerTest {
     private lateinit var fakeUserAnimeListDao: FakeUserAnimeListDao
     private lateinit var fakeNewSeasonDao: FakeNewSeasonDao
+    private lateinit var fakeIgnoredAnimeDao: FakeIgnoredAnimeDao
     private lateinit var fakeMalApiService: FakeMalApiService
     private lateinit var fakeSyncTracker: FakeNewSeasonSyncTracker
     private lateinit var fakeScheduler: FakeNewSeasonScheduler
@@ -43,6 +46,7 @@ class FetchNewSeasonsWorkerTest {
     fun setUp() {
         fakeUserAnimeListDao = FakeUserAnimeListDao()
         fakeNewSeasonDao = FakeNewSeasonDao()
+        fakeIgnoredAnimeDao = FakeIgnoredAnimeDao()
         fakeMalApiService = FakeMalApiService()
         fakeSyncTracker = FakeNewSeasonSyncTracker()
         fakeScheduler = FakeNewSeasonScheduler()
@@ -602,6 +606,66 @@ class FetchNewSeasonsWorkerTest {
             assertEquals(50, fakeNewSeasonDao.savedNewSeasons.size)
         }
 
+    @Test
+    fun `doWork skips ignored candidate anime but continues traversal to discover sequel`() =
+        runTest {
+            fakeUserAnimeListDao.userAnimeList = (1L..5L).map { createUserItem(it) }
+            val season2Edge =
+                RelatedAnimeEdgeDto(
+                    node = AnimeNodeDto(id = 101L, title = "Season 2"),
+                    relationType = "sequel",
+                    relationTypeFormatted = "Sequel",
+                )
+            val season3Edge =
+                RelatedAnimeEdgeDto(
+                    node = AnimeNodeDto(id = 102L, title = "Season 3"),
+                    relationType = "sequel",
+                    relationTypeFormatted = "Sequel",
+                )
+            fakeMalApiService.detailsMap[1L] =
+                AnimeDetailsDto(id = 1L, title = "Anime 1", relatedAnime = listOf(season2Edge))
+            // 101 is ignored, but has continuation to 102
+            fakeIgnoredAnimeDao.ignoredAnimeIds.add(101L)
+            fakeMalApiService.detailsMap[101L] =
+                AnimeDetailsDto(id = 101L, title = "Season 2", relatedAnime = listOf(season3Edge))
+            fakeMalApiService.detailsMap[102L] =
+                AnimeDetailsDto(id = 102L, title = "Season 3")
+
+            val worker = createWorker()
+            val result = worker.doWork()
+
+            assertEquals(Result.success(), result)
+            assertTrue(fakeNewSeasonDao.transactionCalled)
+            // 101 must NOT be saved, but 102 MUST be saved
+            assertEquals(1, fakeNewSeasonDao.savedNewSeasons.size)
+            assertEquals(102L, fakeNewSeasonDao.savedNewSeasons[0].animeId)
+        }
+
+    @Test
+    fun `doWork preserves cached new seasons for ignored anime so undo remains possible`() =
+        runTest {
+            fakeUserAnimeListDao.userAnimeList = (1L..5L).map { createUserItem(it) }
+            val edge =
+                RelatedAnimeEdgeDto(
+                    node = AnimeNodeDto(id = 101L, title = "Sequel 101"),
+                    relationType = "sequel",
+                    relationTypeFormatted = "Sequel",
+                )
+            fakeMalApiService.detailsMap[1L] =
+                AnimeDetailsDto(id = 1L, title = "Anime 1", relatedAnime = listOf(edge))
+            fakeMalApiService.detailsMap[101L] =
+                AnimeDetailsDto(id = 101L, title = "Sequel 101")
+
+            fakeNewSeasonDao.existingNewSeasonIds = listOf(200L)
+            fakeIgnoredAnimeDao.ignoredAnimeIds.add(200L)
+
+            val worker = createWorker()
+            val result = worker.doWork()
+
+            assertEquals(Result.success(), result)
+            assertFalse(fakeNewSeasonDao.discardedAnimeIds.contains(200L))
+        }
+
     private fun createWorker(
         runAttemptCount: Int = 0,
         isManual: Boolean = false,
@@ -639,6 +703,7 @@ class FetchNewSeasonsWorkerTest {
                                 fakeMalApiService,
                                 fakeUserAnimeListDao,
                                 fakeNewSeasonDao,
+                                fakeIgnoredAnimeDao,
                                 fakeSyncTracker,
                                 fakeScheduler,
                             )
@@ -784,6 +849,8 @@ class FetchNewSeasonsWorkerTest {
 
         override suspend fun deleteNewSeasonAnime(animeId: Long): Int = 0
 
+        override suspend fun deleteIgnoredAnime(animeId: Long): Int = 0
+
         override suspend fun deleteUserAnime(animeId: Long): Int = 0
     }
 
@@ -901,5 +968,30 @@ class FetchNewSeasonsWorkerTest {
             userId: String,
             fields: String,
         ) = throw UnsupportedOperationException()
+    }
+
+    private class FakeIgnoredAnimeDao : IgnoredAnimeDao {
+        val ignoredAnimeIds = mutableListOf<Long>()
+
+        override fun observeIgnoredAnimeIds(): Flow<List<Long>> = emptyFlow()
+
+        override suspend fun getIgnoredAnimeIds(): List<Long> = ignoredAnimeIds
+
+        override fun observeIsIgnored(animeId: Long): Flow<Boolean> = emptyFlow()
+
+        override suspend fun isIgnored(animeId: Long): Boolean = animeId in ignoredAnimeIds
+
+        override suspend fun upsertIgnoredAnime(entity: IgnoredAnimeEntity) {
+            if (entity.animeId !in ignoredAnimeIds) {
+                ignoredAnimeIds.add(entity.animeId)
+            }
+        }
+
+        override suspend fun deleteIgnoredAnime(animeId: Long): Int =
+            if (ignoredAnimeIds.remove(animeId)) 1 else 0
+
+        override fun observeAllIgnoredAnime(): Flow<List<IgnoredAnimeEntity>> = emptyFlow()
+
+        override suspend fun getAllIgnoredAnime(): List<IgnoredAnimeEntity> = emptyList()
     }
 }

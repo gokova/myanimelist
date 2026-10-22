@@ -6,6 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.lang.reflect.Proxy
 
+@Suppress("TooManyFunctions")
 class AppDatabaseMigrationTest {
     @Test
     fun `migration 1 to 2 has correct version boundaries`() {
@@ -191,6 +192,44 @@ class AppDatabaseMigrationTest {
         )
         assertTrue(executed[16].contains("index_new_season_animes_anime_id"))
         assertTrue(executed[17].contains("index_new_season_animes_parent_anime_id"))
+    }
+
+    @Test
+    fun `migration 5 to 6 has correct version boundaries`() {
+        assertEquals(5, AppDatabase.MIGRATION_5_6.startVersion)
+        assertEquals(6, AppDatabase.MIGRATION_5_6.endVersion)
+    }
+
+    @Test
+    fun `migration 5 to 6 creates ignored animes table`() {
+        val executedStatements = mutableListOf<String>()
+
+        val fakeDatabase =
+            Proxy.newProxyInstance(
+                SupportSQLiteDatabase::class.java.classLoader,
+                arrayOf(SupportSQLiteDatabase::class.java),
+            ) { _, method, args ->
+                if (method.name == "execSQL" && args != null && args.isNotEmpty()) {
+                    executedStatements.add(args[0] as String)
+                }
+                null
+            } as SupportSQLiteDatabase
+
+        AppDatabase.MIGRATION_5_6.migrate(fakeDatabase)
+
+        val expectedSql =
+            """
+            CREATE TABLE IF NOT EXISTS `ignored_animes` (
+                `anime_id` INTEGER NOT NULL,
+                `title` TEXT NOT NULL,
+                `title_english` TEXT,
+                `picture_url` TEXT,
+                `created_at` INTEGER NOT NULL,
+                PRIMARY KEY(`anime_id`)
+            )
+            """.trimIndent()
+
+        assertEquals(listOf(expectedSql), executedStatements)
     }
 
     private fun executeMigration45(): List<String> {

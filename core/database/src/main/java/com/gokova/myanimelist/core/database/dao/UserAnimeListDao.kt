@@ -63,11 +63,15 @@ interface UserAnimeListDao {
     @Query("DELETE FROM new_season_animes WHERE anime_id = :animeId")
     suspend fun deleteNewSeasonAnime(animeId: Long): Int
 
+    @Query("DELETE FROM ignored_animes WHERE anime_id = :animeId")
+    suspend fun deleteIgnoredAnime(animeId: Long): Int
+
     @Transaction
     suspend fun addAnimeToUserListAndClean(userAnime: UserAnimeListEntity) {
         upsertUserAnimeList(listOf(userAnime))
         deleteRecommendation(userAnime.animeId)
         deleteNewSeasonAnime(userAnime.animeId)
+        deleteIgnoredAnime(userAnime.animeId)
     }
 
     @Query("DELETE FROM user_anime_list WHERE anime_id = :animeId")

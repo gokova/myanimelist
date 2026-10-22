@@ -10,6 +10,12 @@
     <string name="details_add_to_list_failed">Failed to add to list. Please check your connection.</string>
     <string name="details_offline_showing_cached">Showing cached details (offline)</string>
 
+    <string name="details_action_mark_not_interested">Mark as Not Interested</string>
+    <string name="details_action_remove_not_interested">Remove from Not Interested</string>
+    <string name="details_badge_not_interested">Not Interested</string>
+    <string name="details_snackbar_marked_not_interested">Marked as Not Interested</string>
+    <string name="details_snackbar_removed_not_interested">Removed from Not Interested</string>
+
     <string name="details_synopsis_title">Synopsis</string>
     <string name="details_synopsis_read_more">Read more</string>
     <string name="details_synopsis_show_less">Show less</string>

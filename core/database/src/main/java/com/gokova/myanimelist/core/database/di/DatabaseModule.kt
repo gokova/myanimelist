@@ -3,9 +3,12 @@ package com.gokova.myanimelist.core.database.di
 import android.content.Context
 import androidx.room.Room
 import com.gokova.myanimelist.core.database.AppDatabase
+import com.gokova.myanimelist.core.database.dao.IgnoredAnimeDao
 import com.gokova.myanimelist.core.database.dao.NewSeasonDao
 import com.gokova.myanimelist.core.database.dao.RecommendationDao
 import com.gokova.myanimelist.core.database.dao.UserAnimeListDao
+import com.gokova.myanimelist.core.database.repository.IgnoredAnimeRepositoryImpl
+import com.gokova.myanimelist.core.domain.repository.IgnoredAnimeRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -31,6 +34,7 @@ object DatabaseModule {
                 AppDatabase.MIGRATION_2_3,
                 AppDatabase.MIGRATION_3_4,
                 AppDatabase.MIGRATION_4_5,
+                AppDatabase.MIGRATION_5_6,
             ).build()
 
     @Provides
@@ -46,4 +50,13 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideNewSeasonDao(database: AppDatabase): NewSeasonDao = database.newSeasonDao()
+
+    @Provides
+    @Singleton
+    fun provideIgnoredAnimeDao(database: AppDatabase): IgnoredAnimeDao = database.ignoredAnimeDao()
+
+    @Provides
+    @Singleton
+    fun provideIgnoredAnimeRepository(ignoredAnimeDao: IgnoredAnimeDao): IgnoredAnimeRepository =
+        IgnoredAnimeRepositoryImpl(ignoredAnimeDao)
 }

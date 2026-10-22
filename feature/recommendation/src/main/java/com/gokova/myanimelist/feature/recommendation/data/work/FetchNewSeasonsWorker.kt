@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.gokova.myanimelist.core.database.dao.IgnoredAnimeDao
 import com.gokova.myanimelist.core.database.dao.NewSeasonDao
 import com.gokova.myanimelist.core.database.dao.UserAnimeListDao
 import com.gokova.myanimelist.core.database.entity.AnimeEntity
@@ -26,7 +27,7 @@ import java.io.IOException
 import kotlin.time.Duration.Companion.milliseconds
 
 @HiltWorker
-@Suppress("LongParameterList")
+@Suppress("LongParameterList", "TooManyFunctions")
 class FetchNewSeasonsWorker
     @AssistedInject
     constructor(
@@ -35,6 +36,7 @@ class FetchNewSeasonsWorker
         private val malApiService: MalApiService,
         private val userAnimeListDao: UserAnimeListDao,
         private val newSeasonDao: NewSeasonDao,
+        private val ignoredAnimeDao: IgnoredAnimeDao,
         private val syncTracker: NewSeasonSyncTracker,
         private val scheduler: NewSeasonScheduler,
     ) : CoroutineWorker(context, params) {
@@ -201,6 +203,7 @@ class FetchNewSeasonsWorker
             userAnimeIds: Set<Long>,
         ): BatchResult {
             val visitedAnimeIds = userAnimeIds.toMutableSet()
+            val ignoredAnimeIds = ignoredAnimeDao.getIgnoredAnimeIds().toSet()
             val state = CandidateBatchState()
             val failedParentAnimeIds = mutableSetOf<Long>()
             var stoppedOrFailed = false
@@ -214,7 +217,7 @@ class FetchNewSeasonsWorker
                     break
                 }
                 val parentId = userItem.anime.id
-                if (processUserAnimeTree(parentId, visitedAnimeIds, state)) {
+                if (processUserAnimeTree(parentId, visitedAnimeIds, state, ignoredAnimeIds)) {
                     syncTracker.setLastProcessedUserAnimeId(parentId, workScope)
                     delay(POLITE_DELAY_MS.milliseconds)
                 } else {
@@ -236,6 +239,7 @@ class FetchNewSeasonsWorker
             parentId: Long,
             visitedAnimeIds: MutableSet<Long>,
             state: CandidateBatchState,
+            ignoredAnimeIds: Set<Long>,
         ): Boolean {
             val queue = ArrayDeque<CandidateQueueItem>()
             val collector = RecursiveCandidateCollector(visitedAnimeIds, queue)
@@ -272,7 +276,14 @@ class FetchNewSeasonsWorker
                         break
                     }
                     val item = queue.removeFirst()
-                    val success = processQueueItem(item, existingAnimeIds, state, collector)
+                    val success =
+                        processQueueItem(
+                            item,
+                            existingAnimeIds,
+                            state,
+                            collector,
+                            ignoredAnimeIds,
+                        )
                     if (!success) {
                         hasTreeError = true
                     }
@@ -293,33 +304,25 @@ class FetchNewSeasonsWorker
             existingAnimeIds: MutableSet<Long>,
             state: CandidateBatchState,
             collector: RecursiveCandidateCollector,
+            ignoredAnimeIds: Set<Long>,
         ): Boolean {
             val candidateId = item.candidateId
+            if (candidateId in ignoredAnimeIds) {
+                return handleIgnoredItem(item, existingAnimeIds, state, collector)
+            }
+
             val isContinuation = item.relation.relationType in CONTINUATION_RELATIONS
             val newSeason = item.toNewSeasonEntity()
-
             var success = true
             val isAlreadyCached =
                 candidateId in existingAnimeIds ||
                     newSeasonDao.getExistingAnimeIds(listOf(candidateId)).isNotEmpty()
+
             if (isAlreadyCached) {
                 existingAnimeIds.add(candidateId)
                 state.addCached(candidateId, newSeason)
                 if (isContinuation && item.depth < MAX_RECURSION_DEPTH) {
-                    val relResult =
-                        fetchAnimeDetailsWithRetry(
-                            animeId = candidateId,
-                            fields = MalApiService.FIELDS_RELATED_ANIME,
-                            itemType = "Continuation",
-                        )
-                    when (relResult) {
-                        is FetchItemResult.Success -> {
-                            collector.discover(item, relResult.details.relatedAnime.orEmpty())
-                        }
-                        is FetchItemResult.NotFound -> Unit
-                        is FetchItemResult.RetryableError -> success = false
-                    }
-                    delay(POLITE_DELAY_MS.milliseconds)
+                    success = discoverContinuation(item, collector, "Continuation")
                 }
             } else {
                 val detailsResult =
@@ -343,6 +346,51 @@ class FetchNewSeasonsWorker
                 }
                 delay(POLITE_DELAY_MS.milliseconds)
             }
+            return success
+        }
+
+        private suspend fun handleIgnoredItem(
+            item: CandidateQueueItem,
+            existingAnimeIds: MutableSet<Long>,
+            state: CandidateBatchState,
+            collector: RecursiveCandidateCollector,
+        ): Boolean {
+            val candidateId = item.candidateId
+            val isAlreadyCached =
+                candidateId in existingAnimeIds ||
+                    newSeasonDao.getExistingAnimeIds(listOf(candidateId)).isNotEmpty()
+            if (isAlreadyCached) {
+                existingAnimeIds.add(candidateId)
+                state.addCached(candidateId, item.toNewSeasonEntity())
+            }
+            val isContinuation = item.relation.relationType in CONTINUATION_RELATIONS
+            return if (isContinuation && item.depth < MAX_RECURSION_DEPTH) {
+                discoverContinuation(item, collector, "Continuation (Ignored)")
+            } else {
+                true
+            }
+        }
+
+        private suspend fun discoverContinuation(
+            item: CandidateQueueItem,
+            collector: RecursiveCandidateCollector,
+            itemType: String,
+        ): Boolean {
+            var success = true
+            val relResult =
+                fetchAnimeDetailsWithRetry(
+                    animeId = item.candidateId,
+                    fields = MalApiService.FIELDS_RELATED_ANIME,
+                    itemType = itemType,
+                )
+            when (relResult) {
+                is FetchItemResult.Success -> {
+                    collector.discover(item, relResult.details.relatedAnime.orEmpty())
+                }
+                is FetchItemResult.NotFound -> Unit
+                is FetchItemResult.RetryableError -> success = false
+            }
+            delay(POLITE_DELAY_MS.milliseconds)
             return success
         }
 

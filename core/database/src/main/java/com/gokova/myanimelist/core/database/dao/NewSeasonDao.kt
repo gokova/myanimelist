@@ -13,13 +13,29 @@ import kotlinx.coroutines.flow.Flow
 @Suppress("TooManyFunctions")
 interface NewSeasonDao {
     @Transaction
-    @Query("SELECT * FROM new_season_animes ORDER BY created_at DESC")
+    @Query(
+        """
+        SELECT * FROM new_season_animes
+        WHERE anime_id NOT IN (SELECT anime_id FROM ignored_animes)
+        ORDER BY created_at DESC
+        """,
+    )
     fun observeNewSeasons(): Flow<List<NewSeasonAnimeItem>>
 
-    @Query("SELECT COUNT(*) FROM new_season_animes")
+    @Query(
+        """
+        SELECT COUNT(*) FROM new_season_animes
+        WHERE anime_id NOT IN (SELECT anime_id FROM ignored_animes)
+        """,
+    )
     fun observeNewSeasonCount(): Flow<Int>
 
-    @Query("SELECT COUNT(*) FROM new_season_animes")
+    @Query(
+        """
+        SELECT COUNT(*) FROM new_season_animes
+        WHERE anime_id NOT IN (SELECT anime_id FROM ignored_animes)
+        """,
+    )
     suspend fun getNewSeasonCount(): Int
 
     @Query(
@@ -59,6 +75,7 @@ interface NewSeasonDao {
           AND id NOT IN (SELECT anime_id FROM new_season_animes)
           AND id NOT IN (SELECT parent_anime_id FROM new_season_animes)
           AND id NOT IN (SELECT anime_id FROM recommendation_candidates)
+          AND id NOT IN (SELECT anime_id FROM ignored_animes)
         """,
     )
     suspend fun deleteOrphanedAnimes(animeIds: List<Long>): Int

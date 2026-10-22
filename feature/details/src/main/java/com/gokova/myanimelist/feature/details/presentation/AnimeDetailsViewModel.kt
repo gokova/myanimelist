@@ -6,16 +6,18 @@ import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.gokova.myanimelist.core.domain.logging.AppLog
 import com.gokova.myanimelist.core.domain.model.UpdateUserAnimeStatusParams
-import com.gokova.myanimelist.core.domain.usecase.DeleteAnimeFromListUseCase
-import com.gokova.myanimelist.core.domain.usecase.UpdateAnimeStatusUseCase
+import com.gokova.myanimelist.core.domain.usecase.IgnoredAnimeInteractor
 import com.gokova.myanimelist.core.ui.component.editlist.EditAnimeStatusSheetState
 import com.gokova.myanimelist.feature.details.R
 import com.gokova.myanimelist.feature.details.domain.model.AnimeDetails
 import com.gokova.myanimelist.feature.details.domain.usecase.AddAnimeToMyListUseCase
+import com.gokova.myanimelist.feature.details.domain.usecase.AnimeStatusInteractor
 import com.gokova.myanimelist.feature.details.domain.usecase.ObserveAnimeDetailsUseCase
 import com.gokova.myanimelist.feature.details.domain.usecase.RefreshAnimeDetailsUseCase
 import com.gokova.myanimelist.feature.details.navigation.AnimeDetailsRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,6 +29,7 @@ import javax.inject.Inject
 import com.gokova.myanimelist.core.ui.R as CoreUiR
 
 @HiltViewModel
+@Suppress("TooManyFunctions")
 class AnimeDetailsViewModel
     @Inject
     constructor(
@@ -34,8 +37,8 @@ class AnimeDetailsViewModel
         private val observeAnimeDetailsUseCase: ObserveAnimeDetailsUseCase,
         private val refreshAnimeDetailsUseCase: RefreshAnimeDetailsUseCase,
         private val addAnimeToMyListUseCase: AddAnimeToMyListUseCase,
-        private val updateAnimeStatusUseCase: UpdateAnimeStatusUseCase,
-        private val deleteAnimeFromListUseCase: DeleteAnimeFromListUseCase,
+        private val statusInteractor: AnimeStatusInteractor,
+        private val ignoredAnimeInteractor: IgnoredAnimeInteractor,
     ) : ViewModel() {
         val animeId: Long =
             runCatching { savedStateHandle.toRoute<AnimeDetailsRoute>().animeId }
@@ -47,6 +50,8 @@ class AnimeDetailsViewModel
         private val eventChannel = Channel<AnimeDetailsUiEvent>(Channel.BUFFERED)
         val events = eventChannel.receiveAsFlow()
 
+        private var toggleNotInterestedJob: Job? = null
+
         init {
             viewModelScope.launch {
                 observeAnimeDetailsUseCase(animeId).collect { localDetails ->
@@ -56,6 +61,11 @@ class AnimeDetailsViewModel
                             details = mergeDetails(current.details, localDetails),
                         )
                     }
+                }
+            }
+            viewModelScope.launch {
+                ignoredAnimeInteractor.observeIsIgnored(animeId).collect { isIgnored ->
+                    _uiState.update { it.copy(isNotInterested = isIgnored) }
                 }
             }
             onRefresh(isInitial = true)
@@ -131,6 +141,7 @@ class AnimeDetailsViewModel
                         _uiState.update { current ->
                             current.copy(
                                 isAddingToList = false,
+                                isNotInterested = false,
                                 details =
                                     current.details?.copy(
                                         isInUserList = true,
@@ -156,6 +167,53 @@ class AnimeDetailsViewModel
                     },
                 )
             }
+        }
+
+        fun onToggleNotInterested() {
+            val current = _uiState.value
+            val details = current.details
+            if (toggleNotInterestedJob?.isActive == true ||
+                details == null ||
+                details.isInUserList
+            ) {
+                return
+            }
+            val isCurrentlyIgnored = current.isNotInterested
+            _uiState.update { it.copy(isNotInterested = !isCurrentlyIgnored) }
+            toggleNotInterestedJob =
+                viewModelScope.launch {
+                    try {
+                        if (isCurrentlyIgnored) {
+                            ignoredAnimeInteractor.removeNotInterested(animeId)
+                            eventChannel.send(
+                                AnimeDetailsUiEvent.ShowSnackbar(
+                                    messageRes = R.string.details_snackbar_removed_not_interested,
+                                    isError = false,
+                                ),
+                            )
+                        } else {
+                            ignoredAnimeInteractor.setNotInterested(
+                                animeId = animeId,
+                                title = details.displayTitle,
+                                titleEnglish = details.englishTitle,
+                                pictureUrl = details.mainPictureMedium,
+                            )
+                            eventChannel.send(
+                                AnimeDetailsUiEvent.ShowSnackbar(
+                                    messageRes = R.string.details_snackbar_marked_not_interested,
+                                    isError = false,
+                                ),
+                            )
+                        }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (
+                        @Suppress("TooGenericExceptionCaught") e: Exception,
+                    ) {
+                        AppLog.ui.w(e) { "Failed toggling not interested for animeId=$animeId" }
+                        _uiState.update { it.copy(isNotInterested = isCurrentlyIgnored) }
+                    }
+                }
         }
 
         fun onAnimeClick(targetAnimeId: Long) {
@@ -225,7 +283,7 @@ class AnimeDetailsViewModel
                         score = sheet.score,
                         isRewatching = sheet.isRewatching,
                     )
-                val result = updateAnimeStatusUseCase(sheet.animeId, params)
+                val result = statusInteractor.updateStatus(sheet.animeId, params)
                 result.fold(
                     onSuccess = {
                         _uiState.update { current ->
@@ -267,7 +325,7 @@ class AnimeDetailsViewModel
                 )
             }
             viewModelScope.launch {
-                val result = deleteAnimeFromListUseCase(sheet.animeId)
+                val result = statusInteractor.deleteAnime(sheet.animeId)
                 result.fold(
                     onSuccess = {
                         _uiState.update { current ->
@@ -304,26 +362,27 @@ class AnimeDetailsViewModel
 
         fun onMarkStatus(status: String) {
             viewModelScope.launch {
-                updateAnimeStatusUseCase(
-                    animeId,
-                    UpdateUserAnimeStatusParams(status = status),
-                ).fold(
-                    onSuccess = {
-                        _uiState.update { current ->
-                            current.copy(
-                                details = current.details?.copy(userStatus = status),
+                statusInteractor
+                    .updateStatus(
+                        animeId,
+                        UpdateUserAnimeStatusParams(status = status),
+                    ).fold(
+                        onSuccess = {
+                            _uiState.update { current ->
+                                current.copy(
+                                    details = current.details?.copy(userStatus = status),
+                                )
+                            }
+                        },
+                        onFailure = {
+                            eventChannel.send(
+                                AnimeDetailsUiEvent.ShowSnackbar(
+                                    messageRes = CoreUiR.string.edit_list_status_update_error,
+                                    isError = true,
+                                ),
                             )
-                        }
-                    },
-                    onFailure = {
-                        eventChannel.send(
-                            AnimeDetailsUiEvent.ShowSnackbar(
-                                messageRes = CoreUiR.string.edit_list_status_update_error,
-                                isError = true,
-                            ),
-                        )
-                    },
-                )
+                        },
+                    )
             }
         }
     }

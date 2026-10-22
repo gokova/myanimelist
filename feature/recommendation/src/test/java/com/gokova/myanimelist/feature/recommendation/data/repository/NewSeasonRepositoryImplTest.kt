@@ -83,6 +83,8 @@ class NewSeasonRepositoryImplTest {
 
         override suspend fun deleteNewSeasonAnime(animeId: Long): Int = 0
 
+        override suspend fun deleteIgnoredAnime(animeId: Long): Int = 0
+
         override suspend fun deleteUserAnime(animeId: Long): Int = 0
     }
 

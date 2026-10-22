@@ -1,5 +1,11 @@
 package com.gokova.myanimelist.feature.recommendation.presentation
 
+import com.gokova.myanimelist.core.domain.model.IgnoredAnime
+import com.gokova.myanimelist.core.domain.repository.IgnoredAnimeRepository
+import com.gokova.myanimelist.core.domain.usecase.IgnoredAnimeInteractor
+import com.gokova.myanimelist.core.domain.usecase.ObserveIsAnimeNotInterestedUseCase
+import com.gokova.myanimelist.core.domain.usecase.RemoveAnimeFromNotInterestedUseCase
+import com.gokova.myanimelist.core.domain.usecase.SetAnimeNotInterestedUseCase
 import com.gokova.myanimelist.feature.recommendation.domain.model.NewSeasonAnime
 import com.gokova.myanimelist.feature.recommendation.domain.model.NewSeasonSortOption
 import com.gokova.myanimelist.feature.recommendation.domain.model.NewSeasonState
@@ -39,6 +45,7 @@ class RecommendationViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
     private val fakeRepository = FakeRecommendationRepository()
     private val fakeNewSeasonRepository = FakeNewSeasonRepository()
+    private val fakeIgnoredAnimeRepository = FakeIgnoredAnimeRepository()
 
     private class FakeRecommendationRepository : RecommendationRepository {
         val stateFlow =
@@ -66,6 +73,37 @@ class RecommendationViewModelTest {
         override suspend fun triggerImmediateEvaluation() {
             triggerCount++
         }
+    }
+
+    private class FakeIgnoredAnimeRepository : IgnoredAnimeRepository {
+        val ignoredIds = mutableListOf<Long>()
+
+        override fun observeIgnoredAnimeIds(): Flow<List<Long>> = MutableStateFlow(ignoredIds)
+
+        override suspend fun getIgnoredAnimeIds(): List<Long> = ignoredIds
+
+        override fun observeIsIgnored(animeId: Long): Flow<Boolean> =
+            MutableStateFlow(animeId in ignoredIds)
+
+        override suspend fun isIgnored(animeId: Long): Boolean = animeId in ignoredIds
+
+        override suspend fun setAnimeNotInterested(
+            animeId: Long,
+            title: String,
+            titleEnglish: String?,
+            pictureUrl: String?,
+        ) {
+            if (animeId !in ignoredIds) {
+                ignoredIds.add(animeId)
+            }
+        }
+
+        override suspend fun removeAnimeFromNotInterested(animeId: Long) {
+            ignoredIds.remove(animeId)
+        }
+
+        override fun observeAllIgnoredAnime(): Flow<List<IgnoredAnime>> =
+            MutableStateFlow(emptyList())
     }
 
     private class FakeNewSeasonRepository : NewSeasonRepository {
@@ -117,12 +155,23 @@ class RecommendationViewModelTest {
                 triggerCalculation = TriggerNewSeasonCalculationUseCase(fakeNewSeasonRepository),
             )
 
+        val ignoredAnimeInteractor =
+            IgnoredAnimeInteractor(
+                observeIsIgnored =
+                    ObserveIsAnimeNotInterestedUseCase(fakeIgnoredAnimeRepository),
+                setNotInterested =
+                    SetAnimeNotInterestedUseCase(fakeIgnoredAnimeRepository),
+                removeNotInterested =
+                    RemoveAnimeFromNotInterestedUseCase(fakeIgnoredAnimeRepository),
+            )
+
         return RecommendationViewModel(
             observeRecommendationsUseCase = observeRecs,
             observeRecommendationStateUseCase = observeState,
             triggerCalculationUseCase = triggerCalc,
             scheduleRecommendationWorkUseCase = scheduleWork,
             newSeasons = newSeasonsInteractor,
+            ignoredAnimeInteractor = ignoredAnimeInteractor,
         )
     }
 
@@ -468,5 +517,46 @@ class RecommendationViewModelTest {
             assertEquals(genreAnime, success.recommendations)
 
             collectJob.cancel()
+        }
+
+    @Test
+    fun `onEvent MarkNotInterested sets anime as not interested and emits side effect`() =
+        runTest {
+            val viewModel = createViewModel()
+            val effects = mutableListOf<RecommendationSideEffect>()
+            val job =
+                launch(UnconfinedTestDispatcher(testScheduler)) {
+                    viewModel.sideEffects.collect { effects.add(it) }
+                }
+
+            viewModel.onEvent(
+                RecommendationUiEvent.MarkNotInterested(
+                    animeId = 42L,
+                    title = "Test Anime",
+                    titleEnglish = "Test Anime English",
+                    pictureUrl = "https://example.com/pic.jpg",
+                ),
+            )
+            testScheduler.advanceUntilIdle()
+
+            assertTrue(fakeIgnoredAnimeRepository.ignoredIds.contains(42L))
+            assertEquals(1, effects.size)
+            val effect = effects.first() as RecommendationSideEffect.ShowUndoNotInterestedSnackbar
+            assertEquals(42L, effect.animeId)
+            assertEquals("Test Anime English", effect.animeTitle)
+
+            job.cancel()
+        }
+
+    @Test
+    fun `onEvent UndoNotInterested removes anime from not interested`() =
+        runTest {
+            fakeIgnoredAnimeRepository.ignoredIds.add(42L)
+            val viewModel = createViewModel()
+
+            viewModel.onEvent(RecommendationUiEvent.UndoNotInterested(animeId = 42L))
+            testScheduler.advanceUntilIdle()
+
+            assertTrue(!fakeIgnoredAnimeRepository.ignoredIds.contains(42L))
         }
 }

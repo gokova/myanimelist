@@ -1,8 +1,10 @@
 package com.gokova.myanimelist.feature.recommendation.presentation.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -47,16 +49,20 @@ import com.gokova.myanimelist.core.ui.theme.spacing
 import com.gokova.myanimelist.feature.recommendation.R
 import com.gokova.myanimelist.feature.recommendation.domain.model.NewSeasonAnime
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun NewSeasonCard(
     anime: NewSeasonAnime,
     modifier: Modifier = Modifier,
-    onPosterClick: (() -> Unit)? = null,
-    onCardClick: (() -> Unit)? = null,
+    actions: RecommendationCardActions = RecommendationCardActions(),
 ) {
     val cardClickableModifier =
-        if (onCardClick != null) {
-            Modifier.clickable(role = Role.Button, onClick = onCardClick)
+        if (actions.onCardClick != null || actions.onCardLongClick != null) {
+            Modifier.combinedClickable(
+                role = Role.Button,
+                onClick = { actions.onCardClick?.invoke() },
+                onLongClick = actions.onCardLongClick,
+            )
         } else {
             Modifier
         }
@@ -82,7 +88,7 @@ fun NewSeasonCard(
             PosterThumbnail(
                 imageUrl = anime.thumbnailUrl,
                 title = anime.displayTitle,
-                onPosterClick = onPosterClick,
+                onPosterClick = actions.onPosterClick,
             )
 
             Column(

@@ -1,20 +1,18 @@
 package com.gokova.myanimelist.feature.recommendation.presentation
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -22,6 +20,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
@@ -32,24 +31,18 @@ import com.gokova.myanimelist.core.ui.preview.StandardPreviews
 import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
 import com.gokova.myanimelist.core.ui.theme.spacing
 import com.gokova.myanimelist.feature.recommendation.R
-import com.gokova.myanimelist.feature.recommendation.domain.model.NewSeasonAnime
 import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationType
-import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendedAnime
 import com.gokova.myanimelist.feature.recommendation.presentation.components.HeaderSortConfig
-import com.gokova.myanimelist.feature.recommendation.presentation.components.NewSeasonCard
-import com.gokova.myanimelist.feature.recommendation.presentation.components.RecommendationCard
+import com.gokova.myanimelist.feature.recommendation.presentation.components.NotInterestedBottomSheet
+import com.gokova.myanimelist.feature.recommendation.presentation.components.NotInterestedSheetData
+import com.gokova.myanimelist.feature.recommendation.presentation.components.PosterPreviewData
+import com.gokova.myanimelist.feature.recommendation.presentation.components.RecommendationBodyContent
 import com.gokova.myanimelist.feature.recommendation.presentation.components.RecommendationEmptyState
 import com.gokova.myanimelist.feature.recommendation.presentation.components.RecommendationHeader
+import com.gokova.myanimelist.feature.recommendation.presentation.components.RecommendationItemActions
 import com.gokova.myanimelist.feature.recommendation.presentation.components.RecommendationPillSelector
 
 private val EXPANDED_WIDTH_BREAKPOINT = 600.dp
-private val GRID_CELL_MIN_SIZE = 300.dp
-
-private data class PosterPreviewData(
-    val thumbnailUrl: String?,
-    val largeImageUrl: String?,
-    val title: String,
-)
 
 @Composable
 fun RecommendationScreen(
@@ -58,13 +51,55 @@ fun RecommendationScreen(
     viewModel: RecommendationViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    RecommendationSideEffects(
+        viewModel = viewModel,
+        snackbarHostState = snackbarHostState,
+    )
 
     RecommendationContent(
         uiState = uiState,
         onEvent = viewModel::onEvent,
         onAnimeClick = onAnimeClick,
+        snackbarHostState = snackbarHostState,
         modifier = modifier,
     )
+}
+
+@Composable
+private fun RecommendationSideEffects(
+    viewModel: RecommendationViewModel,
+    snackbarHostState: SnackbarHostState,
+) {
+    val resources = LocalResources.current
+    LaunchedEffect(viewModel) {
+        viewModel.sideEffects.collect { effect ->
+            when (effect) {
+                is RecommendationSideEffect.ShowUndoNotInterestedSnackbar -> {
+                    snackbarHostState.currentSnackbarData?.dismiss()
+                    val result =
+                        snackbarHostState.showSnackbar(
+                            message =
+                                resources.getString(
+                                    R.string.recommendation_snackbar_marked_not_interested,
+                                    effect.animeTitle,
+                                ),
+                            actionLabel =
+                                resources.getString(
+                                    R.string.recommendation_snackbar_undo,
+                                ),
+                            duration = SnackbarDuration.Short,
+                        )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.onEvent(
+                            RecommendationUiEvent.UndoNotInterested(effect.animeId),
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -73,44 +108,107 @@ fun RecommendationContent(
     onEvent: (RecommendationUiEvent) -> Unit,
     modifier: Modifier = Modifier,
     onAnimeClick: (Long) -> Unit = {},
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
     var previewPoster by remember { mutableStateOf<PosterPreviewData?>(null) }
-
-    Column(modifier = modifier.fillMaxSize()) {
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(
-                        horizontal = MaterialTheme.spacing.screenHorizontal,
-                        vertical = MaterialTheme.spacing.small,
-                    ),
-            contentAlignment = Alignment.Center,
-        ) {
-            RecommendationPillSelector(
-                selectedType = uiState.selectedType,
-                onTypeSelected = { onEvent(RecommendationUiEvent.SelectType(it)) },
+    var activeNotInterestedAnime by remember { mutableStateOf<NotInterestedSheetData?>(null) }
+    val itemActions =
+        remember(onAnimeClick) {
+            RecommendationItemActions(
+                onPosterClick = { previewPoster = it },
+                onAnimeClick = onAnimeClick,
+                onNotInterested = { activeNotInterestedAnime = it },
             )
         }
 
-        RecommendationStateContent(
-            uiState = uiState,
-            onEvent = onEvent,
-            onPosterClick = { previewPoster = it },
-            onAnimeClick = onAnimeClick,
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
+    Box(modifier = modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            RecommendationPillHeader(
+                selectedType = uiState.selectedType,
+                onSelectType = { onEvent(RecommendationUiEvent.SelectType(it)) },
+            )
+
+            RecommendationStateContent(
+                uiState = uiState,
+                onEvent = onEvent,
+                itemActions = itemActions,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+            )
+        }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter),
         )
     }
 
+    RecommendationOverlays(
+        previewPoster = previewPoster,
+        activeNotInterestedAnime = activeNotInterestedAnime,
+        onDismissPreview = { previewPoster = null },
+        onDismissNotInterested = { activeNotInterestedAnime = null },
+        onMarkNotInterested = { sheetData ->
+            onEvent(
+                RecommendationUiEvent.MarkNotInterested(
+                    animeId = sheetData.animeId,
+                    title = sheetData.title,
+                    titleEnglish = sheetData.titleEnglish,
+                    pictureUrl = sheetData.pictureUrl,
+                ),
+            )
+            activeNotInterestedAnime = null
+        },
+    )
+}
+
+@Composable
+private fun RecommendationPillHeader(
+    selectedType: RecommendationType,
+    onSelectType: (RecommendationType) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(
+                    horizontal = MaterialTheme.spacing.screenHorizontal,
+                    vertical = MaterialTheme.spacing.small,
+                ),
+        contentAlignment = Alignment.Center,
+    ) {
+        RecommendationPillSelector(
+            selectedType = selectedType,
+            onTypeSelected = onSelectType,
+        )
+    }
+}
+
+@Composable
+private fun RecommendationOverlays(
+    previewPoster: PosterPreviewData?,
+    activeNotInterestedAnime: NotInterestedSheetData?,
+    onDismissPreview: () -> Unit,
+    onDismissNotInterested: () -> Unit,
+    onMarkNotInterested: (NotInterestedSheetData) -> Unit,
+) {
     previewPoster?.let { poster ->
         AnimePosterPreviewDialog(
             thumbnailUrl = poster.thumbnailUrl,
             largeImageUrl = poster.largeImageUrl,
             title = poster.title,
-            onDismiss = { previewPoster = null },
+            onDismiss = onDismissPreview,
+        )
+    }
+
+    activeNotInterestedAnime?.let { sheetData ->
+        NotInterestedBottomSheet(
+            sheetData = sheetData,
+            onNotInterested = { onMarkNotInterested(sheetData) },
+            onDismissRequest = onDismissNotInterested,
         )
     }
 }
@@ -119,8 +217,7 @@ fun RecommendationContent(
 private fun RecommendationStateContent(
     uiState: RecommendationUiState,
     onEvent: (RecommendationUiEvent) -> Unit,
-    onPosterClick: (PosterPreviewData) -> Unit,
-    onAnimeClick: (Long) -> Unit,
+    itemActions: RecommendationItemActions,
     modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier) {
@@ -160,8 +257,7 @@ private fun RecommendationStateContent(
                 RecommendationSuccessContent(
                     state = uiState,
                     onEvent = onEvent,
-                    onPosterClick = onPosterClick,
-                    onAnimeClick = onAnimeClick,
+                    itemActions = itemActions,
                 )
             }
         }
@@ -198,8 +294,7 @@ private fun RecommendationCalculatingState(
 private fun RecommendationSuccessContent(
     state: RecommendationUiState.Success,
     onEvent: (RecommendationUiEvent) -> Unit,
-    onPosterClick: (PosterPreviewData) -> Unit,
-    onAnimeClick: (Long) -> Unit,
+    itemActions: RecommendationItemActions,
     modifier: Modifier = Modifier,
 ) {
     val windowInfo = LocalWindowInfo.current
@@ -235,140 +330,9 @@ private fun RecommendationSuccessContent(
         RecommendationBodyContent(
             state = state,
             isExpanded = isExpanded,
-            onPosterClick = onPosterClick,
-            onAnimeClick = onAnimeClick,
+            itemActions = itemActions,
             modifier = Modifier.weight(1f),
         )
-    }
-}
-
-@Composable
-private fun RecommendationBodyContent(
-    state: RecommendationUiState.Success,
-    isExpanded: Boolean,
-    onPosterClick: (PosterPreviewData) -> Unit,
-    onAnimeClick: (Long) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    if (state.selectedType == RecommendationType.NEW_SEASONS) {
-        NewSeasonContent(
-            newSeasons = state.newSeasons,
-            isExpanded = isExpanded,
-            onPosterClick = onPosterClick,
-            onAnimeClick = onAnimeClick,
-            modifier = modifier,
-        )
-    } else {
-        RecommendationItemsContent(
-            state = state,
-            isExpanded = isExpanded,
-            onPosterClick = onPosterClick,
-            onAnimeClick = onAnimeClick,
-            modifier = modifier,
-        )
-    }
-}
-
-@Composable
-private fun NewSeasonContent(
-    newSeasons: List<NewSeasonAnime>,
-    isExpanded: Boolean,
-    onPosterClick: (PosterPreviewData) -> Unit,
-    onAnimeClick: (Long) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val padding =
-        PaddingValues(
-            horizontal = MaterialTheme.spacing.screenHorizontal,
-            vertical = MaterialTheme.spacing.small,
-        )
-    val spacing = MaterialTheme.spacing.medium
-    val cardContent: @Composable (NewSeasonAnime) -> Unit = { anime ->
-        NewSeasonCard(
-            anime = anime,
-            onPosterClick = {
-                onPosterClick(
-                    PosterPreviewData(
-                        thumbnailUrl = anime.thumbnailUrl,
-                        largeImageUrl = anime.largeImageUrl,
-                        title = anime.displayTitle,
-                    ),
-                )
-            },
-            onCardClick = { onAnimeClick(anime.animeId) },
-        )
-    }
-
-    if (isExpanded) {
-        LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = GRID_CELL_MIN_SIZE),
-            modifier = modifier.fillMaxSize(),
-            contentPadding = padding,
-            horizontalArrangement = Arrangement.spacedBy(spacing),
-            verticalArrangement = Arrangement.spacedBy(spacing),
-        ) {
-            items(newSeasons, key = { it.animeId }) { cardContent(it) }
-        }
-    } else {
-        LazyColumn(
-            modifier = modifier.fillMaxSize(),
-            contentPadding = padding,
-            verticalArrangement = Arrangement.spacedBy(spacing),
-        ) {
-            items(newSeasons, key = { it.animeId }) { cardContent(it) }
-        }
-    }
-}
-
-@Composable
-private fun RecommendationItemsContent(
-    state: RecommendationUiState.Success,
-    isExpanded: Boolean,
-    onPosterClick: (PosterPreviewData) -> Unit,
-    onAnimeClick: (Long) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val padding =
-        PaddingValues(
-            horizontal = MaterialTheme.spacing.screenHorizontal,
-            vertical = MaterialTheme.spacing.small,
-        )
-    val spacing = MaterialTheme.spacing.medium
-    val cardContent: @Composable (RecommendedAnime) -> Unit = { anime ->
-        RecommendationCard(
-            anime = anime,
-            selectedType = state.selectedType,
-            onPosterClick = {
-                onPosterClick(
-                    PosterPreviewData(
-                        thumbnailUrl = anime.thumbnailUrl,
-                        largeImageUrl = anime.largeImageUrl,
-                        title = anime.displayTitle(),
-                    ),
-                )
-            },
-            onCardClick = { onAnimeClick(anime.animeId) },
-        )
-    }
-
-    if (isExpanded) {
-        LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = GRID_CELL_MIN_SIZE),
-            modifier = modifier.fillMaxSize(),
-            contentPadding = padding,
-            horizontalArrangement = Arrangement.spacedBy(spacing),
-            verticalArrangement = Arrangement.spacedBy(spacing),
-        ) {
-            items(state.recommendations, key = { it.animeId }) { cardContent(it) }
-        }
-    } else {
-        LazyColumn(
-            modifier = modifier.fillMaxSize(),
-            contentPadding = padding,
-            verticalArrangement = Arrangement.spacedBy(spacing),
-        ) {
-            items(state.recommendations, key = { it.animeId }) { cardContent(it) }
-        }
     }
 }
 
