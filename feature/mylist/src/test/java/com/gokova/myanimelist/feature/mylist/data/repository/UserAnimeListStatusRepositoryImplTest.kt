@@ -118,6 +118,20 @@ class UserAnimeListStatusRepositoryImplTest {
         }
 
     @Test
+    fun `updateAnimeStatus aborts and returns failure if missing entity fetch fails`() =
+        runTest(testDispatcher) {
+            fakeUserAnimeListDao.returnNullEntity = true
+            fakeMalApiService.detailsException = IOException("Failed to fetch missing entity")
+
+            val params = UpdateUserAnimeStatusParams(status = "watching")
+            val result = repository.updateAnimeStatus(animeId = 555L, params = params)
+
+            assertTrue(result.isFailure)
+            assertEquals(null, fakeMalApiService.lastUpdatedAnimeId)
+            assertEquals(null, fakeUserAnimeListDao.savedUserAnime)
+        }
+
+    @Test
     fun `deleteAnimeFromList successfully calls MAL DELETE and deletes local entry`() =
         runTest(testDispatcher) {
             fakeMalApiService.deleteResponse = Response.success(Unit)
@@ -157,6 +171,7 @@ class UserAnimeListStatusRepositoryImplTest {
         var updateStatusResponse: MyListStatusDto = MyListStatusDto()
         var deleteResponse: Response<Unit> = Response.success(Unit)
         var networkException: Throwable? = null
+        var detailsException: Throwable? = null
 
         var lastUpdatedAnimeId: Long? = null
         var lastStatus: String? = null
@@ -205,7 +220,10 @@ class UserAnimeListStatusRepositoryImplTest {
         override suspend fun getAnimeDetails(
             animeId: Long,
             fields: String,
-        ): AnimeDetailsDto = AnimeDetailsDto(id = animeId, title = "Test Anime")
+        ): AnimeDetailsDto {
+            detailsException?.let { throw it }
+            return AnimeDetailsDto(id = animeId, title = "Test Anime")
+        }
 
         override suspend fun getSeasonalAnime(
             year: Int,
@@ -235,6 +253,7 @@ class UserAnimeListStatusRepositoryImplTest {
     private class FakeUserAnimeListDao : UserAnimeListDao {
         var savedUserAnime: UserAnimeListEntity? = null
         var lastDeletedAnimeId: Long? = null
+        var returnNullEntity: Boolean = false
 
         override suspend fun addAnimeToUserListAndClean(userAnime: UserAnimeListEntity) {
             savedUserAnime = userAnime
@@ -258,20 +277,24 @@ class UserAnimeListStatusRepositoryImplTest {
 
         override fun observeAnimeEntityById(animeId: Long): Flow<AnimeEntity?> = flowOf(null)
 
-        override suspend fun getAnimeEntityById(animeId: Long): AnimeEntity =
-            AnimeEntity(
-                id = animeId,
-                title = "Test Anime",
-                titleEnglish = null,
-                mainPictureMedium = null,
-                mainPictureLarge = null,
-                mediaType = null,
-                airingStatus = null,
-                numEpisodes = null,
-                startSeasonYear = null,
-                startSeasonSeason = null,
-                meanScore = null,
-            )
+        override suspend fun getAnimeEntityById(animeId: Long): AnimeEntity? =
+            if (returnNullEntity) {
+                null
+            } else {
+                AnimeEntity(
+                    id = animeId,
+                    title = "Test Anime",
+                    titleEnglish = null,
+                    mainPictureMedium = null,
+                    mainPictureLarge = null,
+                    mediaType = null,
+                    airingStatus = null,
+                    numEpisodes = null,
+                    startSeasonYear = null,
+                    startSeasonSeason = null,
+                    meanScore = null,
+                )
+            }
 
         override suspend fun upsertAnimes(animes: List<AnimeEntity>) = Unit
 

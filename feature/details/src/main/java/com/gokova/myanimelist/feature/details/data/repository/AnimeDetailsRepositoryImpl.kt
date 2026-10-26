@@ -117,6 +117,8 @@ class AnimeDetailsRepositoryImpl
             syncCoordinator.withLock {
                 withContext(ioDispatcher) {
                     try {
+                        val entityToPersist = resolveMissingAnimeEntity(animeId)
+
                         val statusDto =
                             malApiService.updateMyListStatus(
                                 animeId = animeId,
@@ -125,11 +127,8 @@ class AnimeDetailsRepositoryImpl
                                 score = 0,
                             )
 
-                        val existingEntity = userAnimeListDao.getAnimeEntityById(animeId)
-                        if (existingEntity == null) {
-                            freshEntityCache.value[animeId]?.let { cachedEntity ->
-                                userAnimeListDao.upsertAnimes(listOf(cachedEntity))
-                            }
+                        if (entityToPersist != null) {
+                            userAnimeListDao.upsertAnimes(listOf(entityToPersist))
                         }
 
                         val userAnime =
@@ -170,6 +169,16 @@ class AnimeDetailsRepositoryImpl
                     }
                 }
             }
+
+        private suspend fun resolveMissingAnimeEntity(animeId: Long): AnimeEntity? {
+            if (userAnimeListDao.getAnimeEntityById(animeId) != null) return null
+            return freshEntityCache.value[animeId] ?: run {
+                val dto = malApiService.getAnimeDetails(animeId)
+                AnimeDetailsMapper.toAnimeEntity(dto).also { fetched ->
+                    freshEntityCache.update { it.withBoundedEntry(animeId to fetched) }
+                }
+            }
+        }
 
         private fun isRemoteStatusOlderThanLocal(
             remoteUpdatedAt: String?,

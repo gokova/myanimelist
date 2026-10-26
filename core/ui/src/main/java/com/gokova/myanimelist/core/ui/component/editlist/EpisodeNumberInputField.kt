@@ -2,7 +2,9 @@ package com.gokova.myanimelist.core.ui.component.editlist
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -140,7 +142,7 @@ private fun EpisodeInputTextField(
         modifier =
             modifier
                 .width(64.dp)
-                .height(40.dp)
+                .heightIn(min = 48.dp)
                 .semantics { contentDescription = inputDescription }
                 .onFocusChanged { focusState ->
                     val wasFocused = state.isFocused
@@ -223,17 +225,22 @@ private fun EpisodeInputDecoration(
         }
     val borderWidth = if (isFocused) 2.dp else 1.dp
 
-    Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-        border = BorderStroke(borderWidth, borderColor),
-        modifier = Modifier.height(40.dp),
-    ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
+    Box(contentAlignment = Alignment.Center) {
+        Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+            border = BorderStroke(borderWidth, borderColor),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(40.dp),
         ) {
-            innerTextField()
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
+            ) {
+                innerTextField()
+            }
         }
     }
 }

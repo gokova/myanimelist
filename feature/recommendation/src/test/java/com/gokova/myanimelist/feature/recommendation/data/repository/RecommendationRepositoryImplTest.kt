@@ -1,5 +1,8 @@
 package com.gokova.myanimelist.feature.recommendation.data.repository
 
+import androidx.work.Constraints
+import androidx.work.Data
+import androidx.work.WorkInfo
 import com.gokova.myanimelist.core.database.dao.RecommendationDao
 import com.gokova.myanimelist.core.database.dao.UserAnimeListDao
 import com.gokova.myanimelist.core.database.entity.AnimeEntity
@@ -21,6 +24,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.util.UUID
 
 class RecommendationRepositoryImplTest {
     private lateinit var fakeRecommendationDao: FakeRecommendationDao
@@ -105,9 +109,12 @@ class RecommendationRepositoryImplTest {
     }
 
     private class FakeRecommendationScheduler : RecommendationScheduler {
+        val workInfosFlow = MutableStateFlow<List<WorkInfo>>(emptyList())
         var periodicScheduled = false
         var immediateTriggered = false
         var initialScheduled = false
+
+        override fun observeFetchWorkInfo(): Flow<List<WorkInfo>> = workInfosFlow
 
         override fun schedulePeriodicWork() {
             periodicScheduled = true
@@ -234,6 +241,34 @@ class RecommendationRepositoryImplTest {
             val state = repository.observeEngineState().first()
 
             assertEquals(RecommendationEngineState.Calculating, state)
+        }
+
+    @Test
+    fun `observeEngineState returns EmptyAllCaughtUp when count is 0 and worker succeeded`() =
+        runTest {
+            fakeUserAnimeListDao.userAnimeFlow.value = (1L..5L).map { createUserItem(it) }
+            fakeRecommendationDao.countFlow.value = 0
+            fakeScheduler.workInfosFlow.value =
+                listOf(
+                    WorkInfo(
+                        id = UUID.randomUUID(),
+                        state = WorkInfo.State.SUCCEEDED,
+                        tags = emptySet(),
+                        outputData = Data.EMPTY,
+                        progress = Data.EMPTY,
+                        runAttemptCount = 0,
+                        generation = 0,
+                        constraints = Constraints.NONE,
+                        initialDelayMillis = 0L,
+                        periodicityInfo = null,
+                        nextScheduleTimeMillis = 0L,
+                        stopReason = WorkInfo.STOP_REASON_NOT_STOPPED,
+                    ),
+                )
+
+            val state = repository.observeEngineState().first()
+
+            assertEquals(RecommendationEngineState.EmptyAllCaughtUp, state)
         }
 
     @Test

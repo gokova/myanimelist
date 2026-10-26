@@ -2,6 +2,8 @@ package com.gokova.myanimelist.core.database.repository
 
 import com.gokova.myanimelist.core.database.dao.IgnoredAnimeDao
 import com.gokova.myanimelist.core.database.entity.IgnoredAnimeEntity
+import com.gokova.myanimelist.core.domain.model.IgnoredAnime
+import com.gokova.myanimelist.core.domain.model.ImportIgnoredAnimeResult
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -62,6 +64,65 @@ class IgnoredAnimeRepositoryImplTest {
             assertEquals(listOf(1L, 2L), ids)
         }
 
+    @Test
+    fun `observeIgnoredAnimeCount emits count correctly`() =
+        runTest {
+            assertEquals(0, repository.observeIgnoredAnimeCount().first())
+
+            repository.setAnimeNotInterested(1L, "Anime 1")
+            assertEquals(1, repository.observeIgnoredAnimeCount().first())
+
+            repository.setAnimeNotInterested(2L, "Anime 2")
+            assertEquals(2, repository.observeIgnoredAnimeCount().first())
+
+            repository.removeAnimeFromNotInterested(1L)
+            assertEquals(1, repository.observeIgnoredAnimeCount().first())
+        }
+
+    @Test
+    fun `upsertIgnoredAnimeList merges new and updated anime correctly`() =
+        runTest {
+            repository.setAnimeNotInterested(1L, "Anime 1 Original")
+
+            val listToImport =
+                listOf(
+                    IgnoredAnime(
+                        animeId = 1L,
+                        title = "Anime 1 Updated",
+                        createdAt = 1000L,
+                    ),
+                    IgnoredAnime(
+                        animeId = 2L,
+                        title = "Anime 2 New",
+                        createdAt = 2000L,
+                    ),
+                    IgnoredAnime(
+                        animeId = 3L,
+                        title = "Anime 3 New",
+                        createdAt = 3000L,
+                    ),
+                )
+
+            val result = repository.upsertIgnoredAnimeList(listToImport)
+            assertTrue(result is ImportIgnoredAnimeResult.Success)
+            val success = result as ImportIgnoredAnimeResult.Success
+            assertEquals(3, success.totalCount)
+            assertEquals(2, success.newCount)
+            assertEquals(1, success.updatedCount)
+
+            val all = repository.getAllIgnoredAnime()
+            assertEquals(3, all.size)
+            val updated1 = all.first { it.animeId == 1L }
+            assertEquals("Anime 1 Updated", updated1.title)
+        }
+
+    @Test
+    fun `upsertIgnoredAnimeList returns EmptyFile on empty list`() =
+        runTest {
+            val result = repository.upsertIgnoredAnimeList(emptyList())
+            assertTrue(result is ImportIgnoredAnimeResult.Failure.EmptyFile)
+        }
+
     private class FakeIgnoredAnimeDao : IgnoredAnimeDao {
         private val storage = MutableStateFlow<Map<Long, IgnoredAnimeEntity>>(emptyMap())
 
@@ -77,6 +138,12 @@ class IgnoredAnimeRepositoryImplTest {
         override suspend fun upsertIgnoredAnime(entity: IgnoredAnimeEntity) {
             storage.value += (entity.animeId to entity)
         }
+
+        override suspend fun upsertIgnoredAnimes(entities: List<IgnoredAnimeEntity>) {
+            storage.value += entities.associateBy { it.animeId }
+        }
+
+        override fun observeIgnoredAnimeCount(): Flow<Int> = storage.map { it.size }
 
         override suspend fun deleteIgnoredAnime(animeId: Long): Int {
             val existed = storage.value.containsKey(animeId)

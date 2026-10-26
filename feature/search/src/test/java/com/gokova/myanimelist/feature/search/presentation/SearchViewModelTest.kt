@@ -117,7 +117,8 @@ class SearchViewModelTest {
             val state = viewModel.uiState.value
             assertTrue(state is SearchUiState.Error)
             val error = state as SearchUiState.Error
-            assertTrue(error.message.contains("500"))
+            assertTrue(error.message?.contains("500") == true)
+            assertEquals(R.string.search_error_message, error.messageRes)
         }
 
     @Test
@@ -167,7 +168,7 @@ class SearchViewModelTest {
             val state = viewModel.uiState.value as SearchUiState.Content
             assertEquals(1, state.animes.size)
             assertFalse(state.isLoadingMore)
-            assertEquals("Network disconnected", state.loadMoreError)
+            assertEquals(R.string.search_load_more_error, state.loadMoreErrorRes)
             assertTrue(receivedEvent is SearchUiEvent.ShowSnackbar)
             assertEquals(
                 R.string.search_load_more_error,

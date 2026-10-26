@@ -1,5 +1,6 @@
 package com.gokova.myanimelist.feature.search.presentation
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -247,9 +248,12 @@ private fun SearchListResults(
                     CircularProgressIndicator(modifier = Modifier.size(24.dp))
                 }
             }
-        } else if (state.loadMoreError != null) {
+        } else if (state.loadMoreErrorRes != null) {
             item(key = "load_more_error") {
-                LoadMoreErrorFooter(onRetry = actions.onLoadMore)
+                LoadMoreErrorFooter(
+                    messageRes = state.loadMoreErrorRes,
+                    onRetry = actions.onLoadMore,
+                )
             }
         }
     }
@@ -288,9 +292,12 @@ private fun SearchGridResults(
                     CircularProgressIndicator(modifier = Modifier.size(24.dp))
                 }
             }
-        } else if (state.loadMoreError != null) {
+        } else if (state.loadMoreErrorRes != null) {
             item(span = { GridItemSpan(maxLineSpan) }, key = "grid_load_more_error") {
-                LoadMoreErrorFooter(onRetry = actions.onLoadMore)
+                LoadMoreErrorFooter(
+                    messageRes = state.loadMoreErrorRes,
+                    onRetry = actions.onLoadMore,
+                )
             }
         }
     }
@@ -344,6 +351,7 @@ private fun ObserveGridPagination(
 private fun LoadMoreErrorFooter(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
+    @StringRes messageRes: Int = R.string.search_load_more_error,
 ) {
     Box(
         modifier =
@@ -354,7 +362,7 @@ private fun LoadMoreErrorFooter(
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = stringResource(R.string.search_load_more_error),
+            text = stringResource(messageRes),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.error,
             textAlign = TextAlign.Center,

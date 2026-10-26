@@ -6,4 +6,6 @@ data class ProfileActions(
     val onConfirmLogout: () -> Unit = {},
     val onDismissLogout: () -> Unit = {},
     val onRetryClick: () -> Unit = {},
+    val onExportClick: () -> Unit = {},
+    val onImportClick: () -> Unit = {},
 )

@@ -131,6 +131,29 @@ class AnimeDetailsRepositoryImplTest {
         }
 
     @Test
+    fun `addAnimeToPlanToWatch fetches details when entity missing from Room and cache`() =
+        runTest(testDispatcher) {
+            val untrackedId = 10001L
+            fakeApi.detailsMap[untrackedId] =
+                AnimeDetailsDto(id = untrackedId, title = "Evicted Cache Anime")
+            fakeApi.updateStatusResult =
+                MyListStatusDto(
+                    status = "plan_to_watch",
+                    score = 0,
+                    numEpisodesWatched = 0,
+                    updatedAt = "2026-10-06T10:00:00Z",
+                )
+
+            val addResult = repository.addAnimeToPlanToWatch(untrackedId)
+            advanceUntilIdle()
+
+            assertTrue(addResult.isSuccess)
+            val savedEntity = fakeDao.getAnimeEntityById(untrackedId)
+            assertEquals("Evicted Cache Anime", savedEntity?.title)
+            assertEquals(1, fakeDao.cleanedUserAnimes.size)
+        }
+
+    @Test
     fun `freshDetailsCache evicts oldest entries when exceeding max capacity`() =
         runTest(testDispatcher) {
             // Fetch 12 anime details (MAX_CACHE_SIZE is 10)

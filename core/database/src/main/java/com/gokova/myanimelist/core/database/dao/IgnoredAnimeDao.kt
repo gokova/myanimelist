@@ -23,6 +23,12 @@ interface IgnoredAnimeDao {
     @Upsert
     suspend fun upsertIgnoredAnime(entity: IgnoredAnimeEntity)
 
+    @Upsert
+    suspend fun upsertIgnoredAnimes(entities: List<IgnoredAnimeEntity>)
+
+    @Query("SELECT COUNT(*) FROM ignored_animes")
+    fun observeIgnoredAnimeCount(): Flow<Int>
+
     @Query("DELETE FROM ignored_animes WHERE anime_id = :animeId")
     suspend fun deleteIgnoredAnime(animeId: Long): Int
 

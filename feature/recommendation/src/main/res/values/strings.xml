@@ -5,6 +5,8 @@
 
     <string name="recommendation_empty_insufficient_title">More Anime Needed</string>
     <string name="recommendation_empty_insufficient_subtitle">Add at least 5 anime to your list so we can discover your unique taste and recommend matches.</string>
+    <string name="recommendation_empty_all_caught_up_title">All Caught Up</string>
+    <string name="recommendation_empty_all_caught_up_subtitle">No more recommendations match your current list. Recalculate or add more anime!</string>
 
     <string name="recommendation_calculating_title">Calculating Recommendations</string>
     <string name="recommendation_calculating_subtitle">Our background engine evaluates top all-time and seasonal anime against your taste profile. This might take a few moments.</string>

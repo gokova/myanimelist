@@ -232,9 +232,20 @@ private fun RecommendationStateContent(
                 )
             }
             is RecommendationUiState.EmptyAllCaughtUp -> {
+                val isNewSeasons = uiState.selectedType == RecommendationType.NEW_SEASONS
                 RecommendationEmptyState(
-                    titleRes = R.string.new_seasons_empty_all_caught_up_title,
-                    subtitleRes = R.string.new_seasons_empty_all_caught_up_subtitle,
+                    titleRes =
+                        if (isNewSeasons) {
+                            R.string.new_seasons_empty_all_caught_up_title
+                        } else {
+                            R.string.recommendation_empty_all_caught_up_title
+                        },
+                    subtitleRes =
+                        if (isNewSeasons) {
+                            R.string.new_seasons_empty_all_caught_up_subtitle
+                        } else {
+                            R.string.recommendation_empty_all_caught_up_subtitle
+                        },
                     actionButtonTextRes = R.string.recommendation_btn_calculate_now,
                     onActionClick = { onEvent(RecommendationUiEvent.CalculateNow) },
                 )
