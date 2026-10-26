@@ -1,7 +1,6 @@
 package com.gokova.myanimelist.feature.mylist.presentation.components
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -15,7 +14,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -38,6 +36,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.gokova.myanimelist.core.ui.component.badge.PersonalScoreBadge
 import com.gokova.myanimelist.core.ui.preview.StandardPreviews
 import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
 import com.gokova.myanimelist.core.ui.theme.componentSizes
@@ -106,7 +105,7 @@ private fun AnimeCardDetails(
     modifier: Modifier = Modifier,
 ) {
     BoxWithConstraints(modifier = modifier) {
-        val useCompactStatusChip = maxWidth < 200.dp
+        val useCompactStatusChip = maxWidth < 160.dp
         Column(
             verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
         ) {
@@ -135,7 +134,7 @@ private fun AnimeCardDetails(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                ScoreBadge(score = anime.userScore)
+                PersonalScoreBadge(score = anime.userScore)
                 val isKnownTotal = anime.totalEpisodes != null && anime.totalEpisodes > 0
                 val canQuickIncrement = !isKnownTotal || anime.watchedEpisodes < anime.totalEpisodes
                 AnimeCardActionsRow(
@@ -290,7 +289,7 @@ private fun MetadataRow(
     }
     if (metaParts.isNotEmpty()) {
         Text(
-            text = metaParts.joinToString(" · "),
+            text = metaParts.joinToString(" \u00B7 "),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -332,40 +331,6 @@ private fun ProgressSection(
                 ),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
-@Composable
-private fun ScoreBadge(score: Int) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.micro),
-        modifier =
-            Modifier
-                .clip(MaterialTheme.shapes.extraSmall)
-                .background(MaterialTheme.colorScheme.tertiaryContainer)
-                .padding(
-                    horizontal = MaterialTheme.spacing.badgePaddingHorizontal,
-                    vertical = MaterialTheme.spacing.badgePaddingVertical,
-                ),
-    ) {
-        Icon(
-            imageVector = Icons.Default.Star,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onTertiaryContainer,
-            modifier = Modifier.size(MaterialTheme.spacing.iconSmall),
-        )
-        Text(
-            text =
-                if (score > 0) {
-                    score.toString()
-                } else {
-                    stringResource(R.string.my_list_score_unrated)
-                },
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onTertiaryContainer,
-            fontWeight = FontWeight.Bold,
         )
     }
 }

@@ -131,8 +131,8 @@ fun NotInterestedSheetContent(
             onClick = onNotInterested,
             colors =
                 ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                 ),
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -147,6 +147,15 @@ fun NotInterestedSheetContent(
                 style = MaterialTheme.typography.labelLarge,
             )
         }
+
+        Spacer(modifier = Modifier.height(MaterialTheme.spacing.small))
+
+        Text(
+            text = stringResource(R.string.recommendation_not_interested_helper),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.align(Alignment.CenterHorizontally),
+        )
     }
 }
 

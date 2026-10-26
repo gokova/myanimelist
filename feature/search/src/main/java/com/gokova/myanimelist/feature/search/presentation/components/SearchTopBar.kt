@@ -6,9 +6,14 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.placeCursorAtEnd
@@ -29,8 +34,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -79,12 +87,20 @@ fun SearchTopBar(
     val currentText = textFieldState.text.toString()
     val canSearch = currentText.trim().length >= SearchAnimeUseCase.MIN_QUERY_LENGTH
     val showValidationHint = currentText.isNotBlank() && !canSearch
+    var attemptedInvalidSubmit by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(currentText) {
+        if (canSearch) {
+            attemptedInvalidSubmit = false
+        }
+    }
 
     val inputActions =
         rememberSearchInputActions(
             textFieldState = textFieldState,
             latestQuery = latestQuery,
             canSearch = canSearch,
+            onInvalidSubmit = { attemptedInvalidSubmit = true },
             actions = actions,
         )
 
@@ -92,7 +108,11 @@ fun SearchTopBar(
         modifier =
             modifier
                 .fillMaxWidth()
-                .padding(horizontal = MaterialTheme.spacing.medium),
+                .windowInsetsPadding(
+                    WindowInsets.safeDrawing.only(
+                        WindowInsetsSides.Horizontal + WindowInsetsSides.Top,
+                    ),
+                ).padding(horizontal = MaterialTheme.spacing.medium),
     ) {
         SearchBarContainer(
             textFieldState = textFieldState,
@@ -100,7 +120,10 @@ fun SearchTopBar(
             focusRequester = focusRequester,
             inputActions = inputActions,
         )
-        ValidationHint(visible = showValidationHint)
+        ValidationHint(
+            visible = showValidationHint,
+            isError = attemptedInvalidSubmit,
+        )
     }
 }
 
@@ -109,6 +132,7 @@ private fun rememberSearchInputActions(
     textFieldState: TextFieldState,
     latestQuery: String,
     canSearch: Boolean,
+    onInvalidSubmit: () -> Unit,
     actions: SearchActions,
 ): SearchInputActions {
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -124,6 +148,8 @@ private fun rememberSearchInputActions(
                         actions.onQueryChange(currentText)
                     }
                     actions.onSearch()
+                } else {
+                    onInvalidSubmit()
                 }
             },
             onClear = {
@@ -160,6 +186,7 @@ private fun SearchBarContainer(
         expanded = false,
         onExpandedChange = {},
         modifier = modifier.fillMaxWidth(),
+        windowInsets = WindowInsets(0, 0, 0, 0),
         colors =
             SearchBarDefaults.colors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainer,
@@ -242,16 +269,25 @@ private fun SearchInputField(
 }
 
 @Composable
-private fun ValidationHint(visible: Boolean) {
+private fun ValidationHint(
+    visible: Boolean,
+    isError: Boolean = false,
+) {
     AnimatedVisibility(
         visible = visible,
         enter = fadeIn(),
         exit = fadeOut(),
     ) {
+        val textColor =
+            if (isError) {
+                MaterialTheme.colorScheme.error
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            }
         Text(
             text = stringResource(R.string.search_validation_hint),
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.error,
+            color = textColor,
             modifier =
                 Modifier.padding(
                     start = MaterialTheme.spacing.large,

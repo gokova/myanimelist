@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,9 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -37,8 +36,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.PreviewParameter
@@ -52,12 +53,15 @@ import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
 import com.gokova.myanimelist.core.ui.theme.spacing
 import com.gokova.myanimelist.feature.profile.R
 import com.gokova.myanimelist.feature.profile.presentation.components.IgnoredAnimeSection
+import com.gokova.myanimelist.feature.profile.presentation.components.LogoutButton
 import com.gokova.myanimelist.feature.profile.presentation.components.ProfileHeader
 import com.gokova.myanimelist.feature.profile.presentation.components.ProfileStatsSection
 import kotlinx.coroutines.flow.collectLatest
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+private const val DETAILS_COLUMN_WEIGHT = 1.3f
 
 @Composable
 fun ProfileScreen(
@@ -252,28 +256,24 @@ private fun ProfileContentState(
     actions: ProfileActions,
     modifier: Modifier = Modifier,
 ) {
+    val windowInfo = LocalWindowInfo.current
+    val density = LocalDensity.current
+    val screenWidthDp = with(density) { windowInfo.containerSize.width.toDp() }
+    val screenHeightDp = with(density) { windowInfo.containerSize.height.toDp() }
+    val isTwoColumn =
+        screenWidthDp >= 600.dp || (screenWidthDp > screenHeightDp && screenHeightDp < 500.dp)
+
     Box(modifier = modifier.fillMaxSize()) {
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(bottom = MaterialTheme.spacing.large),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            ProfileHeader(profile = content.userProfile)
-            Spacer(modifier = Modifier.height(MaterialTheme.spacing.large))
-            content.userProfile.statistics?.let { stats ->
-                ProfileStatsSection(statistics = stats)
-                Spacer(modifier = Modifier.height(MaterialTheme.spacing.large))
-            }
-            IgnoredAnimeSection(
-                ignoredCount = content.ignoredAnimeCount,
-                onExportClick = actions.onExportClick,
-                onImportClick = actions.onImportClick,
+        if (isTwoColumn) {
+            ProfileLandscapeContent(
+                content = content,
+                actions = actions,
             )
-            Spacer(modifier = Modifier.height(MaterialTheme.spacing.large))
-            LogoutButton(onClick = actions.onLogoutClick)
+        } else {
+            ProfilePortraitContent(
+                content = content,
+                actions = actions,
+            )
         }
 
         if (content.isRefreshing) {
@@ -289,33 +289,79 @@ private fun ProfileContentState(
 }
 
 @Composable
-private fun LogoutButton(
-    onClick: () -> Unit,
+private fun ProfilePortraitContent(
+    content: ProfileUiState.Content,
+    actions: ProfileActions,
     modifier: Modifier = Modifier,
 ) {
-    Button(
-        onClick = onClick,
+    Column(
         modifier =
             modifier
-                .fillMaxWidth()
-                .padding(horizontal = MaterialTheme.spacing.medium)
-                .height(48.dp),
-        shape = MaterialTheme.shapes.large,
-        colors =
-            ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.errorContainer,
-                contentColor = MaterialTheme.colorScheme.onErrorContainer,
-            ),
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = MaterialTheme.spacing.large),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-            contentDescription = null,
-            modifier = Modifier.padding(end = MaterialTheme.spacing.small),
+        ProfileHeader(profile = content.userProfile)
+        Spacer(modifier = Modifier.height(MaterialTheme.spacing.large))
+        content.userProfile.statistics?.let { stats ->
+            ProfileStatsSection(statistics = stats)
+            Spacer(modifier = Modifier.height(MaterialTheme.spacing.large))
+        }
+        IgnoredAnimeSection(
+            ignoredCount = content.ignoredAnimeCount,
+            onExportClick = actions.onExportClick,
+            onImportClick = actions.onImportClick,
         )
-        Text(
-            text = stringResource(R.string.profile_logout_button),
-            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-        )
+        Spacer(modifier = Modifier.height(MaterialTheme.spacing.large))
+        LogoutButton(onClick = actions.onLogoutClick)
+    }
+}
+
+@Composable
+private fun ProfileLandscapeContent(
+    content: ProfileUiState.Content,
+    actions: ProfileActions,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier =
+            modifier
+                .fillMaxSize()
+                .padding(horizontal = MaterialTheme.spacing.medium),
+        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.large),
+    ) {
+        Column(
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(vertical = MaterialTheme.spacing.medium),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            ProfileHeader(profile = content.userProfile)
+            Spacer(modifier = Modifier.height(MaterialTheme.spacing.large))
+            LogoutButton(onClick = actions.onLogoutClick)
+        }
+
+        Column(
+            modifier =
+                Modifier
+                    .weight(DETAILS_COLUMN_WEIGHT)
+                    .verticalScroll(rememberScrollState())
+                    .padding(vertical = MaterialTheme.spacing.medium),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            content.userProfile.statistics?.let { stats ->
+                ProfileStatsSection(statistics = stats)
+                Spacer(modifier = Modifier.height(MaterialTheme.spacing.large))
+            }
+            IgnoredAnimeSection(
+                ignoredCount = content.ignoredAnimeCount,
+                onExportClick = actions.onExportClick,
+                onImportClick = actions.onImportClick,
+            )
+        }
     }
 }
 

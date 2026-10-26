@@ -32,28 +32,28 @@ import com.gokova.myanimelist.feature.recommendation.domain.model.Recommendation
 
 @Composable
 fun RecommendationHeader(
-    count: Int,
-    selectedType: RecommendationType,
+    config: RecommendationHeaderConfig,
     onRefreshClick: () -> Unit,
     modifier: Modifier = Modifier,
-    sortConfig: HeaderSortConfig? = null,
 ) {
+    val verticalPadding =
+        if (config.compact) MaterialTheme.spacing.extraSmall else MaterialTheme.spacing.small
     Row(
         modifier =
             modifier
                 .fillMaxWidth()
                 .padding(
                     horizontal = MaterialTheme.spacing.large,
-                    vertical = MaterialTheme.spacing.small,
+                    vertical = verticalPadding,
                 ),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         val titleText =
-            if (selectedType == RecommendationType.NEW_SEASONS) {
-                pluralStringResource(R.plurals.new_seasons_count, count, count)
+            if (config.selectedType == RecommendationType.NEW_SEASONS) {
+                pluralStringResource(R.plurals.new_seasons_count, config.count, config.count)
             } else {
-                pluralStringResource(R.plurals.recommendations_count, count, count)
+                pluralStringResource(R.plurals.recommendations_count, config.count, config.count)
             }
 
         Text(
@@ -67,10 +67,12 @@ fun RecommendationHeader(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
         ) {
-            if (selectedType == RecommendationType.NEW_SEASONS && sortConfig != null) {
+            if (config.selectedType == RecommendationType.NEW_SEASONS &&
+                config.sortConfig != null
+            ) {
                 NewSeasonSortMenu(
-                    selectedSort = sortConfig.selectedSort,
-                    onSortSelected = sortConfig.onSortSelected,
+                    selectedSort = config.sortConfig.selectedSort,
+                    onSortSelected = config.sortConfig.onSortSelected,
                 )
             }
 

@@ -70,6 +70,17 @@ fun NewSeasonContent(
         )
     val spacing = MaterialTheme.spacing.medium
     val cardContent: @Composable (NewSeasonAnime) -> Unit = { anime ->
+        val notInterestedAction = {
+            itemActions.onNotInterested(
+                NotInterestedSheetData(
+                    animeId = anime.animeId,
+                    title = anime.subtitleTitle ?: anime.displayTitle,
+                    titleEnglish =
+                        anime.displayTitle.takeIf { anime.subtitleTitle != null },
+                    pictureUrl = anime.thumbnailUrl,
+                ),
+            )
+        }
         NewSeasonCard(
             anime = anime,
             actions =
@@ -84,17 +95,8 @@ fun NewSeasonContent(
                         )
                     },
                     onCardClick = { itemActions.onAnimeClick(anime.animeId) },
-                    onCardLongClick = {
-                        itemActions.onNotInterested(
-                            NotInterestedSheetData(
-                                animeId = anime.animeId,
-                                title = anime.subtitleTitle ?: anime.displayTitle,
-                                titleEnglish =
-                                    anime.displayTitle.takeIf { anime.subtitleTitle != null },
-                                pictureUrl = anime.thumbnailUrl,
-                            ),
-                        )
-                    },
+                    onCardLongClick = notInterestedAction,
+                    onMoreClick = notInterestedAction,
                 ),
         )
     }
@@ -134,6 +136,16 @@ fun RecommendationItemsContent(
         )
     val spacing = MaterialTheme.spacing.medium
     val cardContent: @Composable (RecommendedAnime) -> Unit = { anime ->
+        val notInterestedAction = {
+            itemActions.onNotInterested(
+                NotInterestedSheetData(
+                    animeId = anime.animeId,
+                    title = anime.title,
+                    titleEnglish = anime.titleEnglish,
+                    pictureUrl = anime.thumbnailUrl,
+                ),
+            )
+        }
         RecommendationCard(
             anime = anime,
             selectedType = state.selectedType,
@@ -149,16 +161,8 @@ fun RecommendationItemsContent(
                         )
                     },
                     onCardClick = { itemActions.onAnimeClick(anime.animeId) },
-                    onCardLongClick = {
-                        itemActions.onNotInterested(
-                            NotInterestedSheetData(
-                                animeId = anime.animeId,
-                                title = anime.title,
-                                titleEnglish = anime.titleEnglish,
-                                pictureUrl = anime.thumbnailUrl,
-                            ),
-                        )
-                    },
+                    onCardLongClick = notInterestedAction,
+                    onMoreClick = notInterestedAction,
                 ),
         )
     }

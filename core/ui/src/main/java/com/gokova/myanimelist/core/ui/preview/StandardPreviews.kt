@@ -42,9 +42,22 @@ import androidx.compose.ui.tooling.preview.Preview
     device = "spec:width=390dp,height=844dp,dpi=320",
 )
 @Preview(
+    name = "Phone Light - 2.0x Font",
+    group = "Accessibility",
+    uiMode = Configuration.UI_MODE_NIGHT_NO,
+    fontScale = 2.0f,
+    device = "spec:width=390dp,height=844dp,dpi=320",
+)
+@Preview(
     name = "Phone Landscape",
     group = "Orientation",
     uiMode = Configuration.UI_MODE_NIGHT_NO,
+    device = "spec:width=844dp,height=390dp,dpi=320",
+)
+@Preview(
+    name = "Phone Landscape Dark",
+    group = "Orientation",
+    uiMode = Configuration.UI_MODE_NIGHT_YES,
     device = "spec:width=844dp,height=390dp,dpi=320",
 )
 annotation class StandardPreviews

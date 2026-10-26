@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -34,6 +33,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.gokova.myanimelist.core.ui.component.badge.PersonalScoreBadge
+import com.gokova.myanimelist.core.ui.component.badge.PublicScoreBadge
 import com.gokova.myanimelist.core.ui.theme.OnStatusCompletedContainer
 import com.gokova.myanimelist.core.ui.theme.OnStatusDroppedContainer
 import com.gokova.myanimelist.core.ui.theme.OnStatusOnHoldContainer
@@ -86,7 +87,7 @@ fun AnimeDetailsHeader(
             )
 
             if (headerState.isNotInterested) {
-                NotInterestedBadge()
+                NotInterestedBadge(onRestoreClick = actions.onToggleNotInterested)
             }
 
             Spacer(modifier = Modifier.height(MaterialTheme.spacing.extraSmall))
@@ -103,10 +104,11 @@ fun AnimeDetailsHeader(
 }
 
 @Composable
-private fun NotInterestedBadge() {
+private fun NotInterestedBadge(onRestoreClick: () -> Unit) {
     Surface(
+        onClick = onRestoreClick,
         shape = MaterialTheme.shapes.extraSmall,
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        color = MaterialTheme.colorScheme.primaryContainer,
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -116,14 +118,14 @@ private fun NotInterestedBadge() {
             Icon(
                 imageVector = Icons.Outlined.VisibilityOff,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
                 modifier = Modifier.size(14.dp),
             )
             Text(
-                text = stringResource(R.string.details_badge_not_interested),
+                text = stringResource(R.string.details_restore_from_not_interested),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
             )
         }
     }
@@ -187,46 +189,16 @@ private fun HeaderScores(
         horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Surface(
-            shape = MaterialTheme.shapes.extraSmall,
-            color = MaterialTheme.colorScheme.tertiaryContainer,
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Star,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onTertiaryContainer,
-                    modifier = Modifier.size(14.dp),
-                )
-                Text(
-                    text =
-                        meanScore?.let {
-                            stringResource(R.string.details_score_format, it)
-                        } ?: stringResource(R.string.details_score_empty),
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onTertiaryContainer,
-                )
-            }
-        }
+        PublicScoreBadge(
+            score = meanScore,
+            useTwoDecimals = true,
+        )
 
         if (userScore != null && userScore > 0) {
-            Surface(
-                shape = MaterialTheme.shapes.extraSmall,
-                color = MaterialTheme.colorScheme.primaryContainer,
-            ) {
-                Text(
-                    text = stringResource(R.string.details_score_user, userScore),
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                )
-            }
+            PersonalScoreBadge(
+                score = userScore,
+                withLabel = true,
+            )
         }
     }
 }

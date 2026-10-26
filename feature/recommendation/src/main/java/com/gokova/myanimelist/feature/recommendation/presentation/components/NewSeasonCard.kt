@@ -13,9 +13,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -36,6 +41,8 @@ import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.gokova.myanimelist.core.ui.component.badge.PublicScoreBadge
+import com.gokova.myanimelist.core.ui.component.badge.RelationBadge
 import com.gokova.myanimelist.core.ui.preview.StandardPreviews
 import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
 import com.gokova.myanimelist.core.ui.theme.OnStatusCompletedContainer
@@ -91,32 +98,46 @@ fun NewSeasonCard(
                 onPosterClick = actions.onPosterClick,
             )
 
-            Column(
+            NewSeasonCardContent(
+                anime = anime,
+                onMoreClick = actions.onMoreClick,
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
-            ) {
-                TitleSection(
-                    displayTitle = anime.displayTitle,
-                    subtitleTitle = anime.subtitleTitle,
-                )
-
-                RelationBadge(
-                    relationTypeFormatted = anime.relationTypeFormatted,
-                    parentTitle = anime.parentTitle,
-                )
-
-                StatsRow(
-                    score = anime.score,
-                    totalEpisodes = anime.totalEpisodes,
-                )
-
-                MetadataChips(
-                    mediaType = anime.mediaType,
-                    releaseSeason = anime.releaseSeason,
-                    airingStatus = anime.airingStatus,
-                )
-            }
+            )
         }
+    }
+}
+
+@Composable
+private fun NewSeasonCardContent(
+    anime: NewSeasonAnime,
+    onMoreClick: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
+    ) {
+        TitleSection(
+            displayTitle = anime.displayTitle,
+            subtitleTitle = anime.subtitleTitle,
+            onMoreClick = onMoreClick,
+        )
+
+        RelationBadge(
+            relationType = anime.relationTypeFormatted,
+            parentTitle = anime.parentTitle,
+        )
+
+        StatsRow(
+            score = anime.score,
+            totalEpisodes = anime.totalEpisodes,
+        )
+
+        MetadataChips(
+            mediaType = anime.mediaType,
+            releaseSeason = anime.releaseSeason,
+            airingStatus = anime.airingStatus,
+        )
     }
 }
 
@@ -191,57 +212,46 @@ private fun TitleSection(
     displayTitle: String,
     subtitleTitle: String?,
     modifier: Modifier = Modifier,
+    onMoreClick: (() -> Unit)? = null,
 ) {
-    Column(modifier = modifier) {
-        Text(
-            text = displayTitle,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
-        if (subtitleTitle != null) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Top,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = subtitleTitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
+                text = displayTitle,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
+            if (subtitleTitle != null) {
+                Text(
+                    text = subtitleTitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
-    }
-}
-
-@Composable
-private fun RelationBadge(
-    relationTypeFormatted: String,
-    parentTitle: String,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        modifier = modifier,
-        shape = MaterialTheme.shapes.extraSmall,
-        color = MaterialTheme.colorScheme.tertiaryContainer,
-    ) {
-        Text(
-            text =
-                stringResource(
-                    R.string.new_seasons_relation_format,
-                    relationTypeFormatted,
-                    parentTitle,
-                ),
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onTertiaryContainer,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier =
-                Modifier.padding(
-                    horizontal = MaterialTheme.spacing.small,
-                    vertical = MaterialTheme.spacing.micro,
-                ),
-        )
+        if (onMoreClick != null) {
+            IconButton(
+                onClick = onMoreClick,
+                modifier = Modifier.size(28.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription =
+                        stringResource(R.string.recommendation_action_more_options, displayTitle),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+        }
     }
 }
 
@@ -256,41 +266,8 @@ private fun StatsRow(
         horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ScoreBadge(score = score)
+        PublicScoreBadge(score = score)
         EpisodeBadge(totalEpisodes = totalEpisodes)
-    }
-}
-
-@Composable
-private fun ScoreBadge(
-    score: Double?,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        modifier = modifier,
-        shape = MaterialTheme.shapes.extraSmall,
-        color = MaterialTheme.colorScheme.primaryContainer,
-    ) {
-        Row(
-            modifier =
-                Modifier.padding(
-                    horizontal = MaterialTheme.spacing.small,
-                    vertical = MaterialTheme.spacing.micro,
-                ),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text =
-                    if (score != null && score > 0.0) {
-                        stringResource(R.string.recommendation_score_format, score)
-                    } else {
-                        stringResource(R.string.recommendation_score_unrated)
-                    },
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
-        }
     }
 }
 

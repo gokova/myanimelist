@@ -4,4 +4,5 @@ data class RecommendationCardActions(
     val onCardClick: (() -> Unit)? = null,
     val onCardLongClick: (() -> Unit)? = null,
     val onPosterClick: (() -> Unit)? = null,
+    val onMoreClick: (() -> Unit)? = null,
 )
