@@ -33,6 +33,8 @@ class UserAnimeListStatusRepositoryImpl
             syncCoordinator.withLock {
                 withContext(ioDispatcher) {
                     try {
+                        val missingEntity = fetchMissingAnimeEntity(animeId)
+
                         val statusDto =
                             malApiService.updateMyListStatus(
                                 animeId = animeId,
@@ -42,7 +44,9 @@ class UserAnimeListStatusRepositoryImpl
                                 numWatchedEpisodes = params.numWatchedEpisodes,
                             )
 
-                        ensureAnimeEntityExists(animeId)
+                        if (missingEntity != null) {
+                            userAnimeListDao.upsertAnimes(listOf(missingEntity))
+                        }
 
                         val userAnime =
                             UserAnimeListEntity(
@@ -111,33 +115,25 @@ class UserAnimeListStatusRepositoryImpl
                 }
             }
 
-        private suspend fun ensureAnimeEntityExists(animeId: Long) {
+        private suspend fun fetchMissingAnimeEntity(animeId: Long): AnimeEntity? {
             val existing = userAnimeListDao.getAnimeEntityById(animeId)
-            if (existing == null) {
-                try {
-                    val details = malApiService.getAnimeDetails(animeId)
-                    val entity =
-                        AnimeEntity(
-                            id = details.id,
-                            title = details.title,
-                            titleEnglish = details.alternativeTitles?.en,
-                            mainPictureMedium = details.mainPicture?.medium,
-                            mainPictureLarge = details.mainPicture?.large,
-                            mediaType = details.mediaType,
-                            airingStatus = details.status,
-                            numEpisodes = details.numEpisodes,
-                            startSeasonYear = details.startSeason?.year,
-                            startSeasonSeason = details.startSeason?.season,
-                            meanScore = details.mean,
-                            synopsis = details.synopsis,
-                        )
-                    userAnimeListDao.upsertAnimes(listOf(entity))
-                } catch (
-                    @Suppress("TooGenericExceptionCaught") e: Exception,
-                ) {
-                    AppLog.network.w(e) { "Could not fetch entity for animeId=$animeId" }
-                }
-            }
+            if (existing != null) return null
+
+            val details = malApiService.getAnimeDetails(animeId)
+            return AnimeEntity(
+                id = details.id,
+                title = details.title,
+                titleEnglish = details.alternativeTitles?.en,
+                mainPictureMedium = details.mainPicture?.medium,
+                mainPictureLarge = details.mainPicture?.large,
+                mediaType = details.mediaType,
+                airingStatus = details.status,
+                numEpisodes = details.numEpisodes,
+                startSeasonYear = details.startSeason?.year,
+                startSeasonSeason = details.startSeason?.season,
+                meanScore = details.mean,
+                synopsis = details.synopsis,
+            )
         }
 
         companion object {

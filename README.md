@@ -23,8 +23,11 @@ tracking, visual taste analytics, and recommendations.
 *   **Granular Taste Drill-Down**: Interactive bottom sheet displaying genre/theme statistics, average user rating, and individual anime cards with quick-reference status tags.
 *   **Smart Recommendation Engine (TF-IDF & Quality Scoring)**: Autonomous two-stage `WorkManager` pipeline (`FetchCandidatesWorker` + `EvaluateRecommendationsWorker`) evaluating seasonal and all-time anime against the user's personal taste profile using TF-IDF genre/theme weighting and global quality multiplier to produce ranked recommendations with match percentages.
 *   **New Seasons Discovery**: Automatically discovers upcoming, ongoing, and recently aired sequels, prequels, and side stories for anime in the user's list. Features polite request pacing, rich metadata enrichment, contextual relation badges (*"Sequel to..."*), and multiple sort orders (Release Date, Score, Title).
-*   **Anime Details**: Rich detail views featuring episode counts, synopsis, seasonal air dates, genres, and production metadata.
-*   **Profile & Session Controls**: Cached user profile details and anime statistics with background refresh feedback, plus an explicit logout confirmation flow.
+*   **Anime Details**: Rich detail views featuring episode counts, synopsis, seasonal air dates, genres, production metadata, and direct list status management.
+*   **Online Anime Search**: Real-time anime search against the MAL catalog with debounced validation, IME action execution, personalized taste match calculation, and infinite scroll pagination.
+*   **Edit List Status & Progress**: Inline +1 episode increment on watching cards, comprehensive edit bottom sheet (status, episode stepper with direct numerical entry, 1–10 rating with official MAL labels, rewatching toggle, and list removal), and contextual completion prompts.
+*   **Not Interested / Ignore Filtering**: Long-press bottom sheet on Recommendations and New Seasons to hide unwanted titles with instant undo, top-app-bar details toggle, continuation traversal preservation, and Storage Access Framework (SAF) CSV export and import backup.
+*   **Profile & Session Controls**: Cached user profile details and anime statistics with background refresh feedback, ignored anime count with CSV backup/restore, plus an explicit logout confirmation flow.
 
 ---
 
@@ -60,8 +63,9 @@ The project enforces a **Feature-based Multi-Module** architecture to establish 
     ├── mylist/                 # Anime catalog, status filtering, and local caching
     ├── taste/                  # Packed bubble chart analytics and bottom sheet drill-down
     ├── recommendation/         # Background recommendation engine and suggestions UI
-    ├── details/                # Detailed anime views and metadata presentation
-    └── profile/                # User profile, anime statistics, refresh, and logout UI
+    ├── details/                # Detailed anime views, list status editing, and metadata presentation
+    ├── search/                 # Online catalog search, taste match scoring, and pagination
+    └── profile/                # User profile, statistics, ignored anime CSV backup/restore, and logout UI
 ```
 
 ---
@@ -152,3 +156,6 @@ All architectural decisions, design tokens, and feature specifications are maint
     *   [05: New Seasons of User's Anime](docs/05_new_seasons_feature.md)
     *   [06: Anime Details Page & List Integration](docs/06_anime_details_feature.md)
     *   [07: User Profile & Avatar Integration](docs/07_user_profile_screen.md)
+    *   [08: Anime Search](docs/08_anime_search.md)
+    *   [09: Edit My List Status & Progress](docs/09_edit_my_list.md)
+    *   [10: Not Interested / Ignore Feature](docs/10_not_interested_feature.md)

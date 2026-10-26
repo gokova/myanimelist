@@ -987,6 +987,12 @@ class FetchNewSeasonsWorkerTest {
             }
         }
 
+        override suspend fun upsertIgnoredAnimes(entities: List<IgnoredAnimeEntity>) {
+            entities.forEach { upsertIgnoredAnime(it) }
+        }
+
+        override fun observeIgnoredAnimeCount(): Flow<Int> = emptyFlow()
+
         override suspend fun deleteIgnoredAnime(animeId: Long): Int =
             if (ignoredAnimeIds.remove(animeId)) 1 else 0
 

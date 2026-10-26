@@ -9,6 +9,7 @@ sealed interface ProfileUiState {
 
     data class Content(
         val userProfile: UserProfile,
+        val ignoredAnimeCount: Int = 0,
         val isRefreshing: Boolean = false,
         val showLogoutDialog: Boolean = false,
     ) : ProfileUiState

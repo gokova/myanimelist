@@ -11,9 +11,12 @@ import androidx.work.OneTimeWorkRequest
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequest
 import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.WorkRequest
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -29,6 +32,8 @@ interface RecommendationScheduler {
         isManual: Boolean,
         replaceExisting: Boolean,
     )
+
+    fun observeFetchWorkInfo(): Flow<List<WorkInfo>> = flowOf(emptyList())
 
     companion object {
         const val KEY_IS_MANUAL = "is_manual"
@@ -80,6 +85,9 @@ class RecommendationSchedulerImpl
         @ApplicationContext private val context: Context,
     ) : RecommendationScheduler {
         private val workManager by lazy { WorkManager.getInstance(context) }
+
+        override fun observeFetchWorkInfo(): Flow<List<WorkInfo>> =
+            workManager.getWorkInfosForUniqueWorkFlow(RecommendationScheduler.FETCH_WORK_NAME)
 
         override fun schedulePeriodicWork() {
             workManager.enqueueUniquePeriodicWork(

@@ -1,5 +1,7 @@
 package com.gokova.myanimelist.feature.search.presentation
 
+import androidx.annotation.StringRes
+import com.gokova.myanimelist.feature.search.R
 import com.gokova.myanimelist.feature.search.domain.model.SearchAnimeItem
 
 sealed interface SearchUiState {
@@ -18,7 +20,7 @@ sealed interface SearchUiState {
         val animes: List<SearchAnimeItem>,
         val hasMore: Boolean,
         val isLoadingMore: Boolean = false,
-        val loadMoreError: String? = null,
+        @StringRes val loadMoreErrorRes: Int? = null,
     ) : SearchUiState
 
     data class Empty(
@@ -27,6 +29,7 @@ sealed interface SearchUiState {
 
     data class Error(
         override val query: String,
-        val message: String,
+        val message: String? = null,
+        @StringRes val messageRes: Int = R.string.search_error_message,
     ) : SearchUiState
 }

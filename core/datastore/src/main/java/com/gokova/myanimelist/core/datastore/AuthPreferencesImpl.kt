@@ -31,8 +31,16 @@ class AuthPreferencesImpl
         @ApplicationContext private val context: Context,
         @SessionDataStore private val dataStore: DataStore<Preferences>,
     ) : AuthPreferences {
-        private val cachedAccessToken = AtomicReference<String?>(null)
-        private val cachedRefreshToken = AtomicReference<String?>(null)
+        private sealed interface CachedToken {
+            data object Uninitialized : CachedToken
+
+            data class Value(
+                val token: String?,
+            ) : CachedToken
+        }
+
+        private val cachedAccessToken = AtomicReference<CachedToken>(CachedToken.Uninitialized)
+        private val cachedRefreshToken = AtomicReference<CachedToken>(CachedToken.Uninitialized)
 
         init {
             try {
@@ -72,12 +80,12 @@ class AuthPreferencesImpl
 
         override val accessToken: Flow<String?> =
             getDecryptedFlow(KEY_ACCESS_TOKEN).onEach {
-                cachedAccessToken.set(it)
+                cachedAccessToken.set(CachedToken.Value(it))
             }
 
         override val refreshToken: Flow<String?> =
             getDecryptedFlow(KEY_REFRESH_TOKEN).onEach {
-                cachedRefreshToken.set(it)
+                cachedRefreshToken.set(CachedToken.Value(it))
             }
 
         override val isLoggedIn: Flow<Boolean> = accessToken.map { it != null }
@@ -113,8 +121,8 @@ class AuthPreferencesImpl
                 prefs.remove(KEY_OAUTH_STATE)
             }
             // Update in-memory cache only AFTER DataStore write successfully completes
-            cachedAccessToken.set(accessToken)
-            cachedRefreshToken.set(refreshToken)
+            cachedAccessToken.set(CachedToken.Value(accessToken))
+            cachedRefreshToken.set(CachedToken.Value(refreshToken))
         }
 
         override suspend fun clearTokens() {
@@ -122,8 +130,8 @@ class AuthPreferencesImpl
                 prefs.clear()
             }
             // Clear in-memory cache only AFTER DataStore removal successfully completes
-            cachedAccessToken.set(null)
-            cachedRefreshToken.set(null)
+            cachedAccessToken.set(CachedToken.Value(null))
+            cachedRefreshToken.set(CachedToken.Value(null))
         }
 
         override suspend fun saveOAuthSession(
@@ -147,9 +155,9 @@ class AuthPreferencesImpl
 
         override suspend fun warmCache() {
             val token = accessToken.first()
-            cachedAccessToken.set(token)
+            cachedAccessToken.set(CachedToken.Value(token))
             val refresh = refreshToken.first()
-            cachedRefreshToken.set(refresh)
+            cachedRefreshToken.set(CachedToken.Value(refresh))
         }
 
         /**
@@ -160,26 +168,30 @@ class AuthPreferencesImpl
          * Falls back to a synchronous read only if the cache is cold on initial app boot before [warmCache] finishes.
          * Note: Must only be called from background dispatcher threads (e.g. OkHttp interceptor/authenticator).
          */
-        override fun getAccessTokenSync(): String? {
-            cachedAccessToken.get()?.let { return it }
-            return runBlocking {
-                accessToken.first()?.also {
-                    cachedAccessToken.set(it)
-                }
+        override fun getAccessTokenSync(): String? =
+            when (val cached = cachedAccessToken.get()) {
+                is CachedToken.Value -> cached.token
+                CachedToken.Uninitialized ->
+                    runBlocking {
+                        val token = accessToken.first()
+                        cachedAccessToken.set(CachedToken.Value(token))
+                        token
+                    }
             }
-        }
 
         /**
          * Returns the refresh token synchronously with the same in-memory cache strategy as [getAccessTokenSync].
          */
-        override fun getRefreshTokenSync(): String? {
-            cachedRefreshToken.get()?.let { return it }
-            return runBlocking {
-                refreshToken.first()?.also {
-                    cachedRefreshToken.set(it)
-                }
+        override fun getRefreshTokenSync(): String? =
+            when (val cached = cachedRefreshToken.get()) {
+                is CachedToken.Value -> cached.token
+                CachedToken.Uninitialized ->
+                    runBlocking {
+                        val token = refreshToken.first()
+                        cachedRefreshToken.set(CachedToken.Value(token))
+                        token
+                    }
             }
-        }
 
         companion object {
             internal val KEY_ACCESS_TOKEN = stringPreferencesKey("access_token")

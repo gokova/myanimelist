@@ -85,13 +85,15 @@ class RecommendationViewModel
             when (engineState) {
                 RecommendationEngineState.EmptyInsufficientData ->
                     RecommendationUiState.EmptyInsufficientData(type)
+                RecommendationEngineState.EmptyAllCaughtUp ->
+                    RecommendationUiState.EmptyAllCaughtUp(type)
                 RecommendationEngineState.Calculating ->
                     RecommendationUiState.Calculating(type)
                 is RecommendationEngineState.Error ->
                     RecommendationUiState.Error(type, engineState.message)
                 is RecommendationEngineState.Ready -> {
                     if (recommendations.isEmpty()) {
-                        RecommendationUiState.Calculating(type)
+                        RecommendationUiState.EmptyAllCaughtUp(type)
                     } else {
                         RecommendationUiState.Success(
                             selectedType = type,

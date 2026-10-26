@@ -104,6 +104,31 @@ class RecommendationViewModelTest {
 
         override fun observeAllIgnoredAnime(): Flow<List<IgnoredAnime>> =
             MutableStateFlow(emptyList())
+
+        override suspend fun getAllIgnoredAnime(): List<IgnoredAnime> = emptyList()
+
+        override fun observeIgnoredAnimeCount(): Flow<Int> = MutableStateFlow(ignoredIds.size)
+
+        override suspend fun upsertIgnoredAnimeList(
+            items: List<IgnoredAnime>,
+        ): com.gokova.myanimelist.core.domain.model.ImportIgnoredAnimeResult {
+            val distinct = items.distinctBy { it.animeId }
+            var newCount = 0
+            var updatedCount = 0
+            distinct.forEach {
+                if (it.animeId in ignoredIds) {
+                    updatedCount++
+                } else {
+                    newCount++
+                    ignoredIds.add(it.animeId)
+                }
+            }
+            return com.gokova.myanimelist.core.domain.model.ImportIgnoredAnimeResult.Success(
+                totalCount = distinct.size,
+                newCount = newCount,
+                updatedCount = updatedCount,
+            )
+        }
     }
 
     private class FakeNewSeasonRepository : NewSeasonRepository {
@@ -417,6 +442,47 @@ class RecommendationViewModelTest {
             testScheduler.advanceUntilIdle()
 
             assertEquals(RecommendationUiState.EmptyAllCaughtUp(), viewModel.uiState.value)
+
+            collectJob.cancel()
+        }
+
+    @Test
+    fun `emits EmptyAllCaughtUp when recommendation engine state is EmptyAllCaughtUp`() =
+        runTest {
+            fakeRepository.stateFlow.value = RecommendationEngineState.EmptyAllCaughtUp
+
+            val viewModel = createViewModel()
+            val collectJob =
+                launch(UnconfinedTestDispatcher(testScheduler)) {
+                    viewModel.uiState.collect()
+                }
+
+            testScheduler.advanceUntilIdle()
+            assertEquals(
+                RecommendationUiState.EmptyAllCaughtUp(RecommendationType.GENRE),
+                viewModel.uiState.value,
+            )
+
+            collectJob.cancel()
+        }
+
+    @Test
+    fun `emits EmptyAllCaughtUp when recommendation engine state is Ready but list is empty`() =
+        runTest {
+            fakeRepository.stateFlow.value = RecommendationEngineState.Ready(1)
+            fakeRepository.genreFlow.value = emptyList()
+
+            val viewModel = createViewModel()
+            val collectJob =
+                launch(UnconfinedTestDispatcher(testScheduler)) {
+                    viewModel.uiState.collect()
+                }
+
+            testScheduler.advanceUntilIdle()
+            assertEquals(
+                RecommendationUiState.EmptyAllCaughtUp(RecommendationType.GENRE),
+                viewModel.uiState.value,
+            )
 
             collectJob.cancel()
         }

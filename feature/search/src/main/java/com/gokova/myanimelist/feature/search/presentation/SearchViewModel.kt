@@ -47,7 +47,7 @@ class SearchViewModel
                         current.copy(
                             query = newQuery,
                             isLoadingMore = false,
-                            loadMoreError = null,
+                            loadMoreErrorRes = null,
                         )
                     is SearchUiState.Empty -> SearchUiState.Initial(query = newQuery)
                     is SearchUiState.Error -> SearchUiState.Initial(query = newQuery)
@@ -90,7 +90,7 @@ class SearchViewModel
                             _uiState.value =
                                 SearchUiState.Error(
                                     query = currentQuery,
-                                    message = throwable.localizedMessage ?: "Unknown error",
+                                    message = throwable.localizedMessage,
                                 )
                         }
                 }
@@ -105,15 +105,15 @@ class SearchViewModel
 
             val requestQuery = current.query
             paginationJob?.cancel()
-            _uiState.value = current.copy(isLoadingMore = true, loadMoreError = null)
+            _uiState.value = current.copy(isLoadingMore = true, loadMoreErrorRes = null)
 
             paginationJob =
                 viewModelScope.launch {
                     loadMoreSearchResultsUseCase(url)
                         .onSuccess { page ->
                             handleLoadMoreSuccess(page, requestQuery)
-                        }.onFailure { throwable ->
-                            handleLoadMoreFailure(throwable, requestQuery)
+                        }.onFailure {
+                            handleLoadMoreFailure(requestQuery)
                         }
                 }
         }
@@ -134,22 +134,18 @@ class SearchViewModel
                     animes = latest.animes + uniqueNewItems,
                     hasMore = !page.nextUrl.isNullOrBlank(),
                     isLoadingMore = false,
-                    loadMoreError = null,
+                    loadMoreErrorRes = null,
                 )
         }
 
-        private suspend fun handleLoadMoreFailure(
-            throwable: Throwable,
-            requestQuery: String,
-        ) {
+        private suspend fun handleLoadMoreFailure(requestQuery: String) {
             val latest = _uiState.value as? SearchUiState.Content ?: return
             if (latest.query != requestQuery) return
 
-            val errorMessage = throwable.localizedMessage ?: "Failed to load more"
             _uiState.value =
                 latest.copy(
                     isLoadingMore = false,
-                    loadMoreError = errorMessage,
+                    loadMoreErrorRes = R.string.search_load_more_error,
                 )
             eventChannel.send(SearchUiEvent.ShowSnackbar(R.string.search_load_more_error))
         }

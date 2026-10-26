@@ -1,6 +1,7 @@
 package com.gokova.myanimelist.feature.details.fakes
 
 import com.gokova.myanimelist.core.domain.model.IgnoredAnime
+import com.gokova.myanimelist.core.domain.model.ImportIgnoredAnimeResult
 import com.gokova.myanimelist.core.domain.repository.IgnoredAnimeRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,4 +43,27 @@ class FakeIgnoredAnimeRepository : IgnoredAnimeRepository {
 
     override fun observeAllIgnoredAnime(): Flow<List<IgnoredAnime>> =
         ignoredMap.map { it.values.toList() }
+
+    override suspend fun getAllIgnoredAnime(): List<IgnoredAnime> = ignoredMap.value.values.toList()
+
+    override fun observeIgnoredAnimeCount(): Flow<Int> = ignoredMap.map { it.size }
+
+    override suspend fun upsertIgnoredAnimeList(
+        items: List<IgnoredAnime>,
+    ): ImportIgnoredAnimeResult {
+        if (items.isEmpty()) {
+            return ImportIgnoredAnimeResult.Failure.EmptyFile
+        }
+        val distinct = items.distinctBy { it.animeId }
+        val currentIds = ignoredMap.value.keys
+        val newCount = distinct.count { it.animeId !in currentIds }
+        val updatedCount = distinct.count { it.animeId in currentIds }
+
+        ignoredMap.value += distinct.associateBy { it.animeId }
+        return ImportIgnoredAnimeResult.Success(
+            totalCount = distinct.size,
+            newCount = newCount,
+            updatedCount = updatedCount,
+        )
+    }
 }

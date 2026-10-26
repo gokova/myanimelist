@@ -3,6 +3,8 @@ package com.gokova.myanimelist.feature.recommendation.domain.model
 sealed interface RecommendationEngineState {
     data object EmptyInsufficientData : RecommendationEngineState
 
+    data object EmptyAllCaughtUp : RecommendationEngineState
+
     data object Calculating : RecommendationEngineState
 
     data class Ready(

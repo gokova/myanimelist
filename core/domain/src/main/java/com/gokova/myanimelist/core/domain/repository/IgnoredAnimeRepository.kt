@@ -1,6 +1,7 @@
 package com.gokova.myanimelist.core.domain.repository
 
 import com.gokova.myanimelist.core.domain.model.IgnoredAnime
+import com.gokova.myanimelist.core.domain.model.ImportIgnoredAnimeResult
 import kotlinx.coroutines.flow.Flow
 
 interface IgnoredAnimeRepository {
@@ -22,4 +23,10 @@ interface IgnoredAnimeRepository {
     suspend fun removeAnimeFromNotInterested(animeId: Long)
 
     fun observeAllIgnoredAnime(): Flow<List<IgnoredAnime>>
+
+    suspend fun getAllIgnoredAnime(): List<IgnoredAnime>
+
+    fun observeIgnoredAnimeCount(): Flow<Int>
+
+    suspend fun upsertIgnoredAnimeList(items: List<IgnoredAnime>): ImportIgnoredAnimeResult
 }
