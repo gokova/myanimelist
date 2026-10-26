@@ -120,13 +120,13 @@ private fun MetricMetadataBadges(details: AnimeDetails) {
     details.numListUsers?.let {
         MetadataBadge(
             label = stringResource(R.string.details_info_members),
-            value = NumberFormat.getNumberInstance(Locale.US).format(it),
+            value = NumberFormat.getIntegerInstance().format(it),
         )
     }
     details.numScoringUsers?.let {
         MetadataBadge(
             label = stringResource(R.string.details_info_scoring_users),
-            value = NumberFormat.getNumberInstance(Locale.US).format(it),
+            value = NumberFormat.getIntegerInstance().format(it),
         )
     }
 }

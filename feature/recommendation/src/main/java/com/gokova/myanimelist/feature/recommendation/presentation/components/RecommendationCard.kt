@@ -16,10 +16,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -39,11 +41,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.gokova.myanimelist.core.ui.component.badge.PublicScoreBadge
+import com.gokova.myanimelist.core.ui.component.badge.TasteMatchBadge
+import com.gokova.myanimelist.core.ui.component.badge.TaxonomyChip
 import com.gokova.myanimelist.core.ui.theme.componentSizes
 import com.gokova.myanimelist.core.ui.theme.spacing
 import com.gokova.myanimelist.feature.recommendation.R
 import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationType
 import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendedAnime
+import java.util.Locale
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -98,6 +104,7 @@ fun RecommendationCard(
                 TitleSection(
                     displayTitle = anime.displayTitle(),
                     originalTitle = anime.title.takeIf { it != anime.displayTitle() },
+                    onMoreClick = actions.onMoreClick,
                 )
 
                 BadgesRow(
@@ -186,24 +193,45 @@ private fun TitleSection(
     displayTitle: String,
     originalTitle: String?,
     modifier: Modifier = Modifier,
+    onMoreClick: (() -> Unit)? = null,
 ) {
-    Column(modifier = modifier) {
-        Text(
-            text = displayTitle,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        if (originalTitle != null) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Top,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = originalTitle,
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = 1,
+                text = displayTitle,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurface,
             )
+            if (originalTitle != null) {
+                Text(
+                    text = originalTitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        if (onMoreClick != null) {
+            IconButton(
+                onClick = onMoreClick,
+                modifier = Modifier.size(28.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription =
+                        stringResource(R.string.recommendation_action_more_options, displayTitle),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
         }
     }
 }
@@ -215,10 +243,10 @@ private fun BadgesRow(
     meanScore: Double?,
     modifier: Modifier = Modifier,
 ) {
-    FlowRow(
+    Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Surface(
             shape = MaterialTheme.shapes.extraSmall,
@@ -235,55 +263,8 @@ private fun BadgesRow(
             )
         }
 
-        Surface(
-            shape = MaterialTheme.shapes.extraSmall,
-            color = MaterialTheme.colorScheme.tertiaryContainer,
-        ) {
-            Text(
-                text = stringResource(R.string.recommendation_match_format, matchPercent),
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onTertiaryContainer,
-                maxLines = 1,
-                softWrap = false,
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-            )
-        }
-
-        ScoreBadge(meanScore = meanScore)
-    }
-}
-
-@Composable
-private fun ScoreBadge(
-    meanScore: Double?,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        shape = MaterialTheme.shapes.extraSmall,
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        modifier = modifier,
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            val scoreText =
-                if (meanScore != null && meanScore > 0.0) {
-                    stringResource(R.string.recommendation_score_format, meanScore)
-                } else {
-                    stringResource(R.string.recommendation_score_unrated)
-                }
-            Text(
-                text = scoreText,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                softWrap = false,
-            )
-        }
+        TasteMatchBadge(matchPercent = matchPercent)
+        PublicScoreBadge(score = meanScore)
     }
 }
 
@@ -294,13 +275,20 @@ private fun MetadataRow(
 ) {
     val items = mutableListOf<String>()
     if (!anime.mediaType.isNullOrBlank()) {
-        items.add(anime.mediaType.replaceFirstChar { it.uppercase() })
+        val type =
+            when (anime.mediaType.uppercase(Locale.US)) {
+                "TV" -> "TV"
+                "OVA" -> "OVA"
+                "ONA" -> "ONA"
+                else -> anime.mediaType.replaceFirstChar { it.uppercase(Locale.US) }
+            }
+        items.add(type)
     }
     if (anime.numEpisodes != null && anime.numEpisodes > 0) {
         items.add(stringResource(R.string.recommendation_episodes_format, anime.numEpisodes))
     }
     if (anime.startSeasonYear != null && !anime.startSeasonSeason.isNullOrBlank()) {
-        val season = anime.startSeasonSeason.replaceFirstChar { it.uppercase() }
+        val season = anime.startSeasonSeason.replaceFirstChar { it.uppercase(Locale.US) }
         items.add("$season ${anime.startSeasonYear}")
     }
 
@@ -328,25 +316,10 @@ private fun GenresRow(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
+        maxLines = 1,
     ) {
         genres.take(MAX_DISPLAYED_GENRES).forEach { genre ->
-            Surface(
-                shape = MaterialTheme.shapes.extraSmall,
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
-            ) {
-                Text(
-                    text = genre,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    softWrap = false,
-                    modifier =
-                        Modifier.padding(
-                            horizontal = 8.dp,
-                            vertical = 3.dp,
-                        ),
-                )
-            }
+            TaxonomyChip(text = genre)
         }
     }
 }

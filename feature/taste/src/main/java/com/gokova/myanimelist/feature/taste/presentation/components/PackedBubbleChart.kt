@@ -45,6 +45,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.gokova.myanimelist.core.ui.theme.BubbleColorScheme
@@ -57,7 +58,7 @@ import kotlin.math.sqrt
 private const val MIN_SCALE = 0.6f
 private const val MAX_SCALE = 3.5f
 private const val DEFAULT_SCALE = 1f
-private const val MIN_INITIAL_FIT_SCALE = 0.45f
+private const val MIN_INITIAL_FIT_SCALE = 0.5f
 
 internal data class ChartViewport(
     val center: Offset,
@@ -275,7 +276,7 @@ private fun DrawScope.renderBubble(
         )
     }
 
-    if (screenRadius >= 20.dp.toPx()) {
+    if (screenRadius >= 13.dp.toPx()) {
         drawBubbleLabels(bubble, screenCenter, screenRadius, colors, context.textMeasurer)
     }
 }
@@ -290,6 +291,29 @@ private fun isBubbleOffscreen(
     return isHorizontallyOff || isVerticallyOff
 }
 
+private data class BubbleFontSizes(
+    val title: TextUnit,
+    val count: TextUnit,
+)
+
+private fun DrawScope.calculateBubbleFontSizes(radius: Float): BubbleFontSizes {
+    val titleFontSize =
+        when {
+            radius >= 55.dp.toPx() -> 14.sp
+            radius >= 35.dp.toPx() -> 12.sp
+            radius >= 22.dp.toPx() -> 10.sp
+            radius >= 16.dp.toPx() -> 9.sp
+            else -> 8.sp
+        }
+    val countFontSize =
+        when {
+            radius >= 55.dp.toPx() -> 11.sp
+            radius >= 22.dp.toPx() -> 9.sp
+            else -> 7.sp
+        }
+    return BubbleFontSizes(title = titleFontSize, count = countFontSize)
+}
+
 private fun DrawScope.drawBubbleLabels(
     bubble: TasteBubble,
     center: Offset,
@@ -298,21 +322,16 @@ private fun DrawScope.drawBubbleLabels(
     textMeasurer: TextMeasurer,
 ) {
     val maxTextWidth = (radius * 1.8f).toInt().coerceAtLeast(1)
-    val titleMaxLines = if (bubble.name.any(Char::isWhitespace)) 2 else 1
-    val titleFontSize =
-        when {
-            radius >= 55.dp.toPx() -> 14.sp
-            radius >= 35.dp.toPx() -> 12.sp
-            else -> 10.sp
-        }
-    val countFontSize = if (radius >= 55.dp.toPx()) 11.sp else 9.sp
+    val isVerySmall = radius < 18.dp.toPx()
+    val titleMaxLines = if (!isVerySmall && bubble.name.any(Char::isWhitespace)) 2 else 1
+    val fontSizes = calculateBubbleFontSizes(radius)
 
     val titleResult =
         textMeasurer.measure(
             text = bubble.name,
             style =
                 TextStyle(
-                    fontSize = titleFontSize,
+                    fontSize = fontSizes.title,
                     fontWeight = FontWeight.SemiBold,
                     color = colors.onContainer,
                 ),
@@ -322,33 +341,39 @@ private fun DrawScope.drawBubbleLabels(
         )
 
     val countResult =
-        textMeasurer.measure(
-            text = "(${bubble.count})",
-            style =
-                TextStyle(
-                    fontSize = countFontSize,
-                    fontWeight = FontWeight.Medium,
-                    color = colors.onContainer.copy(alpha = 0.85f),
-                ),
-            maxLines = 1,
-            constraints = Constraints(maxWidth = maxTextWidth),
-        )
+        if (!isVerySmall) {
+            textMeasurer.measure(
+                text = "(${bubble.count})",
+                style =
+                    TextStyle(
+                        fontSize = fontSizes.count,
+                        fontWeight = FontWeight.Medium,
+                        color = colors.onContainer.copy(alpha = 0.85f),
+                    ),
+                maxLines = 1,
+                constraints = Constraints(maxWidth = maxTextWidth),
+            )
+        } else {
+            null
+        }
 
-    val totalHeight = titleResult.size.height + countResult.size.height + 2
+    val totalHeight = titleResult.size.height + (countResult?.let { it.size.height + 2 } ?: 0)
     val startY = center.y - totalHeight / 2f
 
     drawText(
         textLayoutResult = titleResult,
         topLeft = Offset(center.x - titleResult.size.width / 2f, startY),
     )
-    drawText(
-        textLayoutResult = countResult,
-        topLeft =
-            Offset(
-                center.x - countResult.size.width / 2f,
-                startY + titleResult.size.height + 2,
-            ),
-    )
+    if (countResult != null) {
+        drawText(
+            textLayoutResult = countResult,
+            topLeft =
+                Offset(
+                    center.x - countResult.size.width / 2f,
+                    startY + titleResult.size.height + 2,
+                ),
+        )
+    }
 }
 
 private fun calculateFitScale(
@@ -364,8 +389,10 @@ private fun calculateFitScale(
     val maxY = bubbles.maxOf { it.y + it.radius }
     val contentWidthPx = with(density) { (maxX - minX).dp.toPx() }
     val contentHeightPx = with(density) { (maxY - minY).dp.toPx() }
-    val horizontalPaddingPx = with(density) { 24.dp.toPx() }
-    val verticalPaddingPx = with(density) { 24.dp.toPx() }
+    val isWideAspect =
+        constraints.maxWidth.toFloat() / constraints.maxHeight.coerceAtLeast(1) >= 1.5f
+    val horizontalPaddingPx = with(density) { if (isWideAspect) 16.dp.toPx() else 24.dp.toPx() }
+    val verticalPaddingPx = with(density) { if (isWideAspect) 12.dp.toPx() else 24.dp.toPx() }
     val availableWidthPx = (constraints.maxWidth - horizontalPaddingPx * 2).coerceAtLeast(1f)
     val availableHeightPx = (constraints.maxHeight - verticalPaddingPx * 2).coerceAtLeast(1f)
 

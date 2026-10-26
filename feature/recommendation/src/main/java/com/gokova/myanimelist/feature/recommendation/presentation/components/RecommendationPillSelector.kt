@@ -11,19 +11,30 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import com.gokova.myanimelist.core.ui.theme.componentSizes
 import com.gokova.myanimelist.feature.recommendation.R
 import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationType
+
+private val COMPACT_SELECTOR_HEIGHT = 36.dp
 
 @Composable
 fun RecommendationPillSelector(
     selectedType: RecommendationType,
     onTypeSelected: (RecommendationType) -> Unit,
     modifier: Modifier = Modifier,
+    compact: Boolean = false,
 ) {
     val types = RecommendationType.entries
+    val selectorHeight =
+        if (compact) {
+            COMPACT_SELECTOR_HEIGHT
+        } else {
+            MaterialTheme.componentSizes.segmentedSelectorHeight
+        }
     SingleChoiceSegmentedButtonRow(
-        modifier = modifier.height(MaterialTheme.componentSizes.segmentedSelectorHeight),
+        modifier = modifier.height(selectorHeight),
     ) {
         types.forEachIndexed { index, type ->
             val labelRes =
@@ -47,10 +58,17 @@ fun RecommendationPillSelector(
                         inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     ),
                 label = {
+                    val labelStyle =
+                        if (compact) {
+                            MaterialTheme.typography.labelMedium
+                        } else {
+                            MaterialTheme.typography.labelLarge
+                        }
                     Text(
                         text = stringResource(labelRes),
-                        style = MaterialTheme.typography.labelLarge,
-                        maxLines = 2,
+                        style = labelStyle,
+                        maxLines = if (compact) 1 else 2,
+                        overflow = TextOverflow.Ellipsis,
                         textAlign = TextAlign.Center,
                     )
                 },

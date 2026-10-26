@@ -310,7 +310,7 @@ private fun MyListBody(
     }
 }
 
-private val GRID_CELL_MIN_SIZE = 240.dp
+private val GRID_CELL_MIN_SIZE = 300.dp
 
 @Composable
 private fun MyListGrid(

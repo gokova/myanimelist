@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentHeight
@@ -20,9 +21,9 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalInspectionMode
-import androidx.compose.ui.unit.dp
 import com.gokova.myanimelist.core.ui.preview.StandardPreviews
 import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
+import com.gokova.myanimelist.core.ui.theme.spacing
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,7 +53,8 @@ fun EditAnimeStatusBottomSheet(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .navigationBarsPadding(),
+                        .navigationBarsPadding()
+                        .imePadding(),
             )
         }
     }
@@ -92,50 +94,29 @@ fun EditAnimeStatusSheetContent(
 ) {
     val enabled = !state.isMutating
     Column(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .verticalScroll(rememberScrollState()),
+        modifier = modifier.fillMaxWidth(),
     ) {
-        EditAnimeStatusHeader(
-            title = state.title,
-            isSaving = state.isSaving,
-            onCloseClick = actions.onDismiss,
-            onSaveClick = actions.onSave,
-            isMutating = state.isMutating,
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        StatusSelectorSection(
-            currentStatus = state.status,
-            onStatusSelected = actions.onStatusChange,
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = MaterialTheme.spacing.sheetHorizontal),
+        ) {
+            EditAnimeStatusHeader(
+                title = state.title,
+                isSaving = state.isSaving,
+                onCloseClick = actions.onDismiss,
+                onSaveClick = actions.onSave,
+                isMutating = state.isMutating,
+            )
+        }
+        Spacer(modifier = Modifier.height(MaterialTheme.spacing.medium))
+        EditAnimeStatusFormBody(
+            state = state,
+            actions = actions,
             enabled = enabled,
+            modifier = Modifier.weight(1f, fill = false),
         )
-        Spacer(modifier = Modifier.height(16.dp))
-        EpisodeStepperSection(
-            episodesWatched = state.episodesWatched,
-            totalEpisodes = state.totalEpisodes,
-            onEpisodesChange = actions.onEpisodesChange,
-            enabled = enabled,
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        EditAnimeScoreSelector(
-            score = state.score,
-            onScoreChange = actions.onScoreChange,
-            enabled = enabled,
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        RewatchingToggleSection(
-            isRewatching = state.isRewatching,
-            onRewatchingChange = actions.onRewatchingChange,
-            enabled = enabled,
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        RemoveFromListButton(
-            onClick = actions.onRequestDelete,
-            enabled = enabled,
-        )
-        Spacer(modifier = Modifier.height(16.dp))
     }
 
     if (state.showDeleteConfirmation) {
@@ -144,6 +125,53 @@ fun EditAnimeStatusSheetContent(
             onConfirm = actions.onConfirmDelete,
             onDismiss = actions.onDismissDeleteConfirmation,
         )
+    }
+}
+
+@Composable
+private fun EditAnimeStatusFormBody(
+    state: EditAnimeStatusSheetState,
+    actions: EditAnimeStatusSheetActions,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(horizontal = MaterialTheme.spacing.sheetHorizontal)
+                .verticalScroll(rememberScrollState()),
+    ) {
+        StatusSelectorSection(
+            currentStatus = state.status,
+            onStatusSelected = actions.onStatusChange,
+            enabled = enabled,
+        )
+        Spacer(modifier = Modifier.height(MaterialTheme.spacing.medium))
+        EpisodeStepperSection(
+            episodesWatched = state.episodesWatched,
+            totalEpisodes = state.totalEpisodes,
+            onEpisodesChange = actions.onEpisodesChange,
+            enabled = enabled,
+        )
+        Spacer(modifier = Modifier.height(MaterialTheme.spacing.medium))
+        EditAnimeScoreSelector(
+            score = state.score,
+            onScoreChange = actions.onScoreChange,
+            enabled = enabled,
+        )
+        Spacer(modifier = Modifier.height(MaterialTheme.spacing.small))
+        RewatchingToggleSection(
+            isRewatching = state.isRewatching,
+            onRewatchingChange = actions.onRewatchingChange,
+            enabled = enabled,
+        )
+        Spacer(modifier = Modifier.height(MaterialTheme.spacing.small))
+        RemoveFromListButton(
+            onClick = actions.onRequestDelete,
+            enabled = enabled,
+        )
+        Spacer(modifier = Modifier.height(MaterialTheme.spacing.medium))
     }
 }
 

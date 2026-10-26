@@ -3,9 +3,11 @@ package com.gokova.myanimelist
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -16,7 +18,9 @@ import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.NavigationRailItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -153,8 +157,16 @@ fun MainContent(
                         onAvatarClick = topBarActions.onAvatarClick,
                         onSearchClick = topBarActions.onSearchClick,
                         avatarUrl = topBarActions.avatarUrl,
+                        windowInsets =
+                            TopAppBarDefaults.windowInsets.only(
+                                WindowInsetsSides.Top + WindowInsetsSides.End,
+                            ),
                     )
                 },
+                contentWindowInsets =
+                    ScaffoldDefaults.contentWindowInsets.only(
+                        WindowInsetsSides.Top + WindowInsetsSides.End + WindowInsetsSides.Bottom,
+                    ),
                 modifier = Modifier.weight(1f).fillMaxHeight(),
             ) { paddingValues ->
                 Box(modifier = Modifier.padding(paddingValues)) {

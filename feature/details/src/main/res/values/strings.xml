@@ -5,7 +5,7 @@
     <string name="details_poster_content_description">Poster for %1$s</string>
 
     <string name="details_add_to_list">Add to List</string>
-    <string name="details_adding_to_list">Adding…</string>
+    <string name="details_adding_to_list">Adding&#8230;</string>
     <string name="details_added_to_plan_to_watch">Added to Plan to Watch</string>
     <string name="details_add_to_list_failed">Failed to add to list. Please check your connection.</string>
     <string name="details_offline_showing_cached">Showing cached details (offline)</string>
@@ -13,6 +13,7 @@
     <string name="details_action_mark_not_interested">Mark as Not Interested</string>
     <string name="details_action_remove_not_interested">Remove from Not Interested</string>
     <string name="details_badge_not_interested">Not Interested</string>
+    <string name="details_restore_from_not_interested">Hidden from Recommendations &#183; Tap to Restore</string>
     <string name="details_snackbar_marked_not_interested">Marked as Not Interested</string>
     <string name="details_snackbar_removed_not_interested">Removed from Not Interested</string>
 
@@ -45,7 +46,7 @@
     <string name="details_info_scoring_users">Scoring Users</string>
 
     <string name="details_score_user">My Score: %1$d</string>
-    <string name="details_score_empty">—</string>
+    <string name="details_score_empty">&#8212;</string>
     <string name="details_score_format">%1$.2f</string>
     <string name="details_rank_format">#%1$d</string>
     <string name="details_popularity_format">#%1$d</string>

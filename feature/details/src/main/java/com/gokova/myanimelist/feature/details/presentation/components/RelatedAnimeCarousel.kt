@@ -138,7 +138,7 @@ private fun RelatedAnimeCardInfo(
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 2,
+            maxLines = 3,
             overflow = TextOverflow.Ellipsis,
         )
     }

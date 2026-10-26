@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -161,7 +162,7 @@ private fun LoginButton(
                 disabledContainerColor = MaterialTheme.colorScheme.primary,
                 disabledContentColor = MaterialTheme.colorScheme.onPrimary,
             ),
-        modifier = Modifier.height(56.dp),
+        modifier = Modifier.height(56.dp).defaultMinSize(minWidth = 260.dp),
     ) {
         if (isLoading) {
             Row(verticalAlignment = Alignment.CenterVertically) {

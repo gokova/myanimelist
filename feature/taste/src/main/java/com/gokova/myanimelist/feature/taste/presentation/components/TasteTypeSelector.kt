@@ -1,5 +1,6 @@
 package com.gokova.myanimelist.feature.taste.presentation.components
 
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedButton
@@ -9,6 +10,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import com.gokova.myanimelist.core.ui.theme.componentSizes
 import com.gokova.myanimelist.feature.taste.R
 import com.gokova.myanimelist.feature.taste.domain.model.TasteType
@@ -33,6 +35,8 @@ fun TasteTypeSelector(
                 selected = selectedType == type,
                 onClick = { onTypeSelected(type) },
                 shape = SegmentedButtonDefaults.itemShape(index = index, count = types.size),
+                modifier = Modifier.weight(1f).fillMaxHeight(),
+                icon = {},
                 colors =
                     SegmentedButtonDefaults.colors(
                         activeContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -44,6 +48,8 @@ fun TasteTypeSelector(
                     Text(
                         text = stringResource(labelRes),
                         style = MaterialTheme.typography.labelLarge,
+                        maxLines = 2,
+                        textAlign = TextAlign.Center,
                     )
                 },
             )

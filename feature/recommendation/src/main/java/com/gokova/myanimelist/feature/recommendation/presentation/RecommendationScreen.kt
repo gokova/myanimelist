@@ -39,6 +39,7 @@ import com.gokova.myanimelist.feature.recommendation.presentation.components.Pos
 import com.gokova.myanimelist.feature.recommendation.presentation.components.RecommendationBodyContent
 import com.gokova.myanimelist.feature.recommendation.presentation.components.RecommendationEmptyState
 import com.gokova.myanimelist.feature.recommendation.presentation.components.RecommendationHeader
+import com.gokova.myanimelist.feature.recommendation.presentation.components.RecommendationHeaderConfig
 import com.gokova.myanimelist.feature.recommendation.presentation.components.RecommendationItemActions
 import com.gokova.myanimelist.feature.recommendation.presentation.components.RecommendationPillSelector
 
@@ -112,6 +113,11 @@ fun RecommendationContent(
 ) {
     var previewPoster by remember { mutableStateOf<PosterPreviewData?>(null) }
     var activeNotInterestedAnime by remember { mutableStateOf<NotInterestedSheetData?>(null) }
+    val windowInfo = LocalWindowInfo.current
+    val density = LocalDensity.current
+    val screenHeightDp = with(density) { windowInfo.containerSize.height.toDp() }
+    val isCompactHeight = screenHeightDp < 480.dp
+
     val itemActions =
         remember(onAnimeClick) {
             RecommendationItemActions(
@@ -126,6 +132,7 @@ fun RecommendationContent(
             RecommendationPillHeader(
                 selectedType = uiState.selectedType,
                 onSelectType = { onEvent(RecommendationUiEvent.SelectType(it)) },
+                isCompact = isCompactHeight,
             )
 
             RecommendationStateContent(
@@ -169,20 +176,24 @@ private fun RecommendationPillHeader(
     selectedType: RecommendationType,
     onSelectType: (RecommendationType) -> Unit,
     modifier: Modifier = Modifier,
+    isCompact: Boolean = false,
 ) {
+    val verticalPadding =
+        if (isCompact) MaterialTheme.spacing.extraSmall else MaterialTheme.spacing.small
     Box(
         modifier =
             modifier
                 .fillMaxWidth()
                 .padding(
                     horizontal = MaterialTheme.spacing.screenHorizontal,
-                    vertical = MaterialTheme.spacing.small,
+                    vertical = verticalPadding,
                 ),
         contentAlignment = Alignment.Center,
     ) {
         RecommendationPillSelector(
             selectedType = selectedType,
             onTypeSelected = onSelectType,
+            compact = isCompact,
         )
     }
 }
@@ -311,7 +322,9 @@ private fun RecommendationSuccessContent(
     val windowInfo = LocalWindowInfo.current
     val density = LocalDensity.current
     val screenWidthDp = with(density) { windowInfo.containerSize.width.toDp() }
+    val screenHeightDp = with(density) { windowInfo.containerSize.height.toDp() }
     val isExpanded = screenWidthDp >= EXPANDED_WIDTH_BREAKPOINT
+    val isCompactHeight = screenHeightDp < 480.dp
 
     Column(modifier = modifier.fillMaxSize()) {
         val count =
@@ -332,9 +345,13 @@ private fun RecommendationSuccessContent(
             }
 
         RecommendationHeader(
-            count = count,
-            selectedType = state.selectedType,
-            sortConfig = sortConfig,
+            config =
+                RecommendationHeaderConfig(
+                    count = count,
+                    selectedType = state.selectedType,
+                    sortConfig = sortConfig,
+                    compact = isCompactHeight,
+                ),
             onRefreshClick = { onEvent(RecommendationUiEvent.Refresh) },
         )
 

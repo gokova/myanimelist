@@ -29,8 +29,8 @@
     </plurals>
     <string name="taste_bottom_sheet_avg_score">Avg. Score: %1$.1f</string>
     <string name="taste_bottom_sheet_unrated">Not rated</string>
-    <string name="taste_score_format">★ %1$d</string>
-    <string name="taste_score_unrated">★ -</string>
+    <string name="taste_score_format">&#9733; %1$d</string>
+    <string name="taste_score_unrated">&#9733; -</string>
     <string name="taste_episodes_format">%1$d / %2$s ep</string>
 
     <string name="taste_status_watching">Watching</string>
@@ -39,4 +39,7 @@
     <string name="taste_status_dropped">Dropped</string>
     <string name="taste_status_plan_to_watch">Plan to Watch</string>
     <string name="taste_zoom_poster_description">Zoom poster for %s</string>
+    <string name="taste_view_categories_list">View all categories as a list</string>
+    <string name="taste_categories_sheet_title">All Categories</string>
+    <string name="taste_categories_sheet_close">Close categories sheet</string>
 </resources>

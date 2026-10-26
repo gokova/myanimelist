@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -37,6 +36,9 @@ import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.gokova.myanimelist.core.ui.component.badge.PublicScoreBadge
+import com.gokova.myanimelist.core.ui.component.badge.TasteMatchBadge
+import com.gokova.myanimelist.core.ui.component.badge.TaxonomyChip
 import com.gokova.myanimelist.core.ui.preview.StandardPreviews
 import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
 import com.gokova.myanimelist.core.ui.theme.OnStatusCompletedContainer
@@ -211,45 +213,10 @@ private fun SearchBadgesRow(
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
     ) {
         if (matchPercent != null) {
-            Surface(
-                color = MaterialTheme.colorScheme.primaryContainer,
-                shape = MaterialTheme.shapes.extraSmall,
-            ) {
-                Text(
-                    text = stringResource(R.string.search_match_percent, matchPercent),
-                    style =
-                        MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        ),
-                    modifier =
-                        Modifier.padding(
-                            horizontal = MaterialTheme.spacing.extraSmall,
-                            vertical = 2.dp,
-                        ),
-                )
-            }
+            TasteMatchBadge(matchPercent = matchPercent)
         }
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                imageVector = Icons.Default.Star,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(14.dp),
-            )
-            val scoreText =
-                if (meanScore != null && meanScore > 0.0) {
-                    stringResource(R.string.search_score_format, meanScore)
-                } else {
-                    stringResource(R.string.search_score_unrated)
-                }
-            Text(
-                text = scoreText,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        PublicScoreBadge(score = meanScore)
 
         val formatText = buildFormatText(mediaType, numEpisodes)
         if (formatText.isNotBlank()) {
@@ -287,7 +254,7 @@ private fun buildFormatText(
             else -> null
         }
     return when {
-        typePart.isNotBlank() && episodesPart != null -> "$typePart • $episodesPart"
+        typePart.isNotBlank() && episodesPart != null -> "$typePart \u00B7 $episodesPart"
         typePart.isNotBlank() -> typePart
         episodesPart != null -> episodesPart
         else -> ""
@@ -366,21 +333,7 @@ private fun SearchGenreTags(
         maxItemsInEachRow = MAX_GENRE_TAGS,
     ) {
         genres.take(MAX_GENRE_TAGS).forEach { genre ->
-            Surface(
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                shape = MaterialTheme.shapes.small,
-            ) {
-                Text(
-                    text = genre,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                    modifier =
-                        Modifier.padding(
-                            horizontal = MaterialTheme.spacing.small,
-                            vertical = 2.dp,
-                        ),
-                )
-            }
+            TaxonomyChip(text = genre)
         }
     }
 }

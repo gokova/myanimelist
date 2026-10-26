@@ -143,7 +143,7 @@ private fun MetricCard(
                         vertical = MaterialTheme.spacing.small,
                     ),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
+            verticalArrangement = Arrangement.SpaceBetween,
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,

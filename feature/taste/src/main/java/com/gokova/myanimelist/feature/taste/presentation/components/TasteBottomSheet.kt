@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.gokova.myanimelist.core.ui.component.AnimePosterPreviewDialog
+import com.gokova.myanimelist.core.ui.component.badge.PersonalScoreBadge
 import com.gokova.myanimelist.core.ui.preview.StandardPreviews
 import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
 import com.gokova.myanimelist.core.ui.theme.TasteColors
@@ -421,17 +422,7 @@ private fun AnimeCardContent(
             horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            val scoreText =
-                if (anime.userScore > 0) {
-                    stringResource(R.string.taste_score_format, anime.userScore)
-                } else {
-                    stringResource(R.string.taste_score_unrated)
-                }
-            Text(
-                text = scoreText,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary,
-            )
+            PersonalScoreBadge(score = anime.userScore)
             TasteStatusChip(status = anime.userStatus)
         }
     }

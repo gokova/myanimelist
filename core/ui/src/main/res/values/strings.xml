@@ -56,4 +56,15 @@
     <string name="score_3">Very Bad</string>
     <string name="score_2">Horrible</string>
     <string name="score_1">Appalling</string>
+    <!-- Badges & Taxonomy -->
+    <string name="score_format_compact">%1$.1f</string>
+    <string name="score_format_details">%1$.2f</string>
+    <string name="score_unrated">—</string>
+    <string name="score_user_format">%1$d</string>
+    <string name="score_user_with_label">My Score: %1$d</string>
+    <string name="taste_match_format">%1$d%% Match</string>
+    <string name="relation_format">%1$s: %2$s</string>
+    <string name="score_public_content_description">Score: %1$s</string>
+    <string name="score_user_content_description">Personal score: %1$s</string>
+    <string name="taste_match_content_description">%1$d percent match</string>
 </resources>

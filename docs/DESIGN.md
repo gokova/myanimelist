@@ -110,9 +110,13 @@ Data visualization elements (such as segmented distribution bars and indicator d
 | :--- | :--- | :--- | :--- | :--- |
 | **Watching** | `#2E7D32` (Rich Green) | 4.5:1 (Passes AA) | `#81C784` (Soft Mint Green) | 7.3:1 (Passes AA) |
 | **Completed** | `#1976D2` (Rich Blue) | 4.8:1 (Passes AA) | `#64B5F6` (Soft Sky Blue) | 6.5:1 (Passes AA) |
-| **On-Hold** | `#F57C00` (Rich Amber) | 3.8:1 (Passes UI) | `#FFD54F` (Soft Amber Gold) | 10.5:1 (Passes AA) |
+| **On-Hold** | `#F57C00` (Rich Amber) | ~2.38:1 (Paired with text cues) | `#FFD54F` (Soft Amber Gold) | 10.5:1 (Passes AA) |
 | **Dropped** | `#D32F2F` (Rich Red) | 5.0:1 (Passes AA) | `#E57373` (Soft Coral Red) | 5.2:1 (Passes AA) |
 | **Plan to Watch** | `#607D8B` (Rich Slate) | 4.2:1 (Passes AA) | `#B0BEC5` (Soft Slate Gray) | 7.0:1 (Passes AA) |
+
+> [!NOTE]
+> On-Hold in light theme has an actual luminance contrast ratio of ~2.38:1 against `#EDF1F5`. Because graphical objects under WCAG 2.1 SC 1.4.11 require 3.0:1,
+> On-Hold indicators must always be paired with high-contrast text labels or status icons rather than relying on the color alone.
 
 ---
 
@@ -169,7 +173,9 @@ Access via `MaterialTheme.spacing` (from `com.gokova.myanimelist.core.ui.theme.s
 | `extraExtraLarge` | `48.dp` | Major visual spacing, minimum interactive touch target height/width |
 | `huge` | `64.dp` | Hero spacing, empty-state top padding |
 | `screenHorizontal`| `24.dp` | Universal screen edge margin |
-| `minTouchTarget` | `48.dp` | Minimum touchable area for clickable elements (WCAG requirement) |
+| `detailsHorizontal`| `16.dp` | Details screen horizontal content margin |
+| `sheetHorizontal` | `20.dp` | Bottom sheet horizontal content margin |
+| `minTouchTarget` | `48.dp` | Minimum touchable area for clickable elements (Android Material accessibility guideline; WCAG 2.2 AA requires 24dp) |
 | `cardPadding` | `16.dp` | Default padding inside cards |
 
 ---
@@ -191,7 +197,10 @@ Access via `MaterialTheme.spacing` (from `com.gokova.myanimelist.core.ui.theme.s
 *   **Background:** `MaterialTheme.colorScheme.surfaceVariant`.
 *   **Content:** Profile image clipped to `CircleShape`; fallback to `Icons.Default.Person` tinted with `onSurfaceVariant`.
 
-### 4.3 Navigation
+### 4.3 Navigation & Selection Controls
+*   **Destination Navigation vs. Content Filtering:**
+    *   *Destination Navigation (Bottom Bar / Nav Rail):* Indicates the active primary destination/screen using `primary` indicator fill with `onPrimary` icon/label.
+    *   *Content Filtering (Segmented Buttons / Chips):* Controls in-page views, tabs, or filter modes using `primaryContainer` active fill with `onPrimaryContainer` label, suppressing redundant checkmarks (`icon = {}`) to maintain geometric balance.
 *   **Phone (Bottom Navigation Bar):**
     *   Container: `MaterialTheme.colorScheme.surface` with zero shadow elevation.
     *   Indicator: `MaterialTheme.colorScheme.primary` with `onPrimary` icon.
@@ -224,8 +233,8 @@ All screens must be verified against WCAG AA requirements:
 1.  **Contrast Minimums:**
     *   Normal text: \(\ge 4.5:1\) against its background.
     *   Large text (\(\ge 18.sp\) or \(\ge 14.sp\) bold) & UI component boundaries: \(\ge 3.0:1\).
-2.  **Minimum 48.dp Touch Target:**
-    *   All interactive elements (buttons, icons, avatars, checkboxes) must have a clickable area of at least `48.dp \times 48.dp`.
+2.  **Minimum 48.dp Touch Target (Android Accessibility Guideline):**
+    *   All interactive elements (buttons, icons, avatars, checkboxes) must have a clickable area of at least `48.dp \times 48.dp` per Android Material Design accessibility guidelines (WCAG 2.2 SC 2.5.8 AA establishes a 24dp minimum).
     *   Use `Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)` or center smaller visual elements inside a `48.dp` box.
 3.  **Font Scaling:**
     *   UI must support dynamic font scaling up to `2.0x` without clipping or truncating critical actions.

@@ -26,6 +26,8 @@ data class Spacing(
     val huge: Dp = 64.dp,
     // Semantic tokens
     val screenHorizontal: Dp = 24.dp,
+    val detailsHorizontal: Dp = 16.dp,
+    val sheetHorizontal: Dp = 20.dp,
     val minTouchTarget: Dp = 48.dp,
     val cardPadding: Dp = 16.dp,
     val badgePaddingHorizontal: Dp = 6.dp,
