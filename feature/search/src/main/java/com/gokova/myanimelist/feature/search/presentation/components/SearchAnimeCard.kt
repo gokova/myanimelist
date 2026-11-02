@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -65,6 +66,7 @@ fun SearchAnimeCard(
     anime: SearchAnimeItem,
     onCardClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
+    onPosterClick: (() -> Unit)? = null,
 ) {
     Card(
         modifier =
@@ -93,6 +95,7 @@ fun SearchAnimeCard(
             SearchPosterThumbnail(
                 imageUrl = anime.thumbnailUrl,
                 title = anime.displayTitle,
+                onPosterClick = onPosterClick,
             )
 
             Column(
@@ -115,6 +118,10 @@ fun SearchAnimeCard(
                     SearchStatusChip(status = anime.userStatus)
                 }
 
+                if (!anime.aiReason.isNullOrBlank()) {
+                    AiReasonSection(reason = anime.aiReason)
+                }
+
                 if (anime.genres.isNotEmpty()) {
                     SearchGenreTags(genres = anime.genres)
                 }
@@ -124,11 +131,57 @@ fun SearchAnimeCard(
 }
 
 @Composable
+private fun AiReasonSection(
+    reason: String,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+        shape = MaterialTheme.shapes.extraSmall,
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Default.AutoAwesome,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier =
+                    Modifier
+                        .size(12.dp)
+                        .padding(top = 2.dp),
+            )
+            Text(
+                text = reason,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+        }
+    }
+}
+
+@Composable
 private fun SearchPosterThumbnail(
     imageUrl: String?,
     title: String,
     modifier: Modifier = Modifier,
+    onPosterClick: (() -> Unit)? = null,
 ) {
+    val clickableModifier =
+        if (onPosterClick != null) {
+            Modifier.clickable(role = Role.Button, onClick = onPosterClick)
+        } else {
+            Modifier
+        }
+    val contentDesc =
+        if (onPosterClick != null) {
+            stringResource(R.string.search_zoom_poster_description, title)
+        } else {
+            stringResource(R.string.search_poster_content_description, title)
+        }
     val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
     val placeholderPainter = remember(surfaceVariant) { ColorPainter(surfaceVariant) }
 
@@ -139,7 +192,8 @@ private fun SearchPosterThumbnail(
                     width = MaterialTheme.componentSizes.posterSmallWidth,
                     height = MaterialTheme.componentSizes.posterSmallHeight,
                 ).clip(MaterialTheme.shapes.small)
-                .background(MaterialTheme.colorScheme.surfaceContainer),
+                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .then(clickableModifier),
     ) {
         if (!imageUrl.isNullOrBlank()) {
             AsyncImage(
@@ -151,11 +205,7 @@ private fun SearchPosterThumbnail(
                         .build(),
                 placeholder = placeholderPainter,
                 error = placeholderPainter,
-                contentDescription =
-                    stringResource(
-                        R.string.search_poster_content_description,
-                        title,
-                    ),
+                contentDescription = contentDesc,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.matchParentSize(),
             )

@@ -200,6 +200,7 @@ fun AppNavigation(
                 onAnimeClick = { animeId ->
                     navController.navigate(AnimeDetailsRoute(animeId))
                 },
+                onNavigateToProfile = { navController.navigate(ProfileRoute) },
             )
         }
         composable<AnimeDetailsRoute> {

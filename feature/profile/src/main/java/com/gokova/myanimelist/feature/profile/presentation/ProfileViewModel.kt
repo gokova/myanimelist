@@ -2,15 +2,16 @@ package com.gokova.myanimelist.feature.profile.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gokova.myanimelist.core.ai.model.AiException
+import com.gokova.myanimelist.core.domain.logging.AppLog
 import com.gokova.myanimelist.core.domain.model.ImportIgnoredAnimeResult
 import com.gokova.myanimelist.core.domain.model.UserProfile
-import com.gokova.myanimelist.core.domain.usecase.ExportIgnoredAnimeUseCase
-import com.gokova.myanimelist.core.domain.usecase.ImportIgnoredAnimeUseCase
-import com.gokova.myanimelist.core.domain.usecase.ObserveIgnoredAnimeCountUseCase
+import com.gokova.myanimelist.core.domain.usecase.IgnoredAnimeBackupInteractor
 import com.gokova.myanimelist.core.domain.usecase.ObserveUserProfileUseCase
 import com.gokova.myanimelist.core.domain.usecase.RefreshUserProfileUseCase
 import com.gokova.myanimelist.core.network.di.IoDispatcher
 import com.gokova.myanimelist.feature.profile.R
+import com.gokova.myanimelist.feature.profile.domain.usecase.ManageAiApiKeyUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
@@ -30,14 +31,14 @@ import java.io.OutputStream
 import javax.inject.Inject
 
 @HiltViewModel
+@Suppress("TooManyFunctions")
 class ProfileViewModel
     @Inject
     constructor(
         private val observeUserProfileUseCase: ObserveUserProfileUseCase,
         private val refreshUserProfileUseCase: RefreshUserProfileUseCase,
-        observeIgnoredAnimeCountUseCase: ObserveIgnoredAnimeCountUseCase,
-        private val exportIgnoredAnimeUseCase: ExportIgnoredAnimeUseCase,
-        private val importIgnoredAnimeUseCase: ImportIgnoredAnimeUseCase,
+        private val backupInteractor: IgnoredAnimeBackupInteractor,
+        private val manageAiApiKeyUseCase: ManageAiApiKeyUseCase,
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
     ) : ViewModel() {
         private val eventChannel = Channel<ProfileUiEvent>(Channel.BUFFERED)
@@ -45,23 +46,32 @@ class ProfileViewModel
 
         private val isRefreshing = MutableStateFlow(false)
         private val showLogoutDialog = MutableStateFlow(false)
+        private val showAiInfoDialog = MutableStateFlow(false)
+        private val aiKeyValidationStatus =
+            MutableStateFlow(AiKeyValidationStatus.Idle)
         private val errorMessageResId = MutableStateFlow<Int?>(null)
         private var refreshJob: Job? = null
 
         val uiState: StateFlow<ProfileUiState> =
             combine(
                 observeUserProfileUseCase(),
-                observeIgnoredAnimeCountUseCase(),
+                backupInteractor.observeCount(),
+                manageAiApiKeyUseCase.apiKey,
                 isRefreshing,
                 showLogoutDialog,
+                aiKeyValidationStatus,
+                showAiInfoDialog,
                 errorMessageResId,
-            ) {
-                profile: UserProfile?,
-                ignoredCount: Int,
-                refreshing: Boolean,
-                logoutDialog: Boolean,
-                errorRes: Int?,
-                ->
+            ) { args: Array<Any?> ->
+                val profile = args[0] as? UserProfile
+                val ignoredCount = args[1] as Int
+                val aiApiKey = args[2] as? String
+                val refreshing = args[3] as Boolean
+                val logoutDialog = args[4] as Boolean
+                val validationStatus = args[5] as AiKeyValidationStatus
+                val aiInfo = args[6] as Boolean
+                val errorRes = args[7] as? Int
+
                 when {
                     profile != null ->
                         ProfileUiState.Content(
@@ -69,6 +79,9 @@ class ProfileViewModel
                             ignoredAnimeCount = ignoredCount,
                             isRefreshing = refreshing,
                             showLogoutDialog = logoutDialog,
+                            aiApiKey = aiApiKey,
+                            aiKeyValidationStatus = validationStatus,
+                            showAiInfoDialog = aiInfo,
                         )
                     errorRes != null -> ProfileUiState.Error(messageResId = errorRes)
                     else -> ProfileUiState.Loading
@@ -105,12 +118,8 @@ class ProfileViewModel
                 }
         }
 
-        fun onLogoutClicked() {
-            showLogoutDialog.update { true }
-        }
-
-        fun onLogoutDismissed() {
-            showLogoutDialog.update { false }
+        fun setLogoutDialogVisible(visible: Boolean) {
+            showLogoutDialog.update { visible }
         }
 
         fun onLogoutConfirmed() {
@@ -127,6 +136,51 @@ class ProfileViewModel
             }
         }
 
+        fun saveAiApiKey(key: String) {
+            viewModelScope.launch {
+                manageAiApiKeyUseCase.saveKey(key)
+                aiKeyValidationStatus.update { AiKeyValidationStatus.Idle }
+            }
+        }
+
+        fun clearAiApiKey() {
+            viewModelScope.launch {
+                manageAiApiKeyUseCase.clearKey()
+                aiKeyValidationStatus.update { AiKeyValidationStatus.Idle }
+            }
+        }
+
+        fun testAiApiKey(key: String) {
+            viewModelScope.launch {
+                aiKeyValidationStatus.update { AiKeyValidationStatus.Testing }
+                val result = manageAiApiKeyUseCase.testKey(key)
+                aiKeyValidationStatus.update {
+                    if (result.isSuccess) {
+                        AppLog.domain.i { "AI API key test succeeded" }
+                        AiKeyValidationStatus.Valid
+                    } else {
+                        val error = result.exceptionOrNull()
+                        AppLog.domain.e(error) { "AI API key test failed" }
+                        when (error) {
+                            is AiException.QuotaExceeded -> AiKeyValidationStatus.QuotaExceeded
+                            is AiException.NetworkError -> {
+                                if (error.message?.contains("503") == true) {
+                                    AiKeyValidationStatus.ServiceUnavailable
+                                } else {
+                                    AiKeyValidationStatus.NetworkError
+                                }
+                            }
+                            else -> AiKeyValidationStatus.Invalid
+                        }
+                    }
+                }
+            }
+        }
+
+        fun setAiInfoDialogVisible(visible: Boolean) {
+            showAiInfoDialog.update { visible }
+        }
+
         fun exportIgnoredAnime(openOutputStream: () -> OutputStream?) {
             viewModelScope.launch(ioDispatcher) {
                 val stream = runCatching { openOutputStream() }.getOrNull()
@@ -137,7 +191,7 @@ class ProfileViewModel
                     return@launch
                 }
 
-                val result = exportIgnoredAnimeUseCase(stream)
+                val result = backupInteractor.export(stream)
                 result.fold(
                     onSuccess = { count ->
                         eventChannel.send(ProfileUiEvent.ShowExportSuccessSnackbar(count))
@@ -163,7 +217,7 @@ class ProfileViewModel
                     return@launch
                 }
 
-                when (val result = importIgnoredAnimeUseCase(stream)) {
+                when (val result = backupInteractor.import(stream)) {
                     is ImportIgnoredAnimeResult.Success -> {
                         eventChannel.send(
                             ProfileUiEvent.ShowImportSuccessSnackbar(

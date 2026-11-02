@@ -33,6 +33,8 @@ dependencies {
     implementation(project(":core:database"))
     implementation(project(":core:domain"))
     implementation(project(":core:network"))
+    implementation(project(":core:datastore"))
+    implementation(project(":core:ai"))
     implementation(project(":core:ui"))
 
     // Platform Dependencies

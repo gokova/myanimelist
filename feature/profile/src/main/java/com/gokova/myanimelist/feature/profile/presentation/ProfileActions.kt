@@ -1,5 +1,13 @@
 package com.gokova.myanimelist.feature.profile.presentation
 
+data class AiSettingsActions(
+    val onSaveKey: (String) -> Unit = {},
+    val onClearKey: () -> Unit = {},
+    val onTestKey: (String) -> Unit = {},
+    val onShowInfoDialog: () -> Unit = {},
+    val onDismissInfoDialog: () -> Unit = {},
+)
+
 data class ProfileActions(
     val onBackClick: () -> Unit = {},
     val onLogoutClick: () -> Unit = {},
@@ -8,4 +16,5 @@ data class ProfileActions(
     val onRetryClick: () -> Unit = {},
     val onExportClick: () -> Unit = {},
     val onImportClick: () -> Unit = {},
+    val aiActions: AiSettingsActions = AiSettingsActions(),
 )
