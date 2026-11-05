@@ -337,6 +337,14 @@ outline, 2:3 poster treatment where applicable, and explicit title/relation trun
     surface, actions, and content can be reviewed in Android Studio previews.
 *   All scrims use `MaterialTheme.colorScheme.scrim`; feature previews must not hardcode black.
 
+### Motion and overlay behavior
+
+Shared motion tokens reside in `:core:ui` under `com.gokova.myanimelist.core.ui.theme.MotionTokens`:
+*   **Poster Preview Overlay:** 200ms entrance with gentle fade and 0.97-to-1.0 scale (`LinearOutSlowInEasing`); 140ms exit with fade and 1.0-to-0.97 scale (`FastOutLinearInEasing`). No bouncy overshoot. Close button, scrim tap, and system Back share single-entry dismiss handling with duplicate-invocation protection and complete via animation completion rather than fixed delays.
+*   **Transitions & Revealing:** 140ms content fade for search result replacement and detail cold reveals.
+*   **Localized Feedback & Recenter:** 180ms for server-confirmed progress animation; 200ms for single discovery hide/undo; 220ms for interruptible chart recentering without bounce.
+*   **System Animation Scale:** All animations must complete immediately without artificial delays when animations are disabled in system developer options (`animator_duration_scale = 0`).
+
 ### Responsive and accessibility rules
 
 *   Below `600.dp`, use bottom navigation and compact single-column content where appropriate.

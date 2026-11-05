@@ -36,6 +36,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -624,5 +625,61 @@ class RecommendationViewModelTest {
             testScheduler.advanceUntilIdle()
 
             assertTrue(!fakeIgnoredAnimeRepository.ignoredIds.contains(42L))
+        }
+
+    @Test
+    fun `ready state with isRefreshing or isQueued propagates to uiState Success`() =
+        runTest {
+            val genreAnime = listOf(sampleAnime(1L, "Genre 1"))
+            fakeRepository.genreFlow.value = genreAnime
+            fakeRepository.stateFlow.value =
+                RecommendationEngineState.Ready(
+                    totalCount = 1,
+                    isRefreshing = true,
+                    isQueued = false,
+                )
+
+            val viewModel = createViewModel()
+            val collectJob =
+                launch(UnconfinedTestDispatcher(testScheduler)) {
+                    viewModel.uiState.collect()
+                }
+            testScheduler.advanceUntilIdle()
+
+            val state = viewModel.uiState.value
+            assertTrue(state is RecommendationUiState.Success)
+            val success = state as RecommendationUiState.Success
+            assertTrue(success.isRefreshing)
+            assertFalse(success.isQueued)
+
+            collectJob.cancel()
+        }
+
+    @Test
+    fun `refresh event is suppressed when state is already refreshing`() =
+        runTest {
+            val genreAnime = listOf(sampleAnime(1L, "Genre 1"))
+            fakeRepository.genreFlow.value = genreAnime
+            fakeRepository.stateFlow.value =
+                RecommendationEngineState.Ready(
+                    totalCount = 1,
+                    isRefreshing = true,
+                    isQueued = false,
+                )
+
+            val viewModel = createViewModel()
+            val collectJob =
+                launch(UnconfinedTestDispatcher(testScheduler)) {
+                    viewModel.uiState.collect()
+                }
+            testScheduler.advanceUntilIdle()
+
+            val initialTriggerCount = fakeRepository.triggerCount
+            viewModel.onEvent(RecommendationUiEvent.Refresh)
+            testScheduler.advanceUntilIdle()
+
+            assertEquals(initialTriggerCount, fakeRepository.triggerCount)
+
+            collectJob.cancel()
         }
 }

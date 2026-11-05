@@ -5,10 +5,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -25,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import com.gokova.myanimelist.core.ui.theme.spacing
 import com.gokova.myanimelist.feature.recommendation.R
 import com.gokova.myanimelist.feature.recommendation.domain.model.NewSeasonSortOption
@@ -67,6 +70,11 @@ fun RecommendationHeader(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
         ) {
+            RecommendationRefreshStatus(
+                isRefreshing = config.isRefreshing,
+                isQueued = config.isQueued,
+            )
+
             if (config.selectedType == RecommendationType.NEW_SEASONS &&
                 config.sortConfig != null
             ) {
@@ -76,14 +84,66 @@ fun RecommendationHeader(
                 )
             }
 
-            IconButton(onClick = onRefreshClick) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = stringResource(R.string.recommendation_btn_refresh),
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-            }
+            RecommendationRefreshButton(
+                isBusy = config.isRefreshing || config.isQueued,
+                onRefreshClick = onRefreshClick,
+            )
         }
+    }
+}
+
+@Composable
+private fun RecommendationRefreshStatus(
+    isRefreshing: Boolean,
+    isQueued: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    if (isRefreshing) {
+        Row(
+            modifier = modifier,
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(16.dp),
+                strokeWidth = 2.dp,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Text(
+                text = stringResource(R.string.recommendation_refreshing),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+    } else if (isQueued) {
+        Text(
+            text = stringResource(R.string.recommendation_queued),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = modifier,
+        )
+    }
+}
+
+@Composable
+private fun RecommendationRefreshButton(
+    isBusy: Boolean,
+    onRefreshClick: () -> Unit,
+) {
+    IconButton(
+        onClick = onRefreshClick,
+        enabled = !isBusy,
+    ) {
+        Icon(
+            imageVector = Icons.Default.Refresh,
+            contentDescription = stringResource(R.string.recommendation_btn_refresh),
+            tint =
+                if (isBusy) {
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                } else {
+                    MaterialTheme.colorScheme.primary
+                },
+        )
     }
 }
 

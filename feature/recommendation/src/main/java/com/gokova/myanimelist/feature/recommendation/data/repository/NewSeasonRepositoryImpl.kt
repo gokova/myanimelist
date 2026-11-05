@@ -39,18 +39,23 @@ class NewSeasonRepositoryImpl
             ) { userList, newSeasonCount, workInfos ->
                 val activeOrFinished =
                     workInfos.filter { it.state != WorkInfo.State.CANCELLED }
-                val isWorking =
+                val isRunning = activeOrFinished.any { it.state == WorkInfo.State.RUNNING }
+                val isQueued =
                     activeOrFinished.any {
-                        it.state == WorkInfo.State.RUNNING ||
-                            it.state == WorkInfo.State.ENQUEUED
+                        it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.BLOCKED
                     }
+                val isWorking = isRunning || isQueued
                 val currentWork = activeOrFinished.lastOrNull()
 
                 when {
                     userList.size < MIN_USER_LIST_THRESHOLD ->
                         NewSeasonState.EmptyInsufficientData
                     newSeasonCount > 0 ->
-                        NewSeasonState.Ready(newSeasonCount)
+                        NewSeasonState.Ready(
+                            count = newSeasonCount,
+                            isRefreshing = isRunning,
+                            isQueued = isQueued,
+                        )
                     isWorking ->
                         NewSeasonState.Calculating
                     currentWork?.state == WorkInfo.State.FAILED ->

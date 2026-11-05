@@ -9,6 +9,8 @@ sealed interface NewSeasonState {
 
     data class Ready(
         val count: Int,
+        val isRefreshing: Boolean = false,
+        val isQueued: Boolean = false,
     ) : NewSeasonState
 
     data class Error(

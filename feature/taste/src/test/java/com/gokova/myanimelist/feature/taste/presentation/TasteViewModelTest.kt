@@ -71,7 +71,7 @@ class TasteViewModelTest {
         }
 
     @Test
-    fun onTypeSelected_changesTypeAndIncrementsRecenter() =
+    fun onTypeSelected_changesTypeAndResetsSelectionWithoutRecenterAnimation() =
         runTest {
             val useCase = ObserveTasteAnalyticsUseCase(FakeRepository())
             val viewModel = TasteViewModel(useCase)
@@ -86,6 +86,26 @@ class TasteViewModelTest {
             testScheduler.advanceUntilIdle()
 
             assertEquals(TasteType.THEME, viewModel.uiState.value.selectedType)
+            assertEquals(0, viewModel.uiState.value.recenterTrigger)
+
+            collectJob.cancel()
+        }
+
+    @Test
+    fun onRecenterClicked_incrementsRecenterTrigger() =
+        runTest {
+            val useCase = ObserveTasteAnalyticsUseCase(FakeRepository())
+            val viewModel = TasteViewModel(useCase)
+
+            val collectJob =
+                launch(UnconfinedTestDispatcher(testScheduler)) {
+                    viewModel.uiState.collect()
+                }
+            testScheduler.advanceUntilIdle()
+
+            viewModel.onRecenterClicked()
+            testScheduler.advanceUntilIdle()
+
             assertEquals(1, viewModel.uiState.value.recenterTrigger)
 
             collectJob.cancel()

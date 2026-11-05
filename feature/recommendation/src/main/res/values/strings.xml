@@ -13,6 +13,11 @@
     <string name="recommendation_btn_calculate_now">Calculate Now</string>
     <string name="recommendation_btn_refresh">Recalculate</string>
     <string name="recommendation_btn_retry">Retry</string>
+    <string name="recommendation_refreshing">Updating…</string>
+    <string name="recommendation_queued">Queued…</string>
+    <string name="recommendation_calculating_label">Evaluating recommendations…</string>
+    <string name="new_seasons_calculating_label">Scanning for new seasons…</string>
+    <string name="recommendation_refresh_failed">Failed to update: showing cached data</string>
     <string name="recommendation_error_title">Couldn\'t Load Recommendations</string>
     <string name="recommendation_error_subtitle">Check your connection and try again.</string>
 

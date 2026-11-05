@@ -5,6 +5,24 @@ import com.gokova.myanimelist.feature.mylist.domain.model.ListFilterCategory
 import com.gokova.myanimelist.feature.mylist.domain.model.SortOption
 import com.gokova.myanimelist.feature.mylist.domain.model.UserAnime
 
+sealed interface MyListContentState {
+    data object LoadingLocal : MyListContentState
+
+    data object InitialSync : MyListContentState
+
+    data object InitialFailure : MyListContentState
+
+    data object EmptyAccount : MyListContentState
+
+    data class EmptyCategory(
+        val category: ListFilterCategory,
+    ) : MyListContentState
+
+    data class HasContent(
+        val totalAccountEntries: Int,
+    ) : MyListContentState
+}
+
 data class MyListUiState(
     val animeList: List<UserAnime> = emptyList(),
     val selectedCategory: ListFilterCategory = ListFilterCategory.ALL,
@@ -12,6 +30,7 @@ data class MyListUiState(
     val isSyncing: Boolean = false,
     val isRefreshing: Boolean = false,
     val isLoadingInitial: Boolean = true,
+    val contentState: MyListContentState = MyListContentState.LoadingLocal,
     val editingSheetState: EditAnimeStatusSheetState? = null,
     val savingProgressAnimeIds: Set<Long> = emptySet(),
 )

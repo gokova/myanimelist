@@ -1,9 +1,17 @@
 package com.gokova.myanimelist.feature.search.presentation
 
 import androidx.annotation.StringRes
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
@@ -52,6 +60,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gokova.myanimelist.core.ui.preview.StandardPreviews
+import com.gokova.myanimelist.core.ui.theme.MotionTokens
 import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
 import com.gokova.myanimelist.core.ui.theme.spacing
 import com.gokova.myanimelist.feature.search.domain.model.SearchAnimeItem
@@ -64,6 +73,7 @@ import com.gokova.myanimelist.feature.search.presentation.components.SearchAnime
 import com.gokova.myanimelist.feature.search.presentation.components.SearchEmptyState
 import com.gokova.myanimelist.feature.search.presentation.components.SearchErrorState
 import com.gokova.myanimelist.feature.search.presentation.components.SearchPosterPreviewOverlay
+import com.gokova.myanimelist.feature.search.presentation.components.SearchStatusHeader
 import com.gokova.myanimelist.feature.search.presentation.components.SearchTopBar
 import kotlinx.coroutines.flow.distinctUntilChanged
 
@@ -87,7 +97,13 @@ fun SearchScreen(
         viewModel.events.collect { event ->
             when (event) {
                 is SearchUiEvent.ShowSnackbar -> {
-                    snackbarHostState.showSnackbar(resources.getString(event.messageRes))
+                    val message =
+                        if (event.formatArg != null) {
+                            resources.getString(event.messageRes, event.formatArg)
+                        } else {
+                            resources.getString(event.messageRes)
+                        }
+                    snackbarHostState.showSnackbar(message)
                 }
                 is SearchUiEvent.NavigateToProfile -> {
                     onNavigateToProfile()
@@ -247,20 +263,48 @@ private fun SearchContentResults(
     itemActions: SearchItemActions,
     modifier: Modifier = Modifier,
 ) {
-    if (isExpanded) {
-        SearchGridResults(
-            state = state,
-            actions = actions,
-            itemActions = itemActions,
-            modifier = modifier,
-        )
-    } else {
-        SearchListResults(
-            state = state,
-            actions = actions,
-            itemActions = itemActions,
-            modifier = modifier,
-        )
+    Column(modifier = modifier.fillMaxSize()) {
+        SearchStatusHeader(state = state)
+
+        AnimatedContent(
+            targetState = state,
+            transitionSpec = {
+                if (initialState.resultQuery != targetState.resultQuery) {
+                    fadeIn(
+                        animationSpec =
+                            tween(
+                                durationMillis = MotionTokens.DURATION_CONTENT_FADE,
+                            ),
+                    ) togetherWith
+                        fadeOut(
+                            animationSpec =
+                                tween(
+                                    durationMillis = MotionTokens.DURATION_CONTENT_FADE,
+                                ),
+                        )
+                } else {
+                    EnterTransition.None togetherWith ExitTransition.None
+                }
+            },
+            label = "SearchResultReplacementFade",
+            modifier = Modifier.weight(1f),
+        ) { targetState ->
+            if (isExpanded) {
+                SearchGridResults(
+                    state = targetState,
+                    actions = actions,
+                    itemActions = itemActions,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                SearchListResults(
+                    state = targetState,
+                    actions = actions,
+                    itemActions = itemActions,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+        }
     }
 }
 

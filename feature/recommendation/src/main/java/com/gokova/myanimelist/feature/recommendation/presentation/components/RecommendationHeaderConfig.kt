@@ -7,4 +7,6 @@ data class RecommendationHeaderConfig(
     val selectedType: RecommendationType,
     val sortConfig: HeaderSortConfig? = null,
     val compact: Boolean = false,
+    val isRefreshing: Boolean = false,
+    val isQueued: Boolean = false,
 )

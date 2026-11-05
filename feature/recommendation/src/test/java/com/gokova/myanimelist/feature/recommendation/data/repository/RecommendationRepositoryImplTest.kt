@@ -284,6 +284,38 @@ class RecommendationRepositoryImplTest {
         }
 
     @Test
+    fun `observeEngineState returns Ready with isRefreshing true when worker is running`() =
+        runTest {
+            fakeUserAnimeListDao.userAnimeFlow.value = (1L..5L).map { createUserItem(it) }
+            fakeRecommendationDao.countFlow.value = 50
+            fakeScheduler.workInfosFlow.value =
+                listOf(
+                    WorkInfo(
+                        id = UUID.randomUUID(),
+                        state = WorkInfo.State.RUNNING,
+                        tags = emptySet(),
+                        outputData = Data.EMPTY,
+                        progress = Data.EMPTY,
+                        runAttemptCount = 0,
+                        generation = 0,
+                        constraints = Constraints.NONE,
+                        initialDelayMillis = 0L,
+                        periodicityInfo = null,
+                        nextScheduleTimeMillis = 0L,
+                        stopReason = WorkInfo.STOP_REASON_NOT_STOPPED,
+                    ),
+                )
+
+            val state = repository.observeEngineState().first()
+
+            assertTrue(state is RecommendationEngineState.Ready)
+            val ready = state as RecommendationEngineState.Ready
+            assertEquals(50, ready.totalCount)
+            assertTrue(ready.isRefreshing)
+            assertFalse(ready.isQueued)
+        }
+
+    @Test
     fun `scheduleInitialOrPeriodicWork triggers initial work when 0 recs and 5 user anime`() =
         runTest {
             fakeUserAnimeListDao.userAnimeFlow.value = (1L..5L).map { createUserItem(it) }

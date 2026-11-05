@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -18,9 +19,30 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.gokova.myanimelist.core.ui.R
+
+private const val MAX_SCORE = 10
+private val SCORE_OPTIONS = listOf(0) + (MAX_SCORE downTo 1).toList()
+private val SCORE_RATINGS_MAP =
+    mapOf(
+        0 to R.string.score_not_rated,
+        10 to R.string.score_10,
+        9 to R.string.score_9,
+        8 to R.string.score_8,
+        7 to R.string.score_7,
+        6 to R.string.score_6,
+        5 to R.string.score_5,
+        4 to R.string.score_4,
+        3 to R.string.score_3,
+        2 to R.string.score_2,
+        1 to R.string.score_1,
+    )
 
 @Composable
 fun EditAnimeScoreSelector(
@@ -29,23 +51,7 @@ fun EditAnimeScoreSelector(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    val scoreRatings =
-        listOf(
-            0 to R.string.score_not_rated,
-            10 to R.string.score_10,
-            9 to R.string.score_9,
-            8 to R.string.score_8,
-            7 to R.string.score_7,
-            6 to R.string.score_6,
-            5 to R.string.score_5,
-            4 to R.string.score_4,
-            3 to R.string.score_3,
-            2 to R.string.score_2,
-            1 to R.string.score_1,
-        )
-
-    val currentLabelRes =
-        scoreRatings.find { it.first == score }?.second ?: R.string.score_not_rated
+    val currentLabelRes = SCORE_RATINGS_MAP[score] ?: R.string.score_not_rated
 
     Column(modifier = modifier.fillMaxWidth()) {
         ScoreHeader(labelRes = currentLabelRes)
@@ -79,9 +85,6 @@ private fun ScoreHeader(labelRes: Int) {
     }
 }
 
-private const val MAX_SCORE = 10
-private val SCORE_OPTIONS = listOf(0) + (MAX_SCORE downTo 1).toList()
-
 @Composable
 private fun ScoreChipRow(
     score: Int,
@@ -92,13 +95,16 @@ private fun ScoreChipRow(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
+                .horizontalScroll(rememberScrollState())
+                .selectableGroup(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         SCORE_OPTIONS.forEach { scoreValue ->
+            val labelRes = SCORE_RATINGS_MAP[scoreValue] ?: R.string.score_not_rated
             ScoreChip(
                 scoreValue = scoreValue,
+                labelRes = labelRes,
                 isSelected = score == scoreValue,
                 enabled = enabled,
                 onClick = { onScoreChange(scoreValue) },
@@ -110,11 +116,20 @@ private fun ScoreChipRow(
 @Composable
 private fun ScoreChip(
     scoreValue: Int,
+    labelRes: Int,
     isSelected: Boolean,
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
     val displayText = if (scoreValue == 0) "-" else scoreValue.toString()
+    val ratingLabel = stringResource(labelRes)
+    val a11yDescription =
+        if (scoreValue == 0) {
+            ratingLabel
+        } else {
+            stringResource(R.string.score_option_a11y_format, scoreValue, ratingLabel)
+        }
+
     val containerColor =
         if (isSelected) {
             MaterialTheme.colorScheme.primaryContainer
@@ -137,12 +152,19 @@ private fun ScoreChip(
         }
 
     Surface(
+        selected = isSelected,
         onClick = onClick,
         enabled = enabled,
         shape = MaterialTheme.shapes.small,
         color = containerColor,
         border = BorderStroke(1.dp, borderColor),
-        modifier = Modifier.size(44.dp),
+        modifier =
+            Modifier
+                .size(48.dp)
+                .semantics {
+                    role = Role.RadioButton
+                    contentDescription = a11yDescription
+                },
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,

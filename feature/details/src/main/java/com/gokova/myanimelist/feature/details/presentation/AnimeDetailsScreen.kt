@@ -1,5 +1,8 @@
 package com.gokova.myanimelist.feature.details.presentation
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -51,6 +54,7 @@ import com.gokova.myanimelist.core.ui.component.editlist.EditAnimeStatusBottomSh
 import com.gokova.myanimelist.core.ui.component.editlist.EditAnimeStatusSheetActions
 import com.gokova.myanimelist.core.ui.component.editlist.withStatus
 import com.gokova.myanimelist.core.ui.preview.StandardPreviews
+import com.gokova.myanimelist.core.ui.theme.MotionTokens
 import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
 import com.gokova.myanimelist.core.ui.theme.spacing
 import com.gokova.myanimelist.feature.details.R
@@ -280,16 +284,21 @@ private fun AnimeDetailsContentBody(
                 )
             }
             uiState.details != null -> {
-                PullToRefreshBox(
-                    isRefreshing = uiState.isRefreshing,
-                    onRefresh = actions.onRefresh,
-                    modifier = Modifier.fillMaxSize(),
+                AnimatedVisibility(
+                    visible = true,
+                    enter = fadeIn(animationSpec = tween(MotionTokens.DURATION_CONTENT_FADE)),
                 ) {
-                    AnimeDetailsBody(
-                        uiState = uiState,
-                        actions = actions,
-                        onPosterClick = { onPosterClick(uiState.details) },
-                    )
+                    PullToRefreshBox(
+                        isRefreshing = uiState.isRefreshing,
+                        onRefresh = actions.onRefresh,
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
+                        AnimeDetailsBody(
+                            uiState = uiState,
+                            actions = actions,
+                            onPosterClick = { onPosterClick(uiState.details) },
+                        )
+                    }
                 }
             }
         }

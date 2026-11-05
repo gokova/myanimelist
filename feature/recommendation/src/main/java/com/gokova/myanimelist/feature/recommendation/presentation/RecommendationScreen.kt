@@ -1,9 +1,12 @@
 package com.gokova.myanimelist.feature.recommendation.presentation
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -11,6 +14,7 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -22,6 +26,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -264,7 +270,6 @@ private fun RecommendationStateContent(
             is RecommendationUiState.Calculating -> {
                 RecommendationCalculatingState(
                     selectedType = uiState.selectedType,
-                    onCalculateNow = { onEvent(RecommendationUiEvent.CalculateNow) },
                 )
             }
             is RecommendationUiState.Error -> {
@@ -289,27 +294,53 @@ private fun RecommendationStateContent(
 @Composable
 private fun RecommendationCalculatingState(
     selectedType: RecommendationType,
-    onCalculateNow: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val isNewSeasons = selectedType == RecommendationType.NEW_SEASONS
-    RecommendationEmptyState(
-        titleRes =
-            if (isNewSeasons) {
-                R.string.new_seasons_calculating_title
-            } else {
-                R.string.recommendation_calculating_title
-            },
-        subtitleRes =
-            if (isNewSeasons) {
-                R.string.new_seasons_calculating_subtitle
-            } else {
-                R.string.recommendation_calculating_subtitle
-            },
-        actionButtonTextRes = R.string.recommendation_btn_calculate_now,
-        onActionClick = onCalculateNow,
-        modifier = modifier,
-    )
+    Column(
+        modifier =
+            modifier
+                .fillMaxSize()
+                .padding(MaterialTheme.spacing.screenHorizontal),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        CircularProgressIndicator(
+            color = MaterialTheme.colorScheme.primary,
+        )
+
+        Spacer(modifier = Modifier.height(MaterialTheme.spacing.large))
+
+        Text(
+            text =
+                stringResource(
+                    if (isNewSeasons) {
+                        R.string.new_seasons_calculating_title
+                    } else {
+                        R.string.recommendation_calculating_title
+                    },
+                ),
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+        )
+
+        Spacer(modifier = Modifier.height(MaterialTheme.spacing.small))
+
+        Text(
+            text =
+                stringResource(
+                    if (isNewSeasons) {
+                        R.string.new_seasons_calculating_subtitle
+                    } else {
+                        R.string.recommendation_calculating_subtitle
+                    },
+                ),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+    }
 }
 
 @Composable
@@ -351,6 +382,8 @@ private fun RecommendationSuccessContent(
                     selectedType = state.selectedType,
                     sortConfig = sortConfig,
                     compact = isCompactHeight,
+                    isRefreshing = state.isRefreshing,
+                    isQueued = state.isQueued,
                 ),
             onRefreshClick = { onEvent(RecommendationUiEvent.Refresh) },
         )

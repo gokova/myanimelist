@@ -56,6 +56,7 @@
     <string name="score_3">Very Bad</string>
     <string name="score_2">Horrible</string>
     <string name="score_1">Appalling</string>
+    <string name="score_option_a11y_format">%1$d, %2$s</string>
     <!-- Badges & Taxonomy -->
     <string name="score_format_compact">%1$.1f</string>
     <string name="score_format_details">%1$.2f</string>

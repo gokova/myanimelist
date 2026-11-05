@@ -9,6 +9,8 @@ sealed interface RecommendationEngineState {
 
     data class Ready(
         val totalCount: Int,
+        val isRefreshing: Boolean = false,
+        val isQueued: Boolean = false,
     ) : RecommendationEngineState
 
     data class Error(

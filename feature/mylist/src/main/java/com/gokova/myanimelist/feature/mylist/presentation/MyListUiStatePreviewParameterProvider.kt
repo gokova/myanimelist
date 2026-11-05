@@ -58,6 +58,7 @@ class MyListUiStatePreviewParameterProvider : PreviewParameterProvider<MyListUiS
                 isSyncing = false,
                 isRefreshing = false,
                 isLoadingInitial = false,
+                contentState = MyListContentState.HasContent(sampleAnimeList.size),
             ),
             // 2. Empty state (0 entries)
             MyListUiState(
@@ -67,6 +68,7 @@ class MyListUiStatePreviewParameterProvider : PreviewParameterProvider<MyListUiS
                 isSyncing = false,
                 isRefreshing = false,
                 isLoadingInitial = false,
+                contentState = MyListContentState.EmptyCategory(ListFilterCategory.COMPLETED),
             ),
             // 3. Syncing / Refreshing state
             MyListUiState(
@@ -76,15 +78,17 @@ class MyListUiStatePreviewParameterProvider : PreviewParameterProvider<MyListUiS
                 isSyncing = true,
                 isRefreshing = true,
                 isLoadingInitial = false,
+                contentState = MyListContentState.HasContent(sampleAnimeList.size),
             ),
             // 4. Initial loading state
             MyListUiState(
                 animeList = emptyList(),
                 selectedCategory = ListFilterCategory.ALL,
                 selectedSort = SortOption.SCORE_DESC,
-                isSyncing = false,
+                isSyncing = true,
                 isRefreshing = false,
-                isLoadingInitial = true,
+                isLoadingInitial = false,
+                contentState = MyListContentState.InitialSync,
             ),
         )
 

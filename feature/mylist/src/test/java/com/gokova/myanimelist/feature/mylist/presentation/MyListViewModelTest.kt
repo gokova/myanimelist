@@ -641,6 +641,121 @@ class MyListViewModelTest {
             collectJob.cancel()
         }
 
+    @Test
+    fun `contentState resolves to InitialSync when initial sync in progress`() =
+        runTest {
+            val repository = FakeMyListRepository()
+            val syncDeferred = CompletableDeferred<Unit>()
+            repository.syncDeferred = syncDeferred
+
+            val viewModel = createViewModel(repository = repository)
+            val collectJob = launch { viewModel.uiState.collect {} }
+            runCurrent()
+
+            assertEquals(
+                MyListContentState.InitialSync,
+                viewModel.uiState.value.contentState,
+            )
+            assertTrue(viewModel.uiState.value.isSyncing)
+
+            syncDeferred.complete(Unit)
+            advanceUntilIdle()
+
+            assertEquals(
+                MyListContentState.EmptyAccount,
+                viewModel.uiState.value.contentState,
+            )
+            assertFalse(viewModel.uiState.value.isSyncing)
+
+            collectJob.cancel()
+        }
+
+    @Test
+    fun `contentState resolves to InitialFailure when initial sync fails`() =
+        runTest {
+            val repository = FakeMyListRepository()
+            repository.shouldFailSync = true
+
+            val viewModel = createViewModel(repository = repository)
+            val collectJob = launch { viewModel.uiState.collect {} }
+            advanceUntilIdle()
+
+            assertEquals(
+                MyListContentState.InitialFailure,
+                viewModel.uiState.value.contentState,
+            )
+            assertFalse(viewModel.uiState.value.isSyncing)
+
+            collectJob.cancel()
+        }
+
+    @Test
+    fun `contentState resolves to EmptyCategory when category empty but account has items`() =
+        runTest {
+            val repository = FakeMyListRepository()
+            val animeCompleted = createAnime(1L, "Completed Anime", UserAnimeStatus.COMPLETED, 10)
+            repository.setAnimeList(listOf(animeCompleted))
+
+            val viewModel = createViewModel(repository = repository)
+            val collectJob = launch { viewModel.uiState.collect {} }
+            advanceUntilIdle()
+
+            assertEquals(
+                MyListContentState.HasContent(totalAccountEntries = 1),
+                viewModel.uiState.value.contentState,
+            )
+
+            viewModel.onCategorySelected(ListFilterCategory.WATCHING)
+            advanceUntilIdle()
+
+            assertEquals(
+                MyListContentState.EmptyCategory(ListFilterCategory.WATCHING),
+                viewModel.uiState.value.contentState,
+            )
+
+            collectJob.cancel()
+        }
+
+    @Test
+    fun `pull to refresh retains content state HasContent while isRefreshing is true`() =
+        runTest {
+            val repository = FakeMyListRepository()
+            val animeWatching = createAnime(1L, "Watching Anime", UserAnimeStatus.WATCHING, 9)
+            repository.setAnimeList(listOf(animeWatching))
+
+            val viewModel = createViewModel(repository = repository)
+            val collectJob = launch { viewModel.uiState.collect {} }
+            advanceUntilIdle()
+
+            assertEquals(
+                MyListContentState.HasContent(totalAccountEntries = 1),
+                viewModel.uiState.value.contentState,
+            )
+
+            val refreshDeferred = CompletableDeferred<Unit>()
+            repository.syncDeferred = refreshDeferred
+
+            viewModel.onSync(isPullToRefresh = true, force = true)
+            runCurrent()
+
+            assertTrue(viewModel.uiState.value.isRefreshing)
+            assertEquals(
+                MyListContentState.HasContent(totalAccountEntries = 1),
+                viewModel.uiState.value.contentState,
+            )
+
+            refreshDeferred.complete(Unit)
+            advanceUntilIdle()
+
+            assertFalse(viewModel.uiState.value.isRefreshing)
+            assertEquals(
+                MyListContentState.HasContent(totalAccountEntries = 1),
+                viewModel.uiState.value.contentState,
+            )
+
+            collectJob.cancel()
+        }
+
     private class FakeUserAnimeListStatusRepository : UserAnimeListStatusRepository {
         var lastUpdatedAnimeId: Long? = null
         var lastParams: UpdateUserAnimeStatusParams? = null

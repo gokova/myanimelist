@@ -35,10 +35,13 @@ sealed interface SearchUiState {
 
     data class Content(
         override val query: String,
+        val resultQuery: String = query,
         val animes: List<SearchAnimeItem>,
         val hasMore: Boolean,
         val isLoadingMore: Boolean = false,
         @StringRes val loadMoreErrorRes: Int? = null,
+        val isReplacing: Boolean = false,
+        val replacementQuery: String? = null,
         override val aiPrompt: String = "",
         override val mode: SearchMode = SearchMode.STANDARD,
         override val showMissingKeyDialog: Boolean = false,

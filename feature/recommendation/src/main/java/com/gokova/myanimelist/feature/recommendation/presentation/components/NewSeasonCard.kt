@@ -241,7 +241,7 @@ private fun TitleSection(
         if (onMoreClick != null) {
             IconButton(
                 onClick = onMoreClick,
-                modifier = Modifier.size(28.dp),
+                modifier = Modifier.size(48.dp),
             ) {
                 Icon(
                     imageVector = Icons.Default.MoreVert,
@@ -261,10 +261,10 @@ private fun StatsRow(
     totalEpisodes: Int?,
     modifier: Modifier = Modifier,
 ) {
-    Row(
+    FlowRow(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
     ) {
         PublicScoreBadge(score = score)
         EpisodeBadge(totalEpisodes = totalEpisodes)

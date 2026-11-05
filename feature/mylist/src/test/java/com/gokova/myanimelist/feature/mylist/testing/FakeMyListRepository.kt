@@ -4,6 +4,7 @@ import com.gokova.myanimelist.feature.mylist.domain.model.ListFilterCategory
 import com.gokova.myanimelist.feature.mylist.domain.model.SyncStatus
 import com.gokova.myanimelist.feature.mylist.domain.model.UserAnime
 import com.gokova.myanimelist.feature.mylist.domain.repository.MyListRepository
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
@@ -15,6 +16,7 @@ class FakeMyListRepository : MyListRepository {
     var shouldSkipDueToCooldown = false
     var syncCallCount = 0
     var lastForceFlag: Boolean? = null
+    var syncDeferred: CompletableDeferred<Unit>? = null
 
     fun setAnimeList(list: List<UserAnime>) {
         animeListFlow.value = list
@@ -38,6 +40,7 @@ class FakeMyListRepository : MyListRepository {
                 return@flow
             }
             emit(SyncStatus.Started)
+            syncDeferred?.await()
             if (shouldFailSync) {
                 emit(SyncStatus.Failure(Exception("Network error")))
             } else {

@@ -42,21 +42,41 @@ class MyListViewModel
         private val selectedSort = MutableStateFlow(SortOption.SCORE_DESC)
         private val isSyncing = MutableStateFlow(false)
         private val isRefreshing = MutableStateFlow(false)
+        private val hasInitialSyncFailed = MutableStateFlow(false)
         private val editingSheetState = MutableStateFlow<EditAnimeStatusSheetState?>(null)
         private val savingProgressAnimeIds = MutableStateFlow<Set<Long>>(emptySet())
 
         private val eventChannel = Channel<MyListUiEvent>(Channel.BUFFERED)
         val events = eventChannel.receiveAsFlow()
 
-        private val animeListFlow =
+        private val allAnimeFlow =
+            observeUserAnimeListUseCase(ListFilterCategory.ALL, SortOption.SCORE_DESC)
+
+        private val filteredAnimeFlow =
             combine(selectedCategory, selectedSort) { category, sort ->
                 category to sort
             }.flatMapLatest { (category, sort) ->
                 observeUserAnimeListUseCase(category, sort)
             }
 
+        private val listStateFlow =
+            combine(allAnimeFlow, filteredAnimeFlow) { allAnime, filteredAnime ->
+                allAnime to filteredAnime
+            }
+
+        private val filterSortFlow =
+            combine(selectedCategory, selectedSort) { category, sort ->
+                category to sort
+            }
+
         private val syncStateFlow =
-            combine(isSyncing, isRefreshing) { syncing, refreshing -> syncing to refreshing }
+            combine(
+                isSyncing,
+                isRefreshing,
+                hasInitialSyncFailed,
+            ) { syncing, refreshing, syncFailed ->
+                Triple(syncing, refreshing, syncFailed)
+            }
 
         private val editStateFlow =
             combine(editingSheetState, savingProgressAnimeIds) { sheet, savingIds ->
@@ -65,19 +85,33 @@ class MyListViewModel
 
         val uiState: StateFlow<MyListUiState> =
             combine(
-                animeListFlow,
-                selectedCategory,
-                selectedSort,
+                listStateFlow,
+                filterSortFlow,
                 syncStateFlow,
                 editStateFlow,
-            ) { animeList, category, sort, (syncing, refreshing), (sheet, savingIds) ->
+            ) {
+                (allAnime, filteredAnime),
+                (category, sort),
+                (syncing, refreshing, syncFailed),
+                (sheet, savingIds),
+                ->
+                val contentState =
+                    resolveContentState(
+                        allAnime = allAnime,
+                        filteredAnime = filteredAnime,
+                        category = category,
+                        isSyncing = syncing,
+                        hasSyncFailed = syncFailed,
+                    )
+
                 MyListUiState(
-                    animeList = animeList,
+                    animeList = filteredAnime,
                     selectedCategory = category,
                     selectedSort = sort,
                     isSyncing = syncing,
                     isRefreshing = refreshing,
                     isLoadingInitial = false,
+                    contentState = contentState,
                     editingSheetState = sheet,
                     savingProgressAnimeIds = savingIds,
                 )
@@ -104,6 +138,7 @@ class MyListViewModel
             force: Boolean = true,
         ) {
             if (isSyncing.value || isRefreshing.value) return
+            hasInitialSyncFailed.value = false
             viewModelScope.launch {
                 try {
                     syncUserAnimeListUseCase(force = force).collect { status ->
@@ -130,10 +165,12 @@ class MyListViewModel
                 SyncStatus.Completed, SyncStatus.SkippedCooldown -> {
                     isSyncing.value = false
                     isRefreshing.value = false
+                    hasInitialSyncFailed.value = false
                 }
                 is SyncStatus.Failure -> {
                     isSyncing.value = false
                     isRefreshing.value = false
+                    hasInitialSyncFailed.value = true
                     eventChannel.send(
                         MyListUiEvent.ShowSnackbar(
                             messageRes = R.string.my_list_sync_failed_message,
@@ -280,6 +317,21 @@ class MyListViewModel
         companion object {
             private const val STOP_TIMEOUT_MILLIS = 5000L
         }
+    }
+
+private fun resolveContentState(
+    allAnime: List<UserAnime>,
+    filteredAnime: List<UserAnime>,
+    category: ListFilterCategory,
+    isSyncing: Boolean,
+    hasSyncFailed: Boolean,
+): MyListContentState =
+    when {
+        allAnime.isEmpty() && isSyncing -> MyListContentState.InitialSync
+        allAnime.isEmpty() && hasSyncFailed -> MyListContentState.InitialFailure
+        allAnime.isEmpty() -> MyListContentState.EmptyAccount
+        filteredAnime.isEmpty() -> MyListContentState.EmptyCategory(category)
+        else -> MyListContentState.HasContent(totalAccountEntries = allAnime.size)
     }
 
 private fun shouldPromptMyListCompletion(sheet: EditAnimeStatusSheetState): Boolean {
