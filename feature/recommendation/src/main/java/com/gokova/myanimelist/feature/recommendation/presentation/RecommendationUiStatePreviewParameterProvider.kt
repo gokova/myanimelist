@@ -1,6 +1,9 @@
 package com.gokova.myanimelist.feature.recommendation.presentation
 
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
+import com.gokova.myanimelist.feature.recommendation.domain.model.DurationFitTier
+import com.gokova.myanimelist.feature.recommendation.domain.model.PopularityTier
+import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationScoreBreakdown
 import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationType
 import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendedAnime
 
@@ -29,6 +32,15 @@ class RecommendationUiStatePreviewParameterProvider :
                 genres = listOf("Adventure", "Drama", "Fantasy", "Magic"),
                 studios = listOf("Madhouse"),
                 source = "manga",
+                breakdown =
+                    RecommendationScoreBreakdown(
+                        tasteAlignmentScore = 0.98f,
+                        discoveryScore = 0.12f,
+                        topMatchedTags = listOf("Adventure", "Drama", "Fantasy"),
+                        exploratoryTags = listOf("Magic"),
+                        durationTier = DurationFitTier.StandardCour(28),
+                        popularityTier = PopularityTier.MAINSTREAM_FAVORITE,
+                    ),
             ),
             RecommendedAnime(
                 animeId = 2L,
@@ -51,6 +63,15 @@ class RecommendationUiStatePreviewParameterProvider :
                 genres = listOf("Sci-Fi", "Suspense", "Psychological", "Time Travel"),
                 studios = listOf("White Fox"),
                 source = "visual_novel",
+                breakdown =
+                    RecommendationScoreBreakdown(
+                        tasteAlignmentScore = 0.95f,
+                        discoveryScore = 0.20f,
+                        topMatchedTags = listOf("Sci-Fi", "Suspense"),
+                        exploratoryTags = listOf("Time Travel"),
+                        durationTier = DurationFitTier.StandardCour(24),
+                        popularityTier = PopularityTier.POPULAR_PICK,
+                    ),
             ),
         )
 
@@ -90,6 +111,12 @@ class RecommendationUiStatePreviewParameterProvider :
                 selectedType = RecommendationType.NEW_SEASONS,
                 newSeasons = sampleNewSeason,
             ),
+            RecommendationUiState.Success(
+                selectedType = RecommendationType.GENRE,
+                recommendations = sampleAnime,
+                isLabOpen = true,
+                labPreviewCount = 142,
+            ),
             RecommendationUiState.EmptyInsufficientData(),
             RecommendationUiState.EmptyAllCaughtUp(),
             RecommendationUiState.Calculating(),
@@ -102,6 +129,7 @@ class RecommendationUiStatePreviewParameterProvider :
             INDEX_GENRES -> "Genre Recommendations"
             INDEX_THEMES -> "Theme Recommendations"
             INDEX_NEW_SEASONS -> "New Seasons"
+            INDEX_LAB_OPEN -> "Lab Open"
             INDEX_INSUFFICIENT_DATA -> "Insufficient Data"
             INDEX_ALL_CAUGHT_UP -> "All Caught Up"
             INDEX_CALCULATING -> "Calculating"
@@ -114,10 +142,11 @@ class RecommendationUiStatePreviewParameterProvider :
         private const val INDEX_GENRES = 0
         private const val INDEX_THEMES = 1
         private const val INDEX_NEW_SEASONS = 2
-        private const val INDEX_INSUFFICIENT_DATA = 3
-        private const val INDEX_ALL_CAUGHT_UP = 4
-        private const val INDEX_CALCULATING = 5
-        private const val INDEX_LOADING = 6
-        private const val INDEX_ERROR = 7
+        private const val INDEX_LAB_OPEN = 3
+        private const val INDEX_INSUFFICIENT_DATA = 4
+        private const val INDEX_ALL_CAUGHT_UP = 5
+        private const val INDEX_CALCULATING = 6
+        private const val INDEX_LOADING = 7
+        private const val INDEX_ERROR = 8
     }
 }

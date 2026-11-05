@@ -65,4 +65,56 @@
     <string name="background_sync_dialog_message">To discover new seasons and recommendations seamlessly when your phone is locked, please allow MyAnimeList to run unrestricted in battery settings.</string>
     <string name="background_sync_dialog_confirm">Open Settings</string>
     <string name="background_sync_dialog_dismiss">Not Now</string>
+
+    <!-- Recommendation Lab -->
+    <string name="recommendation_lab_title">Recommendation Lab</string>
+    <string name="recommendation_lab_tune">Tune</string>
+    <string name="recommendation_lab_tune_description">Open Recommendation Lab</string>
+    <string name="recommendation_lab_reset">Reset</string>
+    <string name="recommendation_lab_apply">Apply Recommendations</string>
+    <string name="recommendation_lab_preset_label">Preset</string>
+    <string name="recommendation_lab_preset_comfort_zone">Comfort Zone</string>
+    <string name="recommendation_lab_preset_balanced">Balanced</string>
+    <string name="recommendation_lab_preset_serendipity">Serendipity</string>
+    <string name="recommendation_lab_preset_hidden_gems">Hidden Gems</string>
+    <string name="recommendation_lab_preset_weekend_binge">Weekend Binge</string>
+    <string name="recommendation_lab_preset_long_commitment">Long Commitment</string>
+    <string name="recommendation_lab_preset_custom">Custom</string>
+    <string name="recommendation_lab_familiarity_title">Familiarity</string>
+    <string name="recommendation_lab_familiarity_familiar">Familiar</string>
+    <string name="recommendation_lab_familiarity_surprising">Surprising</string>
+    <string name="recommendation_lab_popularity_title">Popularity</string>
+    <string name="recommendation_lab_popularity_mainstream">Mainstream</string>
+    <string name="recommendation_lab_popularity_niche">Niche</string>
+    <string name="recommendation_lab_time_title">Time Commitment</string>
+    <string name="recommendation_lab_time_any">Any</string>
+    <string name="recommendation_lab_time_short">≤ 13 eps</string>
+    <string name="recommendation_lab_time_medium">≤ 26 eps</string>
+    <string name="recommendation_lab_time_long">27+ eps</string>
+    <string name="recommendation_lab_min_score_title">Minimum Community Score</string>
+    <string name="recommendation_lab_min_score_any">Any</string>
+    <string name="recommendation_lab_min_score_format">%1$.1f+</string>
+    <plurals name="recommendation_lab_matches_count">
+        <item quantity="one">%d anime matches</item>
+        <item quantity="other">%d anime match</item>
+    </plurals>
+
+    <!-- Card Explainability -->
+    <string name="recommendation_why_match">Why this match?</string>
+    <string name="recommendation_why_match_collapse">Hide explanation</string>
+    <string name="recommendation_taste_alignment">Taste alignment</string>
+    <string name="recommendation_discovery">Discovery</string>
+    <string name="recommendation_why_top_tags">Matches your high-rated: %s</string>
+    <string name="recommendation_why_exploratory_tags">Adds newer-to-you elements: %s</string>
+    <string name="recommendation_why_duration">Fits duration preference: %s</string>
+    <string name="recommendation_why_duration_single">Movie / Single release</string>
+    <string name="recommendation_why_duration_short">%1$d eps (Short series)</string>
+    <string name="recommendation_why_duration_standard">%1$d eps (Standard cour)</string>
+    <string name="recommendation_why_duration_long">%1$d eps (Long commitment)</string>
+    <string name="recommendation_why_popularity">Selected from %s catalog</string>
+    <string name="recommendation_why_popularity_mainstream">Mainstream favorite</string>
+    <string name="recommendation_why_popularity_popular">Popular community pick</string>
+    <string name="recommendation_why_popularity_moderate">Moderately known</string>
+    <string name="recommendation_why_popularity_niche">Niche discovery</string>
+    <string name="recommendation_percent_format">%1$d%%</string>
 </resources>

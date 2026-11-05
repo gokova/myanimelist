@@ -11,6 +11,8 @@ data class CandidateAnimeItem(
     val genres: List<String>,
     val meanScore: Double?,
     val numListUsers: Int?,
+    val numEpisodes: Int? = null,
+    val mediaType: String? = null,
 )
 
 data class ScoredCandidateResult(
@@ -21,6 +23,14 @@ data class ScoredCandidateResult(
     val themeScore: Double,
     val themeRank: Int,
     val themeMatchPercent: Int,
+)
+
+data class ScoredLabCandidateResult(
+    val animeId: Long,
+    val score: Double,
+    val rank: Int,
+    val matchPercent: Int,
+    val breakdown: RecommendationScoreBreakdown,
 )
 
 data class EvaluationResult(

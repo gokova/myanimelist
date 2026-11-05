@@ -47,6 +47,8 @@ import com.gokova.myanimelist.feature.recommendation.presentation.components.Rec
 import com.gokova.myanimelist.feature.recommendation.presentation.components.RecommendationHeader
 import com.gokova.myanimelist.feature.recommendation.presentation.components.RecommendationHeaderConfig
 import com.gokova.myanimelist.feature.recommendation.presentation.components.RecommendationItemActions
+import com.gokova.myanimelist.feature.recommendation.presentation.components.RecommendationLabActions
+import com.gokova.myanimelist.feature.recommendation.presentation.components.RecommendationLabBottomSheet
 import com.gokova.myanimelist.feature.recommendation.presentation.components.RecommendationPillSelector
 
 private val EXPANDED_WIDTH_BREAKPOINT = 600.dp
@@ -175,6 +177,36 @@ fun RecommendationContent(
             activeNotInterestedAnime = null
         },
     )
+
+    RecommendationLabOverlay(uiState = uiState, onEvent = onEvent)
+}
+
+@Composable
+private fun RecommendationLabOverlay(
+    uiState: RecommendationUiState,
+    onEvent: (RecommendationUiEvent) -> Unit,
+) {
+    if (uiState.isLabOpen) {
+        val matchCount =
+            uiState.labPreviewCount
+                ?: (uiState as? RecommendationUiState.Success)?.recommendations?.size
+                ?: 0
+        RecommendationLabBottomSheet(
+            config = uiState.labConfig,
+            matchCount = matchCount,
+            actions =
+                remember(onEvent, uiState.labConfig) {
+                    RecommendationLabActions(
+                        onConfigChange = { onEvent(RecommendationUiEvent.UpdateLabDraft(it)) },
+                        onApply = {
+                            onEvent(RecommendationUiEvent.ApplyLabConfig(uiState.labConfig))
+                        },
+                        onReset = { onEvent(RecommendationUiEvent.ResetLabConfig) },
+                        onDismissRequest = { onEvent(RecommendationUiEvent.CloseLab) },
+                    )
+                },
+        )
+    }
 }
 
 @Composable
@@ -386,6 +418,8 @@ private fun RecommendationSuccessContent(
                     isQueued = state.isQueued,
                 ),
             onRefreshClick = { onEvent(RecommendationUiEvent.Refresh) },
+            labConfig = state.labConfig,
+            onTuneClick = { onEvent(RecommendationUiEvent.OpenLab) },
         )
 
         RecommendationBodyContent(

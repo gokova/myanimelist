@@ -1,6 +1,7 @@
 package com.gokova.myanimelist.feature.recommendation.presentation
 
 import com.gokova.myanimelist.feature.recommendation.domain.model.NewSeasonSortOption
+import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationLabConfig
 import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationType
 
 sealed interface RecommendationUiEvent {
@@ -26,4 +27,18 @@ sealed interface RecommendationUiEvent {
     data class UndoNotInterested(
         val animeId: Long,
     ) : RecommendationUiEvent
+
+    data object OpenLab : RecommendationUiEvent
+
+    data object CloseLab : RecommendationUiEvent
+
+    data class UpdateLabDraft(
+        val config: RecommendationLabConfig,
+    ) : RecommendationUiEvent
+
+    data class ApplyLabConfig(
+        val config: RecommendationLabConfig,
+    ) : RecommendationUiEvent
+
+    data object ResetLabConfig : RecommendationUiEvent
 }

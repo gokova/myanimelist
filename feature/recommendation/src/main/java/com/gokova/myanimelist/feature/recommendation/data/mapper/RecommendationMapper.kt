@@ -7,8 +7,10 @@ import com.gokova.myanimelist.core.database.entity.StudioEntity
 import com.gokova.myanimelist.core.database.model.RecommendationItem
 import com.gokova.myanimelist.core.network.model.AnimeNodeDto
 import com.gokova.myanimelist.feature.recommendation.domain.model.CandidateAnimeItem
+import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationType
 import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendedAnime
 import com.gokova.myanimelist.feature.recommendation.domain.model.ScoredCandidateResult
+import com.gokova.myanimelist.feature.recommendation.domain.model.ScoredLabCandidateResult
 
 object RecommendationMapper {
     fun toAnimeEntity(node: AnimeNodeDto): AnimeEntity {
@@ -73,6 +75,8 @@ object RecommendationMapper {
             genres = entity.genres?.map { it.name } ?: emptyList(),
             meanScore = entity.meanScore,
             numListUsers = entity.numListUsers,
+            numEpisodes = entity.numEpisodes,
+            mediaType = entity.mediaType,
         )
 
     fun toRecommendationEntity(result: ScoredCandidateResult): RecommendationEntity =
@@ -85,4 +89,35 @@ object RecommendationMapper {
             genreMatchPercent = result.genreMatchPercent,
             themeMatchPercent = result.themeMatchPercent,
         )
+
+    fun toRecommendedAnime(
+        entity: AnimeEntity,
+        result: ScoredLabCandidateResult,
+        type: RecommendationType,
+    ): RecommendedAnime {
+        val isGenre = type == RecommendationType.GENRE
+        return RecommendedAnime(
+            animeId = entity.id,
+            title = entity.title,
+            titleEnglish = entity.titleEnglish,
+            thumbnailUrl = entity.mainPictureMedium ?: entity.mainPictureLarge,
+            largeImageUrl = entity.mainPictureLarge ?: entity.mainPictureMedium,
+            mediaType = entity.mediaType,
+            airingStatus = entity.airingStatus,
+            numEpisodes = entity.numEpisodes,
+            startSeasonYear = entity.startSeasonYear,
+            startSeasonSeason = entity.startSeasonSeason,
+            meanScore = entity.meanScore,
+            genreRank = if (isGenre) result.rank else 0,
+            genreScore = if (isGenre) result.score else 0.0,
+            genreMatchPercent = if (isGenre) result.matchPercent else 0,
+            themeRank = if (!isGenre) result.rank else 0,
+            themeScore = if (!isGenre) result.score else 0.0,
+            themeMatchPercent = if (!isGenre) result.matchPercent else 0,
+            genres = entity.genres?.map { it.name } ?: emptyList(),
+            studios = entity.studios?.map { it.name } ?: emptyList(),
+            source = entity.source,
+            breakdown = result.breakdown,
+        )
+    }
 }

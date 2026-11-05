@@ -98,13 +98,11 @@ class EvaluateRecommendationsWorker
 
             recommendationDao.saveEvaluatedRecommendations(
                 recommendations = recommendationEntities,
-                discardedAnimeIds = evaluation.discardedAnimeIds,
             )
 
             AppLog.domain.i {
                 "EvaluateRecommendationsWorker complete: " +
-                    "${recommendationEntities.size} recommendations stored, " +
-                    "${evaluation.discardedAnimeIds.size} discarded candidates pruned"
+                    "${recommendationEntities.size} recommendations stored"
             }
         }
     }

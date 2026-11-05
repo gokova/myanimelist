@@ -19,11 +19,12 @@ class SeasonalPeriodCalculatorTest {
 
         val result = calculator.getTargetSeasons(cal)
 
-        assertEquals(4, result.size)
+        assertEquals(5, result.size)
         assertEquals(SeasonPeriod(2026, "winter"), result[0])
         assertEquals(SeasonPeriod(2026, "spring"), result[1])
         assertEquals(SeasonPeriod(2025, "fall"), result[2])
         assertEquals(SeasonPeriod(2025, "summer"), result[3])
+        assertEquals(SeasonPeriod(2025, "spring"), result[4])
     }
 
     @Test
@@ -37,11 +38,12 @@ class SeasonalPeriodCalculatorTest {
 
         val result = calculator.getTargetSeasons(cal)
 
-        assertEquals(4, result.size)
+        assertEquals(5, result.size)
         assertEquals(SeasonPeriod(2026, "fall"), result[0])
         assertEquals(SeasonPeriod(2027, "winter"), result[1])
         assertEquals(SeasonPeriod(2026, "summer"), result[2])
         assertEquals(SeasonPeriod(2026, "spring"), result[3])
+        assertEquals(SeasonPeriod(2026, "winter"), result[4])
     }
 
     @Test
@@ -55,10 +57,11 @@ class SeasonalPeriodCalculatorTest {
 
         val result = calculator.getTargetSeasons(cal)
 
-        assertEquals(4, result.size)
+        assertEquals(5, result.size)
         assertEquals(SeasonPeriod(2026, "summer"), result[0])
         assertEquals(SeasonPeriod(2026, "fall"), result[1])
         assertEquals(SeasonPeriod(2026, "spring"), result[2])
         assertEquals(SeasonPeriod(2026, "winter"), result[3])
+        assertEquals(SeasonPeriod(2025, "fall"), result[4])
     }
 }
