@@ -1,16 +1,22 @@
 package com.gokova.myanimelist.feature.profile.presentation
 
+import com.gokova.myanimelist.core.ai.client.AiSearchClient
+import com.gokova.myanimelist.core.ai.model.AiException
+import com.gokova.myanimelist.core.ai.model.AiSearchInterpretation
+import com.gokova.myanimelist.core.datastore.AiPreferences
 import com.gokova.myanimelist.core.domain.model.IgnoredAnime
 import com.gokova.myanimelist.core.domain.model.ImportIgnoredAnimeResult
 import com.gokova.myanimelist.core.domain.model.UserProfile
 import com.gokova.myanimelist.core.domain.repository.IgnoredAnimeRepository
 import com.gokova.myanimelist.core.domain.repository.ProfileRepository
 import com.gokova.myanimelist.core.domain.usecase.ExportIgnoredAnimeUseCase
+import com.gokova.myanimelist.core.domain.usecase.IgnoredAnimeBackupInteractor
 import com.gokova.myanimelist.core.domain.usecase.ImportIgnoredAnimeUseCase
 import com.gokova.myanimelist.core.domain.usecase.ObserveIgnoredAnimeCountUseCase
 import com.gokova.myanimelist.core.domain.usecase.ObserveUserProfileUseCase
 import com.gokova.myanimelist.core.domain.usecase.RefreshUserProfileUseCase
 import com.gokova.myanimelist.feature.profile.R
+import com.gokova.myanimelist.feature.profile.domain.usecase.ManageAiApiKeyUseCase
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -27,6 +33,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -39,11 +46,14 @@ class ProfileViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var fakeProfileRepository: FakeProfileRepository
     private lateinit var fakeIgnoredRepository: FakeIgnoredAnimeRepository
+    private lateinit var fakeAiPreferences: FakeAiPreferences
+    private lateinit var fakeAiSearchClient: FakeAiSearchClient
     private lateinit var observeProfileUseCase: ObserveUserProfileUseCase
     private lateinit var refreshProfileUseCase: RefreshUserProfileUseCase
     private lateinit var observeIgnoredCountUseCase: ObserveIgnoredAnimeCountUseCase
     private lateinit var exportIgnoredUseCase: ExportIgnoredAnimeUseCase
     private lateinit var importIgnoredUseCase: ImportIgnoredAnimeUseCase
+    private lateinit var manageAiApiKeyUseCase: ManageAiApiKeyUseCase
     private lateinit var viewModel: ProfileViewModel
 
     @Before
@@ -51,11 +61,14 @@ class ProfileViewModelTest {
         Dispatchers.setMain(testDispatcher)
         fakeProfileRepository = FakeProfileRepository()
         fakeIgnoredRepository = FakeIgnoredAnimeRepository()
+        fakeAiPreferences = FakeAiPreferences()
+        fakeAiSearchClient = FakeAiSearchClient()
         observeProfileUseCase = ObserveUserProfileUseCase(fakeProfileRepository)
         refreshProfileUseCase = RefreshUserProfileUseCase(fakeProfileRepository)
         observeIgnoredCountUseCase = ObserveIgnoredAnimeCountUseCase(fakeIgnoredRepository)
         exportIgnoredUseCase = ExportIgnoredAnimeUseCase(fakeIgnoredRepository)
         importIgnoredUseCase = ImportIgnoredAnimeUseCase(fakeIgnoredRepository)
+        manageAiApiKeyUseCase = ManageAiApiKeyUseCase(fakeAiPreferences, fakeAiSearchClient)
     }
 
     @After
@@ -67,9 +80,13 @@ class ProfileViewModelTest {
         ProfileViewModel(
             observeUserProfileUseCase = observeProfileUseCase,
             refreshUserProfileUseCase = refreshProfileUseCase,
-            observeIgnoredAnimeCountUseCase = observeIgnoredCountUseCase,
-            exportIgnoredAnimeUseCase = exportIgnoredUseCase,
-            importIgnoredAnimeUseCase = importIgnoredUseCase,
+            backupInteractor =
+                IgnoredAnimeBackupInteractor(
+                    observeCount = observeIgnoredCountUseCase,
+                    export = exportIgnoredUseCase,
+                    import = importIgnoredUseCase,
+                ),
+            manageAiApiKeyUseCase = manageAiApiKeyUseCase,
             ioDispatcher = testDispatcher,
         )
 
@@ -306,19 +323,19 @@ class ProfileViewModelTest {
         }
 
     @Test
-    fun `onLogoutClicked shows dialog and onLogoutDismissed hides dialog`() =
+    fun `setLogoutDialogVisible shows dialog and hides dialog`() =
         runTest(testDispatcher) {
             fakeProfileRepository.profileFlow.value = UserProfile(id = 1L, name = "user")
             viewModel = createViewModel()
             val collectJob = launch { viewModel.uiState.collect {} }
             advanceUntilIdle()
 
-            viewModel.onLogoutClicked()
+            viewModel.setLogoutDialogVisible(true)
             advanceUntilIdle()
             var state = viewModel.uiState.value as ProfileUiState.Content
             assertTrue(state.showLogoutDialog)
 
-            viewModel.onLogoutDismissed()
+            viewModel.setLogoutDialogVisible(false)
             advanceUntilIdle()
             state = viewModel.uiState.value as ProfileUiState.Content
             assertFalse(state.showLogoutDialog)
@@ -333,7 +350,7 @@ class ProfileViewModelTest {
             val collectJob = launch { viewModel.uiState.collect {} }
             advanceUntilIdle()
 
-            viewModel.onLogoutClicked()
+            viewModel.setLogoutDialogVisible(true)
             advanceUntilIdle()
 
             var emittedEvent: ProfileUiEvent? = null
@@ -364,6 +381,153 @@ class ProfileViewModelTest {
 
             assertEquals(ProfileUiEvent.NavigateBack, emittedEvent)
             eventJob.cancel()
+            collectJob.cancel()
+        }
+
+    @Test
+    fun `saveAiApiKey updates preferences and emits in uiState`() =
+        runTest(testDispatcher) {
+            val cached = UserProfile(id = 1L, name = "user")
+            fakeProfileRepository.profileFlow.value = cached
+            fakeProfileRepository.refreshResult = Result.success(cached)
+
+            viewModel = createViewModel()
+            val collectJob = launch { viewModel.uiState.collect {} }
+            advanceUntilIdle()
+
+            viewModel.saveAiApiKey("AIzaSyMyKey")
+            advanceUntilIdle()
+
+            val state = viewModel.uiState.value as ProfileUiState.Content
+            assertEquals("AIzaSyMyKey", state.aiApiKey)
+            assertEquals("AIzaSyMyKey", fakeAiPreferences.keyFlow.value)
+            collectJob.cancel()
+        }
+
+    @Test
+    fun `clearAiApiKey removes key from preferences and uiState`() =
+        runTest(testDispatcher) {
+            val cached = UserProfile(id = 1L, name = "user")
+            fakeProfileRepository.profileFlow.value = cached
+            fakeProfileRepository.refreshResult = Result.success(cached)
+            fakeAiPreferences.keyFlow.value = "existing_key"
+
+            viewModel = createViewModel()
+            val collectJob = launch { viewModel.uiState.collect {} }
+            advanceUntilIdle()
+
+            viewModel.clearAiApiKey()
+            advanceUntilIdle()
+
+            val state = viewModel.uiState.value as ProfileUiState.Content
+            assertNull(state.aiApiKey)
+            assertNull(fakeAiPreferences.keyFlow.value)
+            collectJob.cancel()
+        }
+
+    @Test
+    fun `testAiApiKey updates validation status to Valid on success`() =
+        runTest(testDispatcher) {
+            val cached = UserProfile(id = 1L, name = "user")
+            fakeProfileRepository.profileFlow.value = cached
+            fakeProfileRepository.refreshResult = Result.success(cached)
+            fakeAiSearchClient.validateResult = Result.success(Unit)
+
+            viewModel = createViewModel()
+            val collectJob = launch { viewModel.uiState.collect {} }
+            advanceUntilIdle()
+
+            viewModel.testAiApiKey("valid_key")
+            advanceUntilIdle()
+
+            val state = viewModel.uiState.value as ProfileUiState.Content
+            assertEquals(AiKeyValidationStatus.Valid, state.aiKeyValidationStatus)
+            collectJob.cancel()
+        }
+
+    @Test
+    fun `testAiApiKey updates validation status to Invalid on failure`() =
+        runTest(testDispatcher) {
+            val cached = UserProfile(id = 1L, name = "user")
+            fakeProfileRepository.profileFlow.value = cached
+            fakeProfileRepository.refreshResult = Result.success(cached)
+            fakeAiSearchClient.validateResult = Result.failure(Exception("bad key"))
+
+            viewModel = createViewModel()
+            val collectJob = launch { viewModel.uiState.collect {} }
+            advanceUntilIdle()
+
+            viewModel.testAiApiKey("bad_key")
+            advanceUntilIdle()
+
+            val state = viewModel.uiState.value as ProfileUiState.Content
+            assertEquals(AiKeyValidationStatus.Invalid, state.aiKeyValidationStatus)
+            collectJob.cancel()
+        }
+
+    @Test
+    fun `testAiApiKey updates validation status to QuotaExceeded on 429`() =
+        runTest(testDispatcher) {
+            val cached = UserProfile(id = 1L, name = "user")
+            fakeProfileRepository.profileFlow.value = cached
+            fakeProfileRepository.refreshResult = Result.success(cached)
+            fakeAiSearchClient.validateResult = Result.failure(AiException.QuotaExceeded())
+
+            viewModel = createViewModel()
+            val collectJob = launch { viewModel.uiState.collect {} }
+            advanceUntilIdle()
+
+            viewModel.testAiApiKey("key")
+            advanceUntilIdle()
+
+            val state = viewModel.uiState.value as ProfileUiState.Content
+            assertEquals(AiKeyValidationStatus.QuotaExceeded, state.aiKeyValidationStatus)
+            collectJob.cancel()
+        }
+
+    @Test
+    fun `testAiApiKey updates validation status to ServiceUnavailable on 503`() =
+        runTest(testDispatcher) {
+            val cached = UserProfile(id = 1L, name = "user")
+            fakeProfileRepository.profileFlow.value = cached
+            fakeProfileRepository.refreshResult = Result.success(cached)
+            fakeAiSearchClient.validateResult =
+                Result.failure(AiException.NetworkError("HTTP error 503"))
+
+            viewModel = createViewModel()
+            val collectJob = launch { viewModel.uiState.collect {} }
+            advanceUntilIdle()
+
+            viewModel.testAiApiKey("key")
+            advanceUntilIdle()
+
+            val state = viewModel.uiState.value as ProfileUiState.Content
+            assertEquals(AiKeyValidationStatus.ServiceUnavailable, state.aiKeyValidationStatus)
+            collectJob.cancel()
+        }
+
+    @Test
+    fun `setAiInfoDialogVisible toggles dialog state`() =
+        runTest(testDispatcher) {
+            val cached = UserProfile(id = 1L, name = "user")
+            fakeProfileRepository.profileFlow.value = cached
+            fakeProfileRepository.refreshResult = Result.success(cached)
+
+            viewModel = createViewModel()
+            val collectJob = launch { viewModel.uiState.collect {} }
+            advanceUntilIdle()
+
+            viewModel.setAiInfoDialogVisible(true)
+            advanceUntilIdle()
+
+            var state = viewModel.uiState.value as ProfileUiState.Content
+            assertTrue(state.showAiInfoDialog)
+
+            viewModel.setAiInfoDialogVisible(false)
+            advanceUntilIdle()
+
+            state = viewModel.uiState.value as ProfileUiState.Content
+            assertFalse(state.showAiInfoDialog)
             collectJob.cancel()
         }
 
@@ -449,5 +613,32 @@ class ProfileViewModelTest {
                 updatedCount = updatedCount,
             )
         }
+    }
+
+    private class FakeAiPreferences : AiPreferences {
+        val keyFlow = MutableStateFlow<String?>(null)
+        override val geminiApiKey: Flow<String?> = keyFlow
+
+        override suspend fun setGeminiApiKey(key: String) {
+            keyFlow.value = key
+        }
+
+        override suspend fun clearGeminiApiKey() {
+            keyFlow.value = null
+        }
+    }
+
+    private class FakeAiSearchClient : AiSearchClient {
+        var validateResult: Result<Unit> = Result.success(Unit)
+
+        override suspend fun searchCandidates(
+            prompt: String,
+            apiKey: String,
+        ): Result<AiSearchInterpretation> =
+            Result.success(
+                AiSearchInterpretation("summary", "explanation", emptyList()),
+            )
+
+        override suspend fun validateApiKey(apiKey: String): Result<Unit> = validateResult
     }
 }

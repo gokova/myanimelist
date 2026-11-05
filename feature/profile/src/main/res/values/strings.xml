@@ -34,4 +34,25 @@
     <string name="profile_ignored_import_empty">No valid anime records found in CSV</string>
     <string name="profile_ignored_import_invalid">Failed to import CSV: Invalid format</string>
     <string name="profile_ignored_import_failed">Failed to import CSV</string>
+
+    <!-- AI Settings Strings -->
+    <string name="profile_ai_settings_title">AI-Assisted Search</string>
+    <string name="profile_ai_settings_description">Configure your personal Google Gemini API key to enable natural-language anime discovery.</string>
+    <string name="profile_ai_key_label">Gemini API Key</string>
+    <string name="profile_ai_key_placeholder">Enter API key</string>
+    <string name="profile_ai_save_key">Save</string>
+    <string name="profile_ai_clear_key">Clear</string>
+    <string name="profile_ai_test_key">Test Key</string>
+    <string name="profile_ai_testing_key">Testing…</string>
+    <string name="profile_ai_key_valid">Key is valid and active</string>
+    <string name="profile_ai_key_invalid">Key is invalid or unrecognized</string>
+    <string name="profile_ai_key_quota_exceeded">AI quota or rate limit exceeded</string>
+    <string name="profile_ai_service_unavailable">AI service temporarily busy (503). Please retry in a moment.</string>
+    <string name="profile_ai_network_error">Network timeout or connection error. Please try again.</string>
+    <string name="profile_ai_info_button_cd">About AI Key</string>
+    <string name="profile_ai_info_dialog_title">Bring Your Own Key (BYOK)</string>
+    <string name="profile_ai_info_dialog_content">AI search uses your personal Google Gemini API key. Your key is encrypted with Android Keystore using Google Tink, stored strictly on your device, and never shared or logged. You can obtain a free key at Google AI Studio (aistudio.google.com).</string>
+    <string name="profile_ai_info_dialog_dismiss">Got it</string>
+    <string name="profile_ai_show_key_cd">Show API key</string>
+    <string name="profile_ai_hide_key_cd">Hide API key</string>
 </resources>

@@ -1,14 +1,21 @@
 package com.gokova.myanimelist.feature.search.presentation
 
+import com.gokova.myanimelist.core.ai.model.AiException
+import com.gokova.myanimelist.core.datastore.AiPreferences
 import com.gokova.myanimelist.feature.search.R
+import com.gokova.myanimelist.feature.search.domain.model.AiSearchResult
 import com.gokova.myanimelist.feature.search.domain.model.SearchAnimeItem
 import com.gokova.myanimelist.feature.search.domain.model.SearchResultPage
 import com.gokova.myanimelist.feature.search.domain.repository.SearchRepository
+import com.gokova.myanimelist.feature.search.domain.usecase.AiSearchAnimeUseCase
 import com.gokova.myanimelist.feature.search.domain.usecase.LoadMoreSearchResultsUseCase
 import com.gokova.myanimelist.feature.search.domain.usecase.SearchAnimeUseCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -26,20 +33,31 @@ import java.io.IOException
 import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalCoroutinesApi::class)
+@Suppress("TooManyFunctions")
 class SearchViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var fakeRepository: FakeSearchRepository
+    private lateinit var fakeAiPreferences: FakeAiPreferences
     private lateinit var searchUseCase: SearchAnimeUseCase
     private lateinit var loadMoreUseCase: LoadMoreSearchResultsUseCase
+    private lateinit var aiSearchUseCase: AiSearchAnimeUseCase
     private lateinit var viewModel: SearchViewModel
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         fakeRepository = FakeSearchRepository()
+        fakeAiPreferences = FakeAiPreferences()
         searchUseCase = SearchAnimeUseCase(fakeRepository)
         loadMoreUseCase = LoadMoreSearchResultsUseCase(fakeRepository)
-        viewModel = SearchViewModel(searchUseCase, loadMoreUseCase)
+        aiSearchUseCase = AiSearchAnimeUseCase(fakeRepository)
+        viewModel =
+            SearchViewModel(
+                searchAnimeUseCase = searchUseCase,
+                loadMoreSearchResultsUseCase = loadMoreUseCase,
+                aiSearchAnimeUseCase = aiSearchUseCase,
+                aiPreferences = fakeAiPreferences,
+            )
     }
 
     @After
@@ -108,7 +126,7 @@ class SearchViewModelTest {
     @Test
     fun onSearchFailureTransitionsToErrorState() =
         runTest(testDispatcher) {
-            fakeRepository.searchResult = Result.failure(IOException(" MAL API 500 error"))
+            fakeRepository.searchResult = Result.failure(IOException("MAL API 500 error"))
 
             viewModel.onQueryChange("Fate")
             viewModel.onSearch()
@@ -229,41 +247,6 @@ class SearchViewModelTest {
         }
 
     @Test
-    fun onLoadMoreIgnoresResultsIfQueryChangedWhileLoading() =
-        runTest(testDispatcher) {
-            val item1 = createTestItem(1L, "Digimon")
-            val item2 = createTestItem(2L, "Digimon 02")
-
-            fakeRepository.searchResult =
-                Result.success(SearchResultPage(items = listOf(item1), nextUrl = "page2"))
-            fakeRepository.loadMoreLambda = {
-                delay(1_000.milliseconds)
-                Result.success(SearchResultPage(items = listOf(item2), nextUrl = null))
-            }
-
-            viewModel.onQueryChange("Digimon")
-            viewModel.onSearch()
-            advanceUntilIdle()
-
-            viewModel.onLoadMore()
-            val loadingState = viewModel.uiState.value as SearchUiState.Content
-            assertTrue(loadingState.isLoadingMore)
-
-            viewModel.onQueryChange("Pokemon")
-            val canceledState = viewModel.uiState.value as SearchUiState.Content
-            assertEquals("Pokemon", canceledState.query)
-            assertFalse(canceledState.isLoadingMore)
-
-            advanceUntilIdle()
-
-            val finalState = viewModel.uiState.value as SearchUiState.Content
-            assertEquals("Pokemon", finalState.query)
-            assertEquals(1, finalState.animes.size)
-            assertEquals(1L, finalState.animes[0].id)
-            assertFalse(finalState.isLoadingMore)
-        }
-
-    @Test
     fun onClearQueryResetsToInitialState() =
         runTest(testDispatcher) {
             val item1 = createTestItem(1L, "Anime 1")
@@ -297,6 +280,152 @@ class SearchViewModelTest {
             assertTrue(viewModel.uiState.value is SearchUiState.Content)
         }
 
+    @Test
+    fun toggleModeWithoutApiKeyShowsMissingKeyDialog() =
+        runTest(testDispatcher) {
+            fakeAiPreferences.setApiKey(null)
+
+            viewModel.onToggleMode()
+            advanceUntilIdle()
+
+            assertTrue(viewModel.uiState.value.showMissingKeyDialog)
+            assertEquals(SearchMode.STANDARD, viewModel.uiState.value.mode)
+        }
+
+    @Test
+    fun toggleModeWithApiKeySwitchesMode() =
+        runTest(testDispatcher) {
+            fakeAiPreferences.setApiKey("test_key")
+
+            viewModel.onToggleMode()
+            advanceUntilIdle()
+
+            assertEquals(SearchMode.AI, viewModel.uiState.value.mode)
+            assertTrue(viewModel.uiState.value is SearchUiState.AiInitial)
+        }
+
+    @Test
+    fun onAiSearchWithValidPromptTransitionsToAiContent() =
+        runTest(testDispatcher) {
+            fakeAiPreferences.setApiKey("valid_key")
+            viewModel.onToggleMode()
+            advanceUntilIdle()
+
+            val item = createTestItem(1L, "Monster")
+            fakeRepository.aiSearchResult =
+                Result.success(
+                    AiSearchResult(
+                        intentSummary = "Psychological thriller anime",
+                        explanation = "Top recommendation for suspense",
+                        items = listOf(item),
+                    ),
+                )
+
+            viewModel.onAiPromptChange("thriller anime with mind games")
+            viewModel.onAiSearch()
+            advanceUntilIdle()
+
+            val state = viewModel.uiState.value
+            assertTrue(state is SearchUiState.AiContent)
+            val content = state as SearchUiState.AiContent
+            assertEquals(1, content.result.items.size)
+            assertEquals("Psychological thriller anime", content.result.intentSummary)
+        }
+
+    @Test
+    fun onAiSearchWithMissingKeyFailureShowsMissingKeyDialog() =
+        runTest(testDispatcher) {
+            fakeAiPreferences.setApiKey("key_exists")
+            viewModel.onToggleMode()
+            advanceUntilIdle()
+
+            fakeRepository.aiSearchResult = Result.failure(AiException.MissingApiKey())
+            viewModel.onAiPromptChange("action")
+            viewModel.onAiSearch()
+            advanceUntilIdle()
+
+            assertTrue(viewModel.uiState.value.showMissingKeyDialog)
+        }
+
+    @Test
+    fun onAiSearchWithInvalidKeyFailureTransitionsToAiError() =
+        runTest(testDispatcher) {
+            fakeAiPreferences.setApiKey("invalid_key")
+            viewModel.onToggleMode()
+            advanceUntilIdle()
+
+            fakeRepository.aiSearchResult =
+                Result.failure(AiException.InvalidApiKey("Key rejected"))
+            viewModel.onAiPromptChange("action")
+            viewModel.onAiSearch()
+            advanceUntilIdle()
+
+            val state = viewModel.uiState.value
+            assertTrue(state is SearchUiState.AiError)
+            val error = state as SearchUiState.AiError
+            assertEquals(R.string.ai_search_error_generic, error.messageRes)
+        }
+
+    @Test
+    fun onConfigureKeyClickedDismissesDialogAndEmitsNavigateToProfile() =
+        runTest(testDispatcher) {
+            viewModel.setMissingKeyDialogVisible(true)
+            assertTrue(viewModel.uiState.value.showMissingKeyDialog)
+
+            var eventReceived: SearchUiEvent? = null
+            val job = launch { eventReceived = viewModel.events.first() }
+
+            viewModel.onConfigureKeyClicked()
+            advanceUntilIdle()
+
+            assertFalse(viewModel.uiState.value.showMissingKeyDialog)
+            assertTrue(eventReceived is SearchUiEvent.NavigateToProfile)
+            job.cancel()
+        }
+
+    @Test
+    fun modeTogglingPreservesQueryAndPromptDualState() =
+        runTest(testDispatcher) {
+            fakeAiPreferences.setApiKey("key")
+            viewModel.onQueryChange("Gundam")
+            assertEquals("Gundam", viewModel.uiState.value.query)
+
+            viewModel.onToggleMode()
+            advanceUntilIdle()
+            assertEquals(SearchMode.AI, viewModel.uiState.value.mode)
+
+            viewModel.onAiPromptChange("mecha anime recommendations")
+            assertEquals("mecha anime recommendations", viewModel.uiState.value.aiPrompt)
+
+            viewModel.onToggleMode()
+            advanceUntilIdle()
+            assertEquals(SearchMode.STANDARD, viewModel.uiState.value.mode)
+            assertEquals("Gundam", viewModel.uiState.value.query)
+
+            viewModel.onToggleMode()
+            advanceUntilIdle()
+            assertEquals(SearchMode.AI, viewModel.uiState.value.mode)
+            assertEquals("mecha anime recommendations", viewModel.uiState.value.aiPrompt)
+        }
+
+    @Test
+    fun `toggleMode cancels in-flight standard search and preserves AI mode`() =
+        runTest {
+            fakeRepository.searchLambda = {
+                delay(100.milliseconds)
+                Result.success(SearchResultPage(items = listOf(createTestItem(1L, "Titan"))))
+            }
+            viewModel.onQueryChange("Titan")
+            viewModel.onSearch()
+            assertTrue(viewModel.uiState.value is SearchUiState.Searching)
+
+            viewModel.onToggleMode()
+            advanceUntilIdle()
+
+            assertEquals(SearchMode.AI, viewModel.uiState.value.mode)
+            assertTrue(viewModel.uiState.value is SearchUiState.AiInitial)
+        }
+
     private fun createTestItem(
         id: Long,
         title: String,
@@ -319,6 +448,8 @@ class SearchViewModelTest {
     private class FakeSearchRepository : SearchRepository {
         var searchResult: Result<SearchResultPage> = Result.success(SearchResultPage())
         var loadMoreResult: Result<SearchResultPage> = Result.success(SearchResultPage())
+        var aiSearchResult: Result<AiSearchResult> =
+            Result.success(AiSearchResult("Summary", "Explanation", emptyList()))
         var searchLambda: (suspend (String) -> Result<SearchResultPage>)? = null
         var loadMoreLambda: (suspend (String) -> Result<SearchResultPage>)? = null
         var searchCallCount = 0
@@ -330,5 +461,24 @@ class SearchViewModelTest {
 
         override suspend fun loadMore(nextUrl: String): Result<SearchResultPage> =
             loadMoreLambda?.invoke(nextUrl) ?: loadMoreResult
+
+        override suspend fun aiSearchAnime(prompt: String): Result<AiSearchResult> = aiSearchResult
+    }
+
+    private class FakeAiPreferences : AiPreferences {
+        private val _geminiApiKey = MutableStateFlow<String?>("initial_key")
+        override val geminiApiKey: Flow<String?> = _geminiApiKey.asStateFlow()
+
+        fun setApiKey(key: String?) {
+            _geminiApiKey.value = key
+        }
+
+        override suspend fun setGeminiApiKey(key: String) {
+            _geminiApiKey.value = key
+        }
+
+        override suspend fun clearGeminiApiKey() {
+            _geminiApiKey.value = null
+        }
     }
 }

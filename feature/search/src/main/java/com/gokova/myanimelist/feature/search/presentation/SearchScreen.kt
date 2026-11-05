@@ -54,13 +54,18 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gokova.myanimelist.core.ui.preview.StandardPreviews
 import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
 import com.gokova.myanimelist.core.ui.theme.spacing
-import com.gokova.myanimelist.feature.search.R
+import com.gokova.myanimelist.feature.search.domain.model.SearchAnimeItem
+import com.gokova.myanimelist.feature.search.presentation.components.AiSearchContentResults
+import com.gokova.myanimelist.feature.search.presentation.components.AiSearchDialogs
+import com.gokova.myanimelist.feature.search.presentation.components.AiSearchEmptyState
+import com.gokova.myanimelist.feature.search.presentation.components.AiSearchErrorState
+import com.gokova.myanimelist.feature.search.presentation.components.AiSearchLoadingState
 import com.gokova.myanimelist.feature.search.presentation.components.SearchAnimeCard
 import com.gokova.myanimelist.feature.search.presentation.components.SearchEmptyState
 import com.gokova.myanimelist.feature.search.presentation.components.SearchErrorState
+import com.gokova.myanimelist.feature.search.presentation.components.SearchPosterPreviewOverlay
 import com.gokova.myanimelist.feature.search.presentation.components.SearchTopBar
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filterNotNull
 
 private val EXPANDED_WIDTH_BREAKPOINT = 600.dp
 private val GRID_CELL_MIN_SIZE = 300.dp
@@ -71,6 +76,7 @@ fun SearchScreen(
     onBackClick: () -> Unit,
     onAnimeClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
+    onNavigateToProfile: () -> Unit = {},
     viewModel: SearchViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -83,35 +89,21 @@ fun SearchScreen(
                 is SearchUiEvent.ShowSnackbar -> {
                     snackbarHostState.showSnackbar(resources.getString(event.messageRes))
                 }
+                is SearchUiEvent.NavigateToProfile -> {
+                    onNavigateToProfile()
+                }
             }
         }
     }
 
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
-
-    val actions =
-        SearchActions(
-            onQueryChange = viewModel::onQueryChange,
-            onSearch = viewModel::onSearch,
-            onClearQuery = viewModel::onClearQuery,
-            onLoadMore = viewModel::onLoadMore,
-            onRetrySearch = viewModel::onRetrySearch,
-            onBackClick = {
-                focusManager.clearFocus()
-                keyboardController?.hide()
-                onBackClick()
-            },
-            onAnimeClick = { animeId ->
-                focusManager.clearFocus()
-                keyboardController?.hide()
-                onAnimeClick(animeId)
-            },
-        )
+    val actions = rememberSearchActions(viewModel, focusManager, keyboardController, onBackClick)
 
     SearchContent(
         uiState = uiState,
         actions = actions,
+        onAnimeClick = onAnimeClick,
         snackbarHostState = snackbarHostState,
         modifier = modifier,
     )
@@ -121,16 +113,28 @@ fun SearchScreen(
 fun SearchContent(
     uiState: SearchUiState,
     actions: SearchActions,
+    onAnimeClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
     val focusRequester = remember { FocusRequester() }
     var hasAutoFocused by rememberSaveable { mutableStateOf(false) }
+    var previewPoster by remember { mutableStateOf<SearchAnimeItem?>(null) }
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     val isInspection = LocalInspectionMode.current
     val windowInfo = LocalWindowInfo.current
     val density = LocalDensity.current
     val screenWidthDp = with(density) { windowInfo.containerSize.width.toDp() }
     val isExpanded = screenWidthDp >= EXPANDED_WIDTH_BREAKPOINT
+
+    val itemActions =
+        rememberSearchItemActions(
+            onAnimeClick = onAnimeClick,
+            onPosterClick = { previewPoster = it },
+            focusManager = focusManager,
+            keyboardController = keyboardController,
+        )
 
     LaunchedEffect(Unit) {
         if (!isInspection && !hasAutoFocused && uiState.query.isEmpty()) {
@@ -147,7 +151,7 @@ fun SearchContent(
             ),
         topBar = {
             SearchTopBar(
-                query = uiState.query,
+                uiState = uiState,
                 actions = actions,
                 focusRequester = focusRequester,
             )
@@ -164,9 +168,13 @@ fun SearchContent(
                 uiState = uiState,
                 isExpanded = isExpanded,
                 actions = actions,
+                itemActions = itemActions,
             )
         }
     }
+
+    AiSearchDialogs(uiState = uiState, actions = actions)
+    SearchPosterPreviewOverlay(poster = previewPoster, onDismiss = { previewPoster = null })
 }
 
 @Composable
@@ -174,28 +182,23 @@ private fun SearchBody(
     uiState: SearchUiState,
     isExpanded: Boolean,
     actions: SearchActions,
+    itemActions: SearchItemActions,
     modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         when (uiState) {
             is SearchUiState.Initial -> {
-                SearchEmptyState(
-                    isInitial = true,
-                    modifier = Modifier.align(Alignment.Center),
-                )
+                SearchEmptyState(isInitial = true, modifier = Modifier.align(Alignment.Center))
             }
             is SearchUiState.Searching -> {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             }
             is SearchUiState.Empty -> {
-                SearchEmptyState(
-                    isInitial = false,
-                    modifier = Modifier.align(Alignment.Center),
-                )
+                SearchEmptyState(isInitial = false, modifier = Modifier.align(Alignment.Center))
             }
             is SearchUiState.Error -> {
                 SearchErrorState(
-                    onRetry = actions.onRetrySearch,
+                    onRetry = actions.standardActions.onRetrySearch,
                     modifier = Modifier.align(Alignment.Center),
                 )
             }
@@ -204,6 +207,32 @@ private fun SearchBody(
                     state = uiState,
                     isExpanded = isExpanded,
                     actions = actions,
+                    itemActions = itemActions,
+                )
+            }
+            is SearchUiState.AiInitial -> {
+                AiSearchEmptyState(isInitial = true, modifier = Modifier.align(Alignment.Center))
+            }
+            is SearchUiState.AiSearching -> {
+                AiSearchLoadingState(modifier = Modifier.align(Alignment.Center))
+            }
+            is SearchUiState.AiEmpty -> {
+                AiSearchEmptyState(isInitial = false, modifier = Modifier.align(Alignment.Center))
+            }
+            is SearchUiState.AiError -> {
+                AiSearchErrorState(
+                    state = uiState,
+                    onRetry = actions.aiActions.onSubmitPrompt,
+                    onConfigureKey = actions.aiActions.missingKeyActions.onConfigureKey,
+                    modifier = Modifier.align(Alignment.Center),
+                )
+            }
+            is SearchUiState.AiContent -> {
+                AiSearchContentResults(
+                    state = uiState,
+                    isExpanded = isExpanded,
+                    itemActions = itemActions,
+                    onShowInfo = actions.aiActions.onShowInfoDialog,
                 )
             }
         }
@@ -215,12 +244,23 @@ private fun SearchContentResults(
     state: SearchUiState.Content,
     isExpanded: Boolean,
     actions: SearchActions,
+    itemActions: SearchItemActions,
     modifier: Modifier = Modifier,
 ) {
     if (isExpanded) {
-        SearchGridResults(state = state, actions = actions, modifier = modifier)
+        SearchGridResults(
+            state = state,
+            actions = actions,
+            itemActions = itemActions,
+            modifier = modifier,
+        )
     } else {
-        SearchListResults(state = state, actions = actions, modifier = modifier)
+        SearchListResults(
+            state = state,
+            actions = actions,
+            itemActions = itemActions,
+            modifier = modifier,
+        )
     }
 }
 
@@ -228,38 +268,47 @@ private fun SearchContentResults(
 private fun SearchListResults(
     state: SearchUiState.Content,
     actions: SearchActions,
+    itemActions: SearchItemActions,
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
-    ObserveListPagination(listState, state, actions.onLoadMore)
+    ObserveListPagination(listState, state, actions.standardActions.onLoadMore)
 
     LazyColumn(
         state = listState,
         modifier = modifier.fillMaxSize(),
         contentPadding =
             PaddingValues(
-                horizontal = MaterialTheme.spacing.screenHorizontal,
-                vertical = MaterialTheme.spacing.medium,
+                horizontal = MaterialTheme.spacing.medium,
+                vertical = MaterialTheme.spacing.small,
             ),
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium),
     ) {
         items(state.animes, key = { it.id }) { anime ->
-            SearchAnimeCard(anime = anime, onCardClick = actions.onAnimeClick)
+            SearchAnimeCard(
+                anime = anime,
+                onCardClick = itemActions.onAnimeClick,
+                onPosterClick = { itemActions.onPosterClick(anime) },
+            )
         }
         if (state.isLoadingMore) {
             item(key = "loading_more") {
                 Box(
-                    modifier = Modifier.fillMaxWidth().padding(MaterialTheme.spacing.medium),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = MaterialTheme.spacing.medium),
                     contentAlignment = Alignment.Center,
                 ) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp))
                 }
             }
-        } else if (state.loadMoreErrorRes != null) {
+        }
+        if (state.loadMoreErrorRes != null) {
             item(key = "load_more_error") {
                 LoadMoreErrorFooter(
                     messageRes = state.loadMoreErrorRes,
-                    onRetry = actions.onLoadMore,
+                    onRetry = actions.standardActions.onLoadMore,
                 )
             }
         }
@@ -270,10 +319,11 @@ private fun SearchListResults(
 private fun SearchGridResults(
     state: SearchUiState.Content,
     actions: SearchActions,
+    itemActions: SearchItemActions,
     modifier: Modifier = Modifier,
 ) {
     val gridState = rememberLazyGridState()
-    ObserveGridPagination(gridState, state, actions.onLoadMore)
+    ObserveGridPagination(gridState, state, actions.standardActions.onLoadMore)
 
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = GRID_CELL_MIN_SIZE),
@@ -281,29 +331,36 @@ private fun SearchGridResults(
         modifier = modifier.fillMaxSize(),
         contentPadding =
             PaddingValues(
-                horizontal = MaterialTheme.spacing.screenHorizontal,
-                vertical = MaterialTheme.spacing.medium,
+                horizontal = MaterialTheme.spacing.medium,
+                vertical = MaterialTheme.spacing.small,
             ),
-        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium),
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium),
     ) {
         items(state.animes, key = { it.id }) { anime ->
-            SearchAnimeCard(anime = anime, onCardClick = actions.onAnimeClick)
+            SearchAnimeCard(
+                anime = anime,
+                onCardClick = itemActions.onAnimeClick,
+                onPosterClick = { itemActions.onPosterClick(anime) },
+            )
         }
         if (state.isLoadingMore) {
             item(span = { GridItemSpan(maxLineSpan) }, key = "grid_loading_more") {
                 Box(
-                    modifier = Modifier.fillMaxWidth().padding(MaterialTheme.spacing.medium),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = MaterialTheme.spacing.medium),
                     contentAlignment = Alignment.Center,
                 ) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp))
                 }
             }
-        } else if (state.loadMoreErrorRes != null) {
+        }
+        if (state.loadMoreErrorRes != null) {
             item(span = { GridItemSpan(maxLineSpan) }, key = "grid_load_more_error") {
                 LoadMoreErrorFooter(
                     messageRes = state.loadMoreErrorRes,
-                    onRetry = actions.onLoadMore,
+                    onRetry = actions.standardActions.onLoadMore,
                 )
             }
         }
@@ -316,16 +373,15 @@ private fun ObserveListPagination(
     state: SearchUiState.Content,
     onLoadMore: () -> Unit,
 ) {
-    LaunchedEffect(listState, state.animes.size, state.hasMore, state.isLoadingMore) {
+    LaunchedEffect(listState, state.hasMore, state.isLoadingMore) {
         snapshotFlow {
-            listState.layoutInfo.visibleItemsInfo
-                .lastOrNull()
-                ?.index
-        }.filterNotNull()
-            .distinctUntilChanged()
-            .collect { lastVisibleIndex ->
-                val threshold = state.animes.size - PAGINATION_BUFFER
-                if (lastVisibleIndex >= threshold && state.hasMore && !state.isLoadingMore) {
+            val layout = listState.layoutInfo
+            val total = layout.totalItemsCount
+            val lastVisible = layout.visibleItemsInfo.lastOrNull()?.index ?: 0
+            total > 0 && lastVisible >= total - PAGINATION_BUFFER
+        }.distinctUntilChanged()
+            .collect { shouldLoad ->
+                if (shouldLoad && state.hasMore && !state.isLoadingMore) {
                     onLoadMore()
                 }
             }
@@ -338,16 +394,15 @@ private fun ObserveGridPagination(
     state: SearchUiState.Content,
     onLoadMore: () -> Unit,
 ) {
-    LaunchedEffect(gridState, state.animes.size, state.hasMore, state.isLoadingMore) {
+    LaunchedEffect(gridState, state.hasMore, state.isLoadingMore) {
         snapshotFlow {
-            gridState.layoutInfo.visibleItemsInfo
-                .lastOrNull()
-                ?.index
-        }.filterNotNull()
-            .distinctUntilChanged()
-            .collect { lastVisibleIndex ->
-                val threshold = state.animes.size - PAGINATION_BUFFER
-                if (lastVisibleIndex >= threshold && state.hasMore && !state.isLoadingMore) {
+            val layout = gridState.layoutInfo
+            val total = layout.totalItemsCount
+            val lastVisible = layout.visibleItemsInfo.lastOrNull()?.index ?: 0
+            total > 0 && lastVisible >= total - PAGINATION_BUFFER
+        }.distinctUntilChanged()
+            .collect { shouldLoad ->
+                if (shouldLoad && state.hasMore && !state.isLoadingMore) {
                     onLoadMore()
                 }
             }
@@ -356,21 +411,21 @@ private fun ObserveGridPagination(
 
 @Composable
 private fun LoadMoreErrorFooter(
+    @StringRes messageRes: Int,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
-    @StringRes messageRes: Int = R.string.search_load_more_error,
 ) {
     Box(
         modifier =
             modifier
                 .fillMaxWidth()
-                .padding(MaterialTheme.spacing.medium)
-                .clickable(onClick = onRetry),
+                .clickable(onClick = onRetry)
+                .padding(vertical = MaterialTheme.spacing.medium),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = stringResource(messageRes),
-            style = MaterialTheme.typography.bodySmall,
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.error,
             textAlign = TextAlign.Center,
         )
@@ -385,16 +440,8 @@ private fun SearchScreenPreview(
     MyAnimeListTheme {
         SearchContent(
             uiState = uiState,
-            actions =
-                SearchActions(
-                    onQueryChange = {},
-                    onSearch = {},
-                    onClearQuery = {},
-                    onLoadMore = {},
-                    onRetrySearch = {},
-                    onBackClick = {},
-                    onAnimeClick = {},
-                ),
+            actions = SearchActions(),
+            onAnimeClick = {},
         )
     }
 }

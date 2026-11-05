@@ -28,6 +28,7 @@ object SearchMapper {
             displayTitle = displayTitle,
             subtitleTitle = subtitleTitle,
             thumbnailUrl = node.mainPicture?.large ?: node.mainPicture?.medium,
+            largeImageUrl = node.mainPicture?.large ?: node.mainPicture?.medium,
             mediaType = node.mediaType,
             numEpisodes = node.numEpisodes,
             meanScore = node.mean,

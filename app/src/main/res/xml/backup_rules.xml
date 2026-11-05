@@ -2,6 +2,9 @@
 <full-backup-content>
     <!-- The Tink keyset cannot be restored without its Android Keystore master key. -->
     <exclude domain="sharedpref" path="auth_prefs.xml" />
+    <exclude domain="sharedpref" path="ai_prefs.xml" />
     <!-- OAuth tokens and PKCE state are encrypted with that keyset. -->
     <exclude domain="file" path="datastore/auth_prefs.preferences_pb" />
+    <!-- AI provider API keys are encrypted with that keyset. -->
+    <exclude domain="file" path="datastore/ai_prefs.preferences_pb" />
 </full-backup-content>

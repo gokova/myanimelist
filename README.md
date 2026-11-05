@@ -25,9 +25,10 @@ tracking, visual taste analytics, and recommendations.
 *   **New Seasons Discovery**: Automatically discovers upcoming, ongoing, and recently aired sequels, prequels, and side stories for anime in the user's list. Features polite request pacing, rich metadata enrichment, contextual relation badges (*"Sequel to..."*), and multiple sort orders (Release Date, Score, Title).
 *   **Anime Details**: Rich detail views featuring episode counts, synopsis, seasonal air dates, genres, production metadata, and direct list status management.
 *   **Online Anime Search**: Real-time anime search against the MAL catalog with debounced validation, IME action execution, personalized taste match calculation, and infinite scroll pagination.
+*   **AI-Assisted Search (BYOK)**: Natural-language anime discovery powered by Google Gemini (Bring Your Own Key). Employs a token-efficient, injection-resilient pipeline that combines structured Gemini candidate suggestions with live MyAnimeList verification, personal taste scoring, omission auditing, and a dedicated encrypted API key management surface.
 *   **Edit List Status & Progress**: Inline +1 episode increment on watching cards, comprehensive edit bottom sheet (status, episode stepper with direct numerical entry, 1–10 rating with official MAL labels, rewatching toggle, and list removal), and contextual completion prompts.
 *   **Not Interested / Ignore Filtering**: Long-press bottom sheet on Recommendations and New Seasons to hide unwanted titles with instant undo, top-app-bar details toggle, continuation traversal preservation, and Storage Access Framework (SAF) CSV export and import backup.
-*   **Profile & Session Controls**: Cached user profile details and anime statistics with background refresh feedback, ignored anime count with CSV backup/restore, plus an explicit logout confirmation flow.
+*   **Profile & Session Controls**: Cached user profile details and anime statistics with background refresh feedback, Tink-encrypted BYOK AI API key configuration and validation, ignored anime count with CSV backup/restore, plus an explicit logout confirmation flow.
 
 ---
 
@@ -55,8 +56,9 @@ The project enforces a **Feature-based Multi-Module** architecture to establish 
 ├── core/
 │   ├── network/                # Retrofit API services, OkHttp client, Token Authenticator
 │   ├── database/               # Room database, DAOs, and database entities
-│   ├── datastore/              # Encrypted token storage and user preferences
+│   ├── datastore/              # Encrypted token storage, user preferences, and Tink AI preferences
 │   ├── domain/                 # Core domain models, shared contracts, and use cases
+│   ├── ai/                     # Provider-agnostic AI contracts, Gemini REST client, and schemas
 │   └── ui/                     # Design tokens, theme, typography, shapes, StandardPreviews
 └── feature/
     ├── auth/                   # OAuth 2.0 PKCE login and deep link redirect handling
@@ -64,8 +66,8 @@ The project enforces a **Feature-based Multi-Module** architecture to establish 
     ├── taste/                  # Packed bubble chart analytics and bottom sheet drill-down
     ├── recommendation/         # Background recommendation engine and suggestions UI
     ├── details/                # Detailed anime views, list status editing, and metadata presentation
-    ├── search/                 # Online catalog search, taste match scoring, and pagination
-    └── profile/                # User profile, statistics, ignored anime CSV backup/restore, and logout UI
+    ├── search/                 # Standard search, AI natural-language search, and candidate verification
+    └── profile/                # User profile, statistics, BYOK AI key management, and CSV backup
 ```
 
 ---
@@ -115,9 +117,16 @@ RELEASE_KEY_ALIAS=your_key_alias
 RELEASE_KEY_PASSWORD=your_key_password
 ```
 
+#### 4. AI-Assisted Search Setup (Optional / BYOK)
+AI-Assisted Search operates on a Bring-Your-Own-Key (BYOK) model:
+1. Obtain an API key from [Google AI Studio](https://aistudio.google.com/) (free tier available with no credit card required).
+2. Launch the app and navigate to **Profile** (via the avatar in the top app bar).
+3. Under the **AI-Assisted Search** card, enter your Gemini API key and tap **Test Key**.
+4. Keys are encrypted on-device via Google Tink AES256-GCM backed by Android Keystore, isolated from MAL session logouts, and excluded from cloud backups.
+
 ---
 
-### Verification & Testing
+## Verification & Testing
 Run the following Gradle commands to verify code quality and execute tests:
 
 ```bash
@@ -159,3 +168,4 @@ All architectural decisions, design tokens, and feature specifications are maint
     *   [08: Anime Search](docs/08_anime_search.md)
     *   [09: Edit My List Status & Progress](docs/09_edit_my_list.md)
     *   [10: Not Interested / Ignore Feature](docs/10_not_interested_feature.md)
+    *   [11: AI-Assisted Search](docs/11_ai_assisted_search.md)

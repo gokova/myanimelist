@@ -1,5 +1,6 @@
 package com.gokova.myanimelist.feature.search.domain.usecase
 
+import com.gokova.myanimelist.feature.search.domain.model.AiSearchResult
 import com.gokova.myanimelist.feature.search.domain.model.SearchResultPage
 import com.gokova.myanimelist.feature.search.domain.repository.SearchRepository
 import kotlinx.coroutines.test.runTest
@@ -70,5 +71,8 @@ class SearchAnimeUseCaseTest {
             lastLoadMoreUrl = nextUrl
             return loadMoreResult
         }
+
+        override suspend fun aiSearchAnime(prompt: String): Result<AiSearchResult> =
+            Result.failure(UnsupportedOperationException())
     }
 }

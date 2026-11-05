@@ -1,6 +1,7 @@
 package com.gokova.myanimelist.feature.search.presentation
 
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
+import com.gokova.myanimelist.feature.search.domain.model.AiSearchResult
 import com.gokova.myanimelist.feature.search.domain.model.SearchAnimeItem
 
 class SearchPreviewParameterProvider : PreviewParameterProvider<SearchUiState> {
@@ -19,6 +20,26 @@ class SearchPreviewParameterProvider : PreviewParameterProvider<SearchUiState> {
                 query = "Attack on Titan",
                 message = "Unable to connect to MyAnimeList",
             ),
+            SearchUiState.AiInitial(),
+            SearchUiState.AiSearching(aiPrompt = "Psychological thriller like Pluto"),
+            SearchUiState.AiContent(
+                aiPrompt = "Psychological thriller like Pluto",
+                result =
+                    AiSearchResult(
+                        intentSummary = "Dark sci-fi mysteries",
+                        explanation = "Top psychological anime",
+                        items = sampleSearchAnimeList,
+                    ),
+            ),
+            SearchUiState.AiEmpty(
+                aiPrompt = "Obscure anime",
+                intentSummary = "No matches",
+                explanation = "Could not find fitting titles",
+            ),
+            SearchUiState.AiError(
+                aiPrompt = "Action",
+                message = "AI service unavailable",
+            ),
         )
 
     @Suppress("MagicNumber")
@@ -29,6 +50,11 @@ class SearchPreviewParameterProvider : PreviewParameterProvider<SearchUiState> {
             2 -> "Content"
             3 -> "Empty"
             4 -> "Error"
+            5 -> "AiInitial"
+            6 -> "AiSearching"
+            7 -> "AiContent"
+            8 -> "AiEmpty"
+            9 -> "AiError"
             else -> null
         }
 }
@@ -54,45 +80,31 @@ val sampleSearchAnimeList =
             tasteMatchPercent = 94,
         ),
         SearchAnimeItem(
-            id = 5114L,
-            title = "Fullmetal Alchemist: Brotherhood",
-            englishTitle = "Fullmetal Alchemist: Brotherhood",
-            displayTitle = "Fullmetal Alchemist: Brotherhood",
-            subtitleTitle = null,
+            id = 16498L,
+            title = "Shingeki no Kyojin",
+            englishTitle = "Attack on Titan",
+            displayTitle = "Attack on Titan",
+            subtitleTitle = "Shingeki no Kyojin",
             thumbnailUrl = null,
             mediaType = "tv",
-            numEpisodes = 64,
-            meanScore = 9.10,
-            genres = listOf("Action", "Adventure", "Drama", "Fantasy"),
-            userStatus = null,
+            numEpisodes = 25,
+            meanScore = 8.55,
+            genres = listOf("Action", "Drama", "Suspense"),
+            userStatus = "watching",
             tasteMatchPercent = 88,
         ),
         SearchAnimeItem(
-            id = 26243L,
-            title = "Akame ga Kill! Recap",
-            englishTitle = "Akame ga Kill! Recap",
-            displayTitle = "Akame ga Kill! Recap",
+            id = 99999L,
+            title = "Untracked Anime",
+            englishTitle = null,
+            displayTitle = "Untracked Anime",
             subtitleTitle = null,
             thumbnailUrl = null,
-            mediaType = "tv_special",
+            mediaType = "movie",
             numEpisodes = 1,
-            meanScore = 6.70,
-            genres = listOf("Action", "Fantasy", "Gore"),
+            meanScore = null,
+            genres = emptyList(),
             userStatus = null,
-            tasteMatchPercent = 99,
-        ),
-        SearchAnimeItem(
-            id = 21L,
-            title = "One Piece",
-            englishTitle = "One Piece",
-            displayTitle = "One Piece",
-            subtitleTitle = null,
-            thumbnailUrl = null,
-            mediaType = "tv",
-            numEpisodes = 0,
-            meanScore = 8.72,
-            genres = listOf("Action", "Adventure", "Fantasy"),
-            userStatus = "watching",
-            tasteMatchPercent = 75,
+            tasteMatchPercent = null,
         ),
     )

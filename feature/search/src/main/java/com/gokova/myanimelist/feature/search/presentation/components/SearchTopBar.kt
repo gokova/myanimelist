@@ -1,8 +1,6 @@
 package com.gokova.myanimelist.feature.search.presentation.components
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,9 +16,9 @@ import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.placeCursorAtEnd
 import androidx.compose.foundation.text.input.rememberTextFieldState
-import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -44,8 +42,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.unit.dp
@@ -54,17 +50,75 @@ import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
 import com.gokova.myanimelist.core.ui.theme.spacing
 import com.gokova.myanimelist.feature.search.R
 import com.gokova.myanimelist.feature.search.domain.usecase.SearchAnimeUseCase
+import com.gokova.myanimelist.feature.search.presentation.AiSearchActions
 import com.gokova.myanimelist.feature.search.presentation.SearchActions
+import com.gokova.myanimelist.feature.search.presentation.SearchMode
+import com.gokova.myanimelist.feature.search.presentation.SearchUiState
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 
 private data class SearchInputActions(
     val onSearch: () -> Unit,
     val onClear: () -> Unit,
     val onBack: () -> Unit,
+    val onToggleMode: () -> Unit,
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchTopBar(
+    uiState: SearchUiState,
+    actions: SearchActions,
+    focusRequester: FocusRequester,
+    modifier: Modifier = Modifier,
+) {
+    if (uiState.mode == SearchMode.AI) {
+        val isLoading = uiState is SearchUiState.AiSearching
+        AiSearchTopBarContainer(
+            prompt = uiState.aiPrompt,
+            actions = actions.aiActions,
+            onBackToStandard = actions.onToggleMode,
+            isLoading = isLoading,
+            modifier = modifier,
+        )
+    } else {
+        StandardSearchTopBar(
+            query = uiState.query,
+            actions = actions,
+            focusRequester = focusRequester,
+            modifier = modifier,
+        )
+    }
+}
+
+@Composable
+private fun AiSearchTopBarContainer(
+    prompt: String,
+    actions: AiSearchActions,
+    onBackToStandard: () -> Unit,
+    modifier: Modifier = Modifier,
+    isLoading: Boolean = false,
+) {
+    Column(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .windowInsetsPadding(
+                    WindowInsets.safeDrawing.only(
+                        WindowInsetsSides.Horizontal + WindowInsetsSides.Top,
+                    ),
+                ).padding(horizontal = MaterialTheme.spacing.medium),
+    ) {
+        AiSearchPromptCard(
+            prompt = prompt,
+            actions = actions,
+            onBackToStandard = onBackToStandard,
+            isLoading = isLoading,
+        )
+    }
+}
+
+@Composable
+private fun StandardSearchTopBar(
     query: String,
     actions: SearchActions,
     focusRequester: FocusRequester,
@@ -81,7 +135,7 @@ fun SearchTopBar(
         query = query,
         latestQuery = latestQuery,
         textFieldState = textFieldState,
-        onQueryChange = actions.onQueryChange,
+        onQueryChange = actions.standardActions.onQueryChange,
     )
 
     val currentText = textFieldState.text.toString()
@@ -135,32 +189,27 @@ private fun rememberSearchInputActions(
     onInvalidSubmit: () -> Unit,
     actions: SearchActions,
 ): SearchInputActions {
-    val keyboardController = LocalSoftwareKeyboardController.current
-    val focusManager = LocalFocusManager.current
-    return remember(textFieldState, latestQuery, canSearch, actions) {
+    val latestCanSearch by rememberUpdatedState(canSearch)
+    val latestOnInvalidSubmit by rememberUpdatedState(onInvalidSubmit)
+    val latestActions by rememberUpdatedState(actions)
+
+    return remember(textFieldState) {
         SearchInputActions(
             onSearch = {
-                if (canSearch) {
-                    keyboardController?.hide()
-                    focusManager.clearFocus()
-                    val currentText = textFieldState.text.toString()
-                    if (currentText != latestQuery) {
-                        actions.onQueryChange(currentText)
-                    }
-                    actions.onSearch()
+                if (latestCanSearch) {
+                    latestActions.standardActions.onSearch()
                 } else {
-                    onInvalidSubmit()
+                    latestOnInvalidSubmit()
                 }
             },
             onClear = {
                 textFieldState.clearText()
-                actions.onClearQuery()
+                if (latestQuery.isNotEmpty()) {
+                    latestActions.standardActions.onClearQuery()
+                }
             },
-            onBack = {
-                keyboardController?.hide()
-                focusManager.clearFocus()
-                actions.onBackClick()
-            },
+            onBack = { latestActions.onBackClick() },
+            onToggleMode = { latestActions.onToggleMode() },
         )
     }
 }
@@ -189,7 +238,7 @@ private fun SearchBarContainer(
         windowInsets = WindowInsets(0, 0, 0, 0),
         colors =
             SearchBarDefaults.colors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             ),
     ) {}
 }
@@ -202,18 +251,20 @@ private fun SyncQueryWithState(
     onQueryChange: (String) -> Unit,
 ) {
     LaunchedEffect(query) {
-        if (textFieldState.text.toString() != query) {
-            textFieldState.setTextAndPlaceCursorAtEnd(query)
+        val current = textFieldState.text.toString()
+        if (current != query) {
+            textFieldState.edit {
+                replace(0, length, query)
+                placeCursorAtEnd()
+            }
         }
     }
 
     LaunchedEffect(textFieldState) {
         snapshotFlow { textFieldState.text.toString() }
-            .collect { newQuery ->
-                if (newQuery != latestQuery) {
-                    onQueryChange(newQuery)
-                }
-            }
+            .distinctUntilChanged()
+            .filter { it != latestQuery }
+            .collect { onQueryChange(it) }
     }
 }
 
@@ -224,16 +275,20 @@ private fun SearchInputField(
     canSearch: Boolean,
     focusRequester: FocusRequester,
     inputActions: SearchInputActions,
+    modifier: Modifier = Modifier,
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+
     SearchBarDefaults.InputField(
         state = textFieldState,
         onSearch = { inputActions.onSearch() },
         expanded = false,
         onExpandedChange = {},
+        interactionSource = interactionSource,
         placeholder = {
             Text(
                 text = stringResource(R.string.search_placeholder),
-                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
             )
         },
         leadingIcon = {
@@ -253,12 +308,11 @@ private fun SearchInputField(
             SearchTrailingIcons(
                 query = textFieldState.text.toString(),
                 canSearch = canSearch,
-                onClearQuery = inputActions.onClear,
-                onSearch = inputActions.onSearch,
+                inputActions = inputActions,
             )
         },
         modifier =
-            Modifier
+            modifier
                 .focusRequester(focusRequester)
                 .onFocusChanged { focusState ->
                     if (focusState.isFocused) {
@@ -271,14 +325,11 @@ private fun SearchInputField(
 @Composable
 private fun ValidationHint(
     visible: Boolean,
-    isError: Boolean = false,
+    isError: Boolean,
+    modifier: Modifier = Modifier,
 ) {
-    AnimatedVisibility(
-        visible = visible,
-        enter = fadeIn(),
-        exit = fadeOut(),
-    ) {
-        val textColor =
+    if (visible) {
+        val color =
             if (isError) {
                 MaterialTheme.colorScheme.error
             } else {
@@ -287,9 +338,9 @@ private fun ValidationHint(
         Text(
             text = stringResource(R.string.search_validation_hint),
             style = MaterialTheme.typography.bodySmall,
-            color = textColor,
+            color = color,
             modifier =
-                Modifier.padding(
+                modifier.padding(
                     start = MaterialTheme.spacing.large,
                     top = MaterialTheme.spacing.extraSmall,
                 ),
@@ -301,8 +352,7 @@ private fun ValidationHint(
 private fun SearchTrailingIcons(
     query: String,
     canSearch: Boolean,
-    onClearQuery: () -> Unit,
-    onSearch: () -> Unit,
+    inputActions: SearchInputActions,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -311,7 +361,7 @@ private fun SearchTrailingIcons(
     ) {
         if (query.isNotEmpty()) {
             IconButton(
-                onClick = onClearQuery,
+                onClick = inputActions.onClear,
                 modifier = Modifier.size(MaterialTheme.spacing.minTouchTarget),
             ) {
                 Icon(
@@ -323,7 +373,7 @@ private fun SearchTrailingIcons(
             }
         }
         IconButton(
-            onClick = onSearch,
+            onClick = inputActions.onSearch,
             enabled = canSearch,
             modifier = Modifier.size(MaterialTheme.spacing.minTouchTarget),
         ) {
@@ -339,6 +389,17 @@ private fun SearchTrailingIcons(
                     },
             )
         }
+        IconButton(
+            onClick = inputActions.onToggleMode,
+            modifier = Modifier.size(MaterialTheme.spacing.minTouchTarget),
+        ) {
+            Icon(
+                imageVector = Icons.Default.AutoAwesome,
+                contentDescription =
+                    stringResource(R.string.ai_search_mode_toggle_cd),
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        }
     }
 }
 
@@ -348,43 +409,9 @@ private fun SearchTopBarPreview() {
     MyAnimeListTheme {
         Surface(color = MaterialTheme.colorScheme.background) {
             SearchTopBar(
-                query = "Frieren",
-                actions =
-                    SearchActions(
-                        onQueryChange = {},
-                        onSearch = {},
-                        onClearQuery = {},
-                        onLoadMore = {},
-                        onRetrySearch = {},
-                        onBackClick = {},
-                        onAnimeClick = {},
-                    ),
+                uiState = SearchUiState.Initial(query = "Attack on Titan"),
+                actions = SearchActions(),
                 focusRequester = remember { FocusRequester() },
-                modifier = Modifier.padding(vertical = MaterialTheme.spacing.small),
-            )
-        }
-    }
-}
-
-@StandardPreviews
-@Composable
-private fun SearchTopBarEmptyPreview() {
-    MyAnimeListTheme {
-        Surface(color = MaterialTheme.colorScheme.background) {
-            SearchTopBar(
-                query = "",
-                actions =
-                    SearchActions(
-                        onQueryChange = {},
-                        onSearch = {},
-                        onClearQuery = {},
-                        onLoadMore = {},
-                        onRetrySearch = {},
-                        onBackClick = {},
-                        onAnimeClick = {},
-                    ),
-                focusRequester = remember { FocusRequester() },
-                modifier = Modifier.padding(vertical = MaterialTheme.spacing.small),
             )
         }
     }

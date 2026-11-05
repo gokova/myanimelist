@@ -52,6 +52,7 @@ import com.gokova.myanimelist.core.ui.preview.StandardPreviews
 import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
 import com.gokova.myanimelist.core.ui.theme.spacing
 import com.gokova.myanimelist.feature.profile.R
+import com.gokova.myanimelist.feature.profile.presentation.components.AiSettingsCard
 import com.gokova.myanimelist.feature.profile.presentation.components.IgnoredAnimeSection
 import com.gokova.myanimelist.feature.profile.presentation.components.LogoutButton
 import com.gokova.myanimelist.feature.profile.presentation.components.ProfileHeader
@@ -102,9 +103,9 @@ fun ProfileScreen(
         actions =
             ProfileActions(
                 onBackClick = viewModel::onBackClicked,
-                onLogoutClick = viewModel::onLogoutClicked,
+                onLogoutClick = { viewModel.setLogoutDialogVisible(true) },
                 onConfirmLogout = viewModel::onLogoutConfirmed,
-                onDismissLogout = viewModel::onLogoutDismissed,
+                onDismissLogout = { viewModel.setLogoutDialogVisible(false) },
                 onRetryClick = viewModel::refresh,
                 onExportClick = {
                     val dateStr = SimpleDateFormat("yyyyMMdd", Locale.US).format(Date())
@@ -115,6 +116,14 @@ fun ProfileScreen(
                         arrayOf("text/csv", "text/comma-separated-values", "text/*", "*/*"),
                     )
                 },
+                aiActions =
+                    AiSettingsActions(
+                        onSaveKey = viewModel::saveAiApiKey,
+                        onClearKey = viewModel::clearAiApiKey,
+                        onTestKey = viewModel::testAiApiKey,
+                        onShowInfoDialog = { viewModel.setAiInfoDialogVisible(true) },
+                        onDismissInfoDialog = { viewModel.setAiInfoDialogVisible(false) },
+                    ),
             ),
         snackbarHostState = snackbarHostState,
         modifier = modifier,
@@ -139,7 +148,10 @@ private fun HandleProfileEvents(
                 }
                 is ProfileUiEvent.ShowExportSuccessSnackbar -> {
                     snackbarHostState.showSnackbar(
-                        resources.getString(R.string.profile_ignored_export_success, event.count),
+                        resources.getString(
+                            R.string.profile_ignored_export_success,
+                            event.count,
+                        ),
                     )
                 }
                 is ProfileUiEvent.ShowImportSuccessSnackbar -> {
@@ -166,18 +178,13 @@ fun ProfileScreen(
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
     Scaffold(
-        modifier = modifier.fillMaxSize(),
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
                     Text(
                         text = stringResource(R.string.profile_screen_title),
-                        style =
-                            MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onBackground,
-                            ),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
                     )
                 },
                 navigationIcon = {
@@ -186,7 +193,6 @@ fun ProfileScreen(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription =
                                 stringResource(R.string.profile_back_content_description),
-                            tint = MaterialTheme.colorScheme.onBackground,
                         )
                     }
                 },
@@ -196,19 +202,28 @@ fun ProfileScreen(
                     ),
             )
         },
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background,
-    ) { paddingValues ->
+        modifier = modifier,
+    ) { innerPadding ->
         Box(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .padding(paddingValues),
+                    .padding(innerPadding),
         ) {
             when (uiState) {
                 is ProfileUiState.Loading -> ProfileLoadingState()
+                is ProfileUiState.Content ->
+                    ProfileContentState(
+                        content = uiState,
+                        actions = actions,
+                    )
                 is ProfileUiState.Error ->
-                    ProfileErrorState(uiState.messageResId, actions.onRetryClick)
-                is ProfileUiState.Content -> ProfileContentState(uiState, actions)
+                    ProfileErrorState(
+                        messageResId = uiState.messageResId,
+                        onRetryClick = actions.onRetryClick,
+                    )
             }
         }
     }
@@ -226,14 +241,14 @@ private fun ProfileLoadingState(modifier: Modifier = Modifier) {
 
 @Composable
 private fun ProfileErrorState(
-    @androidx.annotation.StringRes messageResId: Int,
+    messageResId: Int,
     onRetryClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier.fillMaxSize().padding(MaterialTheme.spacing.medium),
-        verticalArrangement = Arrangement.Center,
+        modifier = modifier.fillMaxSize().padding(MaterialTheme.spacing.large),
         horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
     ) {
         Text(
             text = stringResource(messageResId),
@@ -314,6 +329,13 @@ private fun ProfilePortraitContent(
             onImportClick = actions.onImportClick,
         )
         Spacer(modifier = Modifier.height(MaterialTheme.spacing.large))
+        AiSettingsCard(
+            savedApiKey = content.aiApiKey,
+            validationStatus = content.aiKeyValidationStatus,
+            showInfoDialog = content.showAiInfoDialog,
+            actions = actions.aiActions,
+        )
+        Spacer(modifier = Modifier.height(MaterialTheme.spacing.large))
         LogoutButton(onClick = actions.onLogoutClick)
     }
 }
@@ -360,6 +382,13 @@ private fun ProfileLandscapeContent(
                 ignoredCount = content.ignoredAnimeCount,
                 onExportClick = actions.onExportClick,
                 onImportClick = actions.onImportClick,
+            )
+            Spacer(modifier = Modifier.height(MaterialTheme.spacing.large))
+            AiSettingsCard(
+                savedApiKey = content.aiApiKey,
+                validationStatus = content.aiKeyValidationStatus,
+                showInfoDialog = content.showAiInfoDialog,
+                actions = actions.aiActions,
             )
         }
     }

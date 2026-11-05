@@ -6,4 +6,6 @@ sealed interface SearchUiEvent {
     data class ShowSnackbar(
         @StringRes val messageRes: Int,
     ) : SearchUiEvent
+
+    data object NavigateToProfile : SearchUiEvent
 }

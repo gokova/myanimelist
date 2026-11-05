@@ -12,6 +12,7 @@
     <string name="search_match_percent">%1$d%% Match</string>
     <string name="search_load_more_error">Failed to load more results. Tap to retry.</string>
     <string name="search_poster_content_description">Poster for %s</string>
+    <string name="search_zoom_poster_description">Zoom poster for %s</string>
     <string name="search_status_watching">Watching</string>
     <string name="search_status_completed">Completed</string>
     <string name="search_status_on_hold">On Hold</string>
@@ -26,4 +27,31 @@
     <string name="search_episodes_unknown">\?&#160;eps</string>
     <string name="search_initial_title">Search MyAnimeList</string>
     <string name="search_initial_description">Find anime titles, check ratings, and see your personal taste match.</string>
+
+    <!-- AI Search Strings -->
+    <string name="ai_search_mode_toggle_cd">Toggle AI-assisted search</string>
+    <string name="ai_search_prompt_placeholder">Describe what you want to watch (e.g. \'Dark psychological robot anime like Pluto\')…</string>
+    <string name="ai_search_char_counter">%1$d / %2$d</string>
+    <string name="ai_search_submit_button">Ask AI</string>
+    <string name="ai_search_header_title">AI Recommendations</string>
+    <string name="ai_search_info_button_cd">About these AI recommendations</string>
+    <string name="ai_search_info_dialog_title">AI Search Interpretation</string>
+    <string name="ai_search_info_intent_label">Understood Request</string>
+    <string name="ai_search_info_explanation_label">Model Explanation</string>
+    <string name="ai_search_info_unverified_label">Titles Not Found in MAL Catalog</string>
+    <string name="ai_search_info_dismiss">Close</string>
+    <string name="ai_search_missing_key_title">Gemini API Key Required</string>
+    <string name="ai_search_missing_key_message">AI-assisted search requires a free Google Gemini API key. Add your key in Profile settings to enable natural-language anime discovery.</string>
+    <string name="ai_search_missing_key_configure">Configure in Profile</string>
+    <string name="ai_search_missing_key_cancel">Cancel</string>
+    <string name="ai_search_loading_title">Finding recommendations…</string>
+    <string name="ai_search_loading_subtitle">Interpreting criteria and verifying titles with MyAnimeList</string>
+    <string name="ai_search_empty_title">No matching anime found</string>
+    <string name="ai_search_empty_description">The AI could not find suitable anime matching your prompt. Try adjusting your description.</string>
+    <string name="ai_search_error_generic">AI search failed. Please verify your connection or API key.</string>
+    <string name="ai_search_error_quota">AI search quota or rate limit exceeded. Please wait a moment.</string>
+    <string name="ai_search_error_safety">The request was blocked by safety policy. Please refine your prompt.</string>
+    <string name="ai_search_why_this_fits">Why this fits</string>
+    <string name="ai_search_initial_title">AI-Assisted Search</string>
+    <string name="ai_search_initial_description">Describe themes, characters, vibes, or anime you loved to get tailored recommendations.</string>
 </resources>
