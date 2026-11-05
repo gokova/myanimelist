@@ -10,6 +10,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -31,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import com.gokova.myanimelist.core.ui.theme.spacing
 import com.gokova.myanimelist.feature.recommendation.R
 import com.gokova.myanimelist.feature.recommendation.domain.model.NewSeasonSortOption
+import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationLabConfig
 import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationType
 
 @Composable
@@ -38,6 +42,8 @@ fun RecommendationHeader(
     config: RecommendationHeaderConfig,
     onRefreshClick: () -> Unit,
     modifier: Modifier = Modifier,
+    labConfig: RecommendationLabConfig? = null,
+    onTuneClick: () -> Unit = {},
 ) {
     val verticalPadding =
         if (config.compact) MaterialTheme.spacing.extraSmall else MaterialTheme.spacing.small
@@ -82,6 +88,11 @@ fun RecommendationHeader(
                     selectedSort = config.sortConfig.selectedSort,
                     onSortSelected = config.sortConfig.onSortSelected,
                 )
+            } else if (config.selectedType != RecommendationType.NEW_SEASONS) {
+                RecommendationTuneButton(
+                    isCustomized = labConfig != null && !labConfig.isDefault,
+                    onTuneClick = onTuneClick,
+                )
             }
 
             RecommendationRefreshButton(
@@ -122,6 +133,43 @@ private fun RecommendationRefreshStatus(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = modifier,
         )
+    }
+}
+
+@Composable
+private fun RecommendationTuneButton(
+    isCustomized: Boolean,
+    onTuneClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    IconButton(
+        onClick = onTuneClick,
+        modifier = modifier,
+    ) {
+        if (isCustomized) {
+            BadgedBox(
+                badge = {
+                    Badge(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(6.dp),
+                    )
+                },
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Tune,
+                    contentDescription =
+                        stringResource(R.string.recommendation_lab_tune_description),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+        } else {
+            Icon(
+                imageVector = Icons.Default.Tune,
+                contentDescription =
+                    stringResource(R.string.recommendation_lab_tune_description),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

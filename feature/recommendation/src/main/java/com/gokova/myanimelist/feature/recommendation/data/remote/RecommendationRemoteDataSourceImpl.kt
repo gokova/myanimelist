@@ -13,7 +13,10 @@ class RecommendationRemoteDataSourceImpl
     constructor(
         private val apiService: MalApiService,
     ) : RecommendationRemoteDataSource {
-        override suspend fun fetchTopRankingAnime(limit: Int): List<AnimeNodeDto> {
+        override suspend fun fetchTopRankingAnime(
+            rankingType: String,
+            limit: Int,
+        ): List<AnimeNodeDto> {
             val nodes = mutableListOf<AnimeNodeDto>()
             var nextUrl: String? = null
             var isFirstPage = true
@@ -28,7 +31,7 @@ class RecommendationRemoteDataSourceImpl
                     executeWithRetry {
                         if (isFirstPage) {
                             apiService.getAnimeRanking(
-                                rankingType = "all",
+                                rankingType = rankingType,
                                 limit = targetLimit,
                                 offset = 0,
                             )

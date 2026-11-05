@@ -1,5 +1,6 @@
 package com.gokova.myanimelist.feature.recommendation.presentation.components
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -16,17 +17,24 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,9 +52,14 @@ import coil.compose.AsyncImage
 import com.gokova.myanimelist.core.ui.component.badge.PublicScoreBadge
 import com.gokova.myanimelist.core.ui.component.badge.TasteMatchBadge
 import com.gokova.myanimelist.core.ui.component.badge.TaxonomyChip
+import com.gokova.myanimelist.core.ui.preview.StandardPreviews
+import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
 import com.gokova.myanimelist.core.ui.theme.componentSizes
 import com.gokova.myanimelist.core.ui.theme.spacing
 import com.gokova.myanimelist.feature.recommendation.R
+import com.gokova.myanimelist.feature.recommendation.domain.model.DurationFitTier
+import com.gokova.myanimelist.feature.recommendation.domain.model.PopularityTier
+import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationScoreBreakdown
 import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationType
 import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendedAnime
 import java.util.Locale
@@ -59,7 +72,7 @@ fun RecommendationCard(
     modifier: Modifier = Modifier,
     actions: RecommendationCardActions = RecommendationCardActions(),
 ) {
-    val cardClickableModifier =
+    val clickableModifier =
         if (actions.onCardClick != null || actions.onCardLongClick != null) {
             Modifier.combinedClickable(
                 role = Role.Button,
@@ -69,54 +82,77 @@ fun RecommendationCard(
         } else {
             Modifier
         }
+    val cardBorder =
+        BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
 
     Card(
-        modifier = modifier.fillMaxWidth().then(cardClickableModifier),
+        modifier = modifier.fillMaxWidth().then(clickableModifier),
         shape = MaterialTheme.shapes.medium,
-        colors =
-            CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface,
-            ),
-        border =
-            BorderStroke(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
-            ),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = cardBorder,
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
-        Row(
+        Column(
             modifier =
                 Modifier
                     .fillMaxWidth()
+                    .animateContentSize()
                     .padding(MaterialTheme.spacing.medium),
-            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small),
         ) {
-            PosterThumbnail(
-                imageUrl = anime.thumbnailUrl,
-                title = anime.displayTitle(),
-                onPosterClick = actions.onPosterClick,
+            RecommendationCardRow(
+                anime = anime,
+                selectedType = selectedType,
+                actions = actions,
             )
+            if (anime.breakdown != null) {
+                RecommendationExplainabilitySection(breakdown = anime.breakdown)
+            }
+        }
+    }
+}
 
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
-            ) {
-                TitleSection(
-                    displayTitle = anime.displayTitle(),
-                    originalTitle = anime.title.takeIf { it != anime.displayTitle() },
-                    onMoreClick = actions.onMoreClick,
-                )
-
-                BadgesRow(
-                    rank = anime.rank(selectedType),
-                    matchPercent = anime.matchPercent(selectedType),
-                    meanScore = anime.meanScore,
-                )
-
-                MetadataRow(anime = anime)
-
-                if (anime.genres.isNotEmpty()) {
-                    GenresRow(genres = anime.genres)
+@Composable
+private fun RecommendationCardRow(
+    anime: RecommendedAnime,
+    selectedType: RecommendationType,
+    actions: RecommendationCardActions,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium),
+    ) {
+        PosterThumbnail(
+            imageUrl = anime.thumbnailUrl,
+            title = anime.displayTitle(),
+            onPosterClick = actions.onPosterClick,
+        )
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
+        ) {
+            TitleSection(
+                displayTitle = anime.displayTitle(),
+                originalTitle = anime.title.takeIf { it != anime.displayTitle() },
+                onMoreClick = actions.onMoreClick,
+            )
+            BadgesRow(
+                rank = anime.rank(selectedType),
+                matchPercent = anime.matchPercent(selectedType),
+                meanScore = anime.meanScore,
+            )
+            MetadataRow(anime = anime)
+            if (anime.genres.isNotEmpty()) {
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
+                    verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
+                    maxLines = 1,
+                ) {
+                    anime.genres.take(MAX_DISPLAYED_GENRES).forEach { genre ->
+                        TaxonomyChip(text = genre)
+                    }
                 }
             }
         }
@@ -308,18 +344,202 @@ private fun MetadataRow(
 private const val MAX_DISPLAYED_GENRES = 4
 
 @Composable
-private fun GenresRow(
-    genres: List<String>,
+private fun RecommendationExplainabilitySection(
+    breakdown: RecommendationScoreBreakdown,
     modifier: Modifier = Modifier,
 ) {
-    FlowRow(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
+    var isExpanded by rememberSaveable { mutableStateOf(false) }
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clickable(role = Role.Button) { isExpanded = !isExpanded }
+                    .padding(vertical = MaterialTheme.spacing.extraSmall),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text =
+                    stringResource(
+                        if (isExpanded) {
+                            R.string.recommendation_why_match_collapse
+                        } else {
+                            R.string.recommendation_why_match
+                        },
+                    ),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Icon(
+                imageVector =
+                    if (isExpanded) {
+                        Icons.Default.ExpandLess
+                    } else {
+                        Icons.Default.ExpandMore
+                    },
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(16.dp),
+            )
+        }
+
+        if (isExpanded) {
+            ExplainabilityDetails(breakdown = breakdown)
+        }
+    }
+}
+
+@Composable
+private fun ExplainabilityDetails(
+    breakdown: RecommendationScoreBreakdown,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(top = MaterialTheme.spacing.extraSmall),
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
-        maxLines = 1,
     ) {
-        genres.take(MAX_DISPLAYED_GENRES).forEach { genre ->
-            TaxonomyChip(text = genre)
+        ScoreMeterRow(
+            label = stringResource(R.string.recommendation_taste_alignment),
+            score = breakdown.tasteAlignmentScore,
+        )
+        ScoreMeterRow(
+            label = stringResource(R.string.recommendation_discovery),
+            score = breakdown.discoveryScore,
+        )
+
+        if (breakdown.topMatchedTags.isNotEmpty()) {
+            val tags = breakdown.topMatchedTags.joinToString(", ")
+            Text(
+                text = stringResource(R.string.recommendation_why_top_tags, tags),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        if (breakdown.exploratoryTags.isNotEmpty()) {
+            val tags = breakdown.exploratoryTags.joinToString(", ")
+            Text(
+                text = stringResource(R.string.recommendation_why_exploratory_tags, tags),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        breakdown.durationTier?.let {
+            Text(
+                text = stringResource(R.string.recommendation_why_duration, it.format()),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        breakdown.popularityTier?.let {
+            Text(
+                text = stringResource(R.string.recommendation_why_popularity, it.format()),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ScoreMeterRow(
+    label: String,
+    score: Float,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        val percent = (score * 100).toInt().coerceIn(0, 100)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small),
+        ) {
+            LinearProgressIndicator(
+                progress = { percent / 100f },
+                modifier =
+                    Modifier
+                        .width(80.dp)
+                        .height(6.dp)
+                        .clip(MaterialTheme.shapes.small),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+            )
+            Text(
+                text = stringResource(R.string.recommendation_percent_format, percent),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+    }
+}
+
+@StandardPreviews
+@Composable
+private fun RecommendationCardPreview() {
+    val sampleEpisodes = 23
+    val sampleYear = 2023
+    val sampleMeanScore = 8.7
+    val sampleGenreScore = 4.9
+    val sampleGenreMatch = 99
+    val sampleThemeScore = 4.8
+    val sampleThemeMatch = 98
+    val sampleDiscoveryScore = 0.21f
+
+    MyAnimeListTheme {
+        Surface {
+            RecommendationCard(
+                anime =
+                    RecommendedAnime(
+                        animeId = 1L,
+                        title = "Jujutsu Kaisen Season 2",
+                        titleEnglish = "Jujutsu Kaisen 2nd Season",
+                        thumbnailUrl = null,
+                        largeImageUrl = null,
+                        mediaType = "TV",
+                        airingStatus = "finished_airing",
+                        numEpisodes = sampleEpisodes,
+                        startSeasonYear = sampleYear,
+                        startSeasonSeason = "summer",
+                        meanScore = sampleMeanScore,
+                        genreRank = 1,
+                        genreScore = sampleGenreScore,
+                        genreMatchPercent = sampleGenreMatch,
+                        themeRank = 1,
+                        themeScore = sampleThemeScore,
+                        themeMatchPercent = sampleThemeMatch,
+                        genres = listOf("Action", "Gore", "School"),
+                        studios = listOf("MAPPA"),
+                        source = "manga",
+                        breakdown =
+                            RecommendationScoreBreakdown(
+                                tasteAlignmentScore = 1.0f,
+                                discoveryScore = sampleDiscoveryScore,
+                                topMatchedTags = listOf("Shounen", "Gore", "School"),
+                                exploratoryTags = listOf("Urban Fantasy"),
+                                durationTier = DurationFitTier.StandardCour(sampleEpisodes),
+                                popularityTier = PopularityTier.MAINSTREAM_FAVORITE,
+                            ),
+                    ),
+                selectedType = RecommendationType.GENRE,
+                modifier = Modifier.padding(16.dp),
+            )
         }
     }
 }

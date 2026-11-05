@@ -26,7 +26,8 @@ class SeasonalPeriodCalculator {
         val last = offsetSeason(year, currentSeasonIdx, -1)
         val twoAgo = offsetSeason(year, currentSeasonIdx, -2)
 
-        return listOf(current, next, last, twoAgo)
+        val threeAgo = offsetSeason(year, currentSeasonIdx, -3)
+        return listOf(current, next, last, twoAgo, threeAgo)
     }
 
     private fun offsetSeason(

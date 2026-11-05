@@ -6,6 +6,7 @@ import androidx.work.WorkInfo
 import com.gokova.myanimelist.core.database.dao.RecommendationDao
 import com.gokova.myanimelist.core.database.dao.UserAnimeListDao
 import com.gokova.myanimelist.core.database.entity.AnimeEntity
+import com.gokova.myanimelist.core.database.entity.GenreEntity
 import com.gokova.myanimelist.core.database.entity.RecommendationCandidateEntity
 import com.gokova.myanimelist.core.database.entity.RecommendationEntity
 import com.gokova.myanimelist.core.database.entity.UserAnimeListEntity
@@ -13,7 +14,9 @@ import com.gokova.myanimelist.core.database.model.RecommendationItem
 import com.gokova.myanimelist.core.database.model.UserAnimeListItem
 import com.gokova.myanimelist.feature.recommendation.data.work.RecommendationScheduler
 import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationEngineState
+import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationLabConfig
 import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationType
+import com.gokova.myanimelist.feature.recommendation.domain.model.TimeCommitmentFilter
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -54,6 +57,10 @@ class RecommendationRepositoryImplTest {
         }
 
         override suspend fun getUserAnimeIds(): List<Long> = emptyList()
+
+        val candidateFlow = MutableStateFlow<List<AnimeEntity>>(emptyList())
+
+        override fun observeCandidateAnimes(): Flow<List<AnimeEntity>> = candidateFlow
 
         override suspend fun getCandidateAnimes(): List<AnimeEntity> = emptyList()
 
@@ -148,10 +155,11 @@ class RecommendationRepositoryImplTest {
             )
     }
 
-    @Suppress("SameParameterValue")
     private fun createRecommendationItem(
         id: Long,
         title: String,
+        episodes: Int = 12,
+        genres: List<GenreEntity>? = null,
     ) = RecommendationItem(
         recommendation =
             RecommendationEntity(
@@ -172,39 +180,44 @@ class RecommendationRepositoryImplTest {
                 mainPictureLarge = null,
                 mediaType = "tv",
                 airingStatus = "finished_airing",
-                numEpisodes = 12,
+                numEpisodes = episodes,
                 startSeasonYear = 2026,
                 startSeasonSeason = "summer",
-                meanScore = 8.0,
+                meanScore = 8.5,
+                genres = genres,
+                numListUsers = 100000,
             ),
     )
 
-    private fun createUserItem(id: Long) =
-        UserAnimeListItem(
-            userAnime =
-                UserAnimeListEntity(
-                    animeId = id,
-                    status = "completed",
-                    score = 9,
-                    numEpisodesWatched = 12,
-                    updatedAt = "2026-09-19",
-                    isRewatching = false,
-                ),
-            anime =
-                AnimeEntity(
-                    id = id,
-                    title = "User Anime $id",
-                    titleEnglish = null,
-                    mainPictureMedium = null,
-                    mainPictureLarge = null,
-                    mediaType = "tv",
-                    airingStatus = "finished_airing",
-                    numEpisodes = 12,
-                    startSeasonYear = 2026,
-                    startSeasonSeason = "winter",
-                    meanScore = 8.0,
-                ),
-        )
+    private fun createUserItem(
+        id: Long,
+        genres: List<GenreEntity>? = null,
+    ) = UserAnimeListItem(
+        userAnime =
+            UserAnimeListEntity(
+                animeId = id,
+                status = "completed",
+                score = 9,
+                numEpisodesWatched = 12,
+                updatedAt = "2026-09-19",
+                isRewatching = false,
+            ),
+        anime =
+            AnimeEntity(
+                id = id,
+                title = "User Anime $id",
+                titleEnglish = null,
+                mainPictureMedium = null,
+                mainPictureLarge = null,
+                mediaType = "tv",
+                airingStatus = "finished_airing",
+                numEpisodes = 12,
+                startSeasonYear = 2026,
+                startSeasonSeason = "winter",
+                meanScore = 8.0,
+                genres = genres,
+            ),
+    )
 
     @Test
     fun `observeRecommendations by genre maps database items to domain`() =
@@ -219,6 +232,58 @@ class RecommendationRepositoryImplTest {
             assertEquals("Top Anime", result[0].title)
             assertEquals(95, result[0].genreMatchPercent)
             assertEquals(1, result[0].genreRank)
+        }
+
+    @Test
+    fun `calculateLabMatchCount falls back to saved recommendations when candidates empty`() =
+        runTest {
+            val actionGenre = listOf(GenreEntity(1, "Action"))
+            fakeUserAnimeListDao.userAnimeFlow.value = listOf(createUserItem(999L, actionGenre))
+            val item12Ep = createRecommendationItem(100L, "Short Action", 12, actionGenre)
+            fakeRecommendationDao.genreFlow.value = listOf(item12Ep)
+
+            val countAll =
+                repository.calculateLabMatchCount(
+                    RecommendationType.GENRE,
+                    RecommendationLabConfig(),
+                )
+            assertEquals(1, countAll)
+
+            val countLong =
+                repository.calculateLabMatchCount(
+                    RecommendationType.GENRE,
+                    RecommendationLabConfig(timeCommitment = TimeCommitmentFilter.LONG),
+                )
+            assertEquals(0, countLong)
+
+            val countShort =
+                repository.calculateLabMatchCount(
+                    RecommendationType.GENRE,
+                    RecommendationLabConfig(timeCommitment = TimeCommitmentFilter.SHORT),
+                )
+            assertEquals(1, countShort)
+        }
+
+    @Test
+    fun `observeRecommendations filters saved recs with lab config when candidates empty`() =
+        runTest {
+            val actionGenre = listOf(GenreEntity(1, "Action"))
+            fakeUserAnimeListDao.userAnimeFlow.value = listOf(createUserItem(999L, actionGenre))
+            val shortAnime = createRecommendationItem(1L, "Short Anime", 12, actionGenre)
+            val longAnime = createRecommendationItem(2L, "Long Anime", 50, actionGenre)
+            fakeRecommendationDao.genreFlow.value = listOf(shortAnime, longAnime)
+
+            val longResult =
+                repository
+                    .observeRecommendations(
+                        RecommendationType.GENRE,
+                        RecommendationLabConfig(timeCommitment = TimeCommitmentFilter.LONG),
+                    ).first()
+
+            assertEquals(1, longResult.size)
+            assertEquals(2L, longResult[0].animeId)
+            assertEquals("Long Anime", longResult[0].title)
+            assertEquals(50, longResult[0].numEpisodes)
         }
 
     @Test

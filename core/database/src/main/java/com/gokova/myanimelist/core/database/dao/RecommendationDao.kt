@@ -78,6 +78,21 @@ interface RecommendationDao {
         """
         SELECT a.* FROM animes a
         INNER JOIN recommendation_candidates rc ON a.id = rc.anime_id
+        WHERE a.id NOT IN (SELECT anime_id FROM new_season_animes)
+          AND a.id NOT IN (SELECT anime_id FROM ignored_animes)
+          AND a.id NOT IN (SELECT anime_id FROM user_anime_list)
+        """,
+    )
+    fun observeCandidateAnimes(): Flow<List<AnimeEntity>>
+
+    @Transaction
+    @Query(
+        """
+        SELECT a.* FROM animes a
+        INNER JOIN recommendation_candidates rc ON a.id = rc.anime_id
+        WHERE a.id NOT IN (SELECT anime_id FROM new_season_animes)
+          AND a.id NOT IN (SELECT anime_id FROM ignored_animes)
+          AND a.id NOT IN (SELECT anime_id FROM user_anime_list)
         """,
     )
     suspend fun getCandidateAnimes(): List<AnimeEntity>
@@ -109,15 +124,8 @@ interface RecommendationDao {
     suspend fun deleteNonUserData(animeIds: List<Long>): Int
 
     @Transaction
-    suspend fun saveEvaluatedRecommendations(
-        recommendations: List<RecommendationEntity>,
-        discardedAnimeIds: List<Long>,
-    ) {
+    suspend fun saveEvaluatedRecommendations(recommendations: List<RecommendationEntity>) {
         clearRecommendations()
         upsertRecommendations(recommendations)
-        clearCandidates()
-        if (discardedAnimeIds.isNotEmpty()) {
-            deleteNonUserData(discardedAnimeIds)
-        }
     }
 }

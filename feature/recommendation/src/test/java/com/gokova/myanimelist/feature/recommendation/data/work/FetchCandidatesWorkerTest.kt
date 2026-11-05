@@ -94,7 +94,10 @@ class FetchCandidatesWorkerTest {
     private class FakeRemoteDataSource(
         private val failure: HttpException,
     ) : RecommendationRemoteDataSource {
-        override suspend fun fetchTopRankingAnime(limit: Int): List<AnimeNodeDto> = throw failure
+        override suspend fun fetchTopRankingAnime(
+            rankingType: String,
+            limit: Int,
+        ): List<AnimeNodeDto> = throw failure
 
         override suspend fun fetchSeasonalAnime(
             year: Int,
@@ -142,6 +145,8 @@ class FetchCandidatesWorkerTest {
         override suspend fun getUserAnimeIds(): List<Long> = (1L..5L).toList()
 
         override suspend fun getExcludedCandidateAnimeIds(): List<Long> = emptyList()
+
+        override fun observeCandidateAnimes(): Flow<List<AnimeEntity>> = emptyFlow()
 
         override suspend fun getCandidateAnimes(): List<AnimeEntity> = emptyList()
 

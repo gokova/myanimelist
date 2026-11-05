@@ -84,7 +84,15 @@ class FetchCandidatesWorker
             }
 
         private suspend fun fetchAndStoreCandidates(excludedAnimeIds: Set<Long>) {
-            val topRanking = remoteDataSource.fetchTopRankingAnime()
+            val topRanking =
+                remoteDataSource.fetchTopRankingAnime(
+                    limit = RecommendationRemoteDataSource.DEFAULT_RANKING_LIMIT,
+                )
+            val topMovies =
+                remoteDataSource.fetchTopRankingAnime(
+                    rankingType = RecommendationRemoteDataSource.RANKING_TYPE_MOVIE,
+                    limit = RecommendationRemoteDataSource.DEFAULT_MOVIE_LIMIT,
+                )
             val targetSeasons = seasonalCalculator.getTargetSeasons()
             val seasonalAnime = mutableListOf<AnimeNodeDto>()
 
@@ -98,7 +106,7 @@ class FetchCandidatesWorker
             }
 
             val allCandidates =
-                (topRanking + seasonalAnime)
+                (topRanking + topMovies + seasonalAnime)
                     .distinctBy { it.id }
                     .filter { it.id !in excludedAnimeIds }
 
@@ -108,6 +116,7 @@ class FetchCandidatesWorker
                     RecommendationCandidateEntity(animeId = it.id, source = "candidate")
                 }
 
+            recommendationDao.clearCandidates()
             recommendationDao.upsertAnimes(animeEntities)
             recommendationDao.upsertCandidates(candidateEntities)
 

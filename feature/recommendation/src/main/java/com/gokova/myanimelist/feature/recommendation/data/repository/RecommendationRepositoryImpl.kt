@@ -3,17 +3,21 @@ package com.gokova.myanimelist.feature.recommendation.data.repository
 import androidx.work.WorkInfo
 import com.gokova.myanimelist.core.database.dao.RecommendationDao
 import com.gokova.myanimelist.core.database.dao.UserAnimeListDao
+import com.gokova.myanimelist.core.domain.taxonomy.TagType
 import com.gokova.myanimelist.feature.recommendation.data.mapper.RecommendationMapper
 import com.gokova.myanimelist.feature.recommendation.data.work.RecommendationScheduler
+import com.gokova.myanimelist.feature.recommendation.domain.algorithm.RecommendationScorer
 import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationConstants.MIN_USER_LIST_THRESHOLD
 import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationEngineState
+import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationLabConfig
 import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationType
 import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendedAnime
+import com.gokova.myanimelist.feature.recommendation.domain.model.UserTasteProfileItem
 import com.gokova.myanimelist.feature.recommendation.domain.repository.RecommendationRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flowOf
 import javax.inject.Inject
 
 class RecommendationRepositoryImpl
@@ -23,20 +27,65 @@ class RecommendationRepositoryImpl
         private val userAnimeListDao: UserAnimeListDao,
         private val scheduler: RecommendationScheduler,
     ) : RecommendationRepository {
+        private val scorer = RecommendationScorer()
+
         override fun observeRecommendations(
             type: RecommendationType,
+            config: RecommendationLabConfig,
         ): Flow<List<RecommendedAnime>> {
-            val sourceFlow =
-                when (type) {
-                    RecommendationType.GENRE ->
-                        recommendationDao.observeRecommendationsByGenre()
-                    RecommendationType.THEME ->
-                        recommendationDao.observeRecommendationsByTheme()
-                    RecommendationType.NEW_SEASONS ->
-                        kotlinx.coroutines.flow.flowOf(emptyList())
+            if (type == RecommendationType.NEW_SEASONS) {
+                return flowOf(emptyList())
+            }
+
+            val savedFlow =
+                if (type == RecommendationType.GENRE) {
+                    recommendationDao.observeRecommendationsByGenre()
+                } else {
+                    recommendationDao.observeRecommendationsByTheme()
                 }
-            return sourceFlow.map { list ->
-                list.map { RecommendationMapper.toDomain(it) }
+
+            return combine(
+                recommendationDao.observeCandidateAnimes(),
+                userAnimeListDao.observeAllUserAnime(),
+                savedFlow,
+            ) { candidateEntities, userAnimeList, savedRecs ->
+                val userTaste =
+                    userAnimeList.map { item ->
+                        UserTasteProfileItem(
+                            animeId = item.anime.id,
+                            genres = item.anime.genres?.map { it.name } ?: emptyList(),
+                            userScore = item.userAnime.score.takeIf { it > 0 },
+                        )
+                    }
+
+                val userAnimeIds = userAnimeList.map { it.anime.id }.toSet()
+                val pool =
+                    (candidateEntities + savedRecs.map { it.anime })
+                        .distinctBy { it.id }
+                        .filter { it.id !in userAnimeIds }
+
+                if (pool.isEmpty() || userTaste.isEmpty()) {
+                    return@combine savedRecs.map { RecommendationMapper.toDomain(it) }
+                }
+
+                val targetType =
+                    if (type == RecommendationType.GENRE) TagType.GENRE else TagType.THEME
+                val candidates =
+                    pool.map { RecommendationMapper.toCandidateAnimeItem(it) }
+                val labResults = scorer.evaluateLab(userTaste, candidates, config, targetType)
+
+                val entityMap = pool.associateBy { it.id }
+                val results =
+                    labResults.mapNotNull { result ->
+                        val entity = entityMap[result.animeId] ?: return@mapNotNull null
+                        RecommendationMapper.toRecommendedAnime(entity, result, type)
+                    }
+
+                if (results.isEmpty() && config.isDefault) {
+                    savedRecs.map { RecommendationMapper.toDomain(it) }
+                } else {
+                    results
+                }
             }
         }
 
@@ -103,5 +152,43 @@ class RecommendationRepositoryImpl
 
         override suspend fun triggerImmediateEvaluation() {
             scheduler.triggerImmediateCalculation()
+        }
+
+        override suspend fun calculateLabMatchCount(
+            type: RecommendationType,
+            config: RecommendationLabConfig,
+        ): Int {
+            if (type == RecommendationType.NEW_SEASONS) return 0
+            val userAnimeList = userAnimeListDao.getAllUserAnime()
+            val userList =
+                userAnimeList.map { item ->
+                    UserTasteProfileItem(
+                        animeId = item.anime.id,
+                        genres = item.anime.genres?.map { it.name } ?: emptyList(),
+                        userScore = item.userAnime.score.takeIf { it > 0 },
+                    )
+                }
+            val savedRecs =
+                if (type == RecommendationType.GENRE) {
+                    recommendationDao.observeRecommendationsByGenre().first()
+                } else {
+                    recommendationDao.observeRecommendationsByTheme().first()
+                }
+            val userAnimeIds = userAnimeList.map { it.anime.id }.toSet()
+            val pool =
+                (recommendationDao.getCandidateAnimes() + savedRecs.map { it.anime })
+                    .distinctBy { it.id }
+                    .filter { it.id !in userAnimeIds }
+
+            return when {
+                userList.isEmpty() || pool.isEmpty() -> 0
+                else -> {
+                    val targetType =
+                        if (type == RecommendationType.GENRE) TagType.GENRE else TagType.THEME
+                    val candidates = pool.map { RecommendationMapper.toCandidateAnimeItem(it) }
+                    val results = scorer.evaluateLab(userList, candidates, config, targetType)
+                    if (results.isEmpty() && config.isDefault) savedRecs.size else results.size
+                }
+            }
         }
     }

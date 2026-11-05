@@ -21,6 +21,7 @@ data class RecommendedAnime(
     val genres: List<String> = emptyList(),
     val studios: List<String> = emptyList(),
     val source: String? = null,
+    val breakdown: RecommendationScoreBreakdown? = null,
 ) {
     fun rank(type: RecommendationType): Int =
         when (type) {

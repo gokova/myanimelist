@@ -1,5 +1,6 @@
 package com.gokova.myanimelist.feature.recommendation.domain.usecase
 
+import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationLabConfig
 import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationType
 import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendedAnime
 import com.gokova.myanimelist.feature.recommendation.domain.repository.RecommendationRepository
@@ -11,6 +12,8 @@ class ObserveRecommendationsUseCase
     constructor(
         private val repository: RecommendationRepository,
     ) {
-        operator fun invoke(type: RecommendationType): Flow<List<RecommendedAnime>> =
-            repository.observeRecommendations(type)
+        operator fun invoke(
+            type: RecommendationType,
+            config: RecommendationLabConfig = RecommendationLabConfig(),
+        ): Flow<List<RecommendedAnime>> = repository.observeRecommendations(type, config)
     }

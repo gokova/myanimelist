@@ -10,15 +10,18 @@ import com.gokova.myanimelist.feature.recommendation.domain.model.NewSeasonAnime
 import com.gokova.myanimelist.feature.recommendation.domain.model.NewSeasonSortOption
 import com.gokova.myanimelist.feature.recommendation.domain.model.NewSeasonState
 import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationEngineState
+import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationLabConfig
 import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationType
 import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendedAnime
 import com.gokova.myanimelist.feature.recommendation.domain.repository.NewSeasonRepository
 import com.gokova.myanimelist.feature.recommendation.domain.repository.RecommendationRepository
+import com.gokova.myanimelist.feature.recommendation.domain.usecase.CalculateLabMatchCountUseCase
 import com.gokova.myanimelist.feature.recommendation.domain.usecase.NewSeasonsInteractor
 import com.gokova.myanimelist.feature.recommendation.domain.usecase.ObserveNewSeasonStateUseCase
 import com.gokova.myanimelist.feature.recommendation.domain.usecase.ObserveNewSeasonsUseCase
 import com.gokova.myanimelist.feature.recommendation.domain.usecase.ObserveRecommendationStateUseCase
 import com.gokova.myanimelist.feature.recommendation.domain.usecase.ObserveRecommendationsUseCase
+import com.gokova.myanimelist.feature.recommendation.domain.usecase.RecommendationInteractor
 import com.gokova.myanimelist.feature.recommendation.domain.usecase.ScheduleNewSeasonWorkUseCase
 import com.gokova.myanimelist.feature.recommendation.domain.usecase.ScheduleRecommendationWorkUseCase
 import com.gokova.myanimelist.feature.recommendation.domain.usecase.TriggerNewSeasonCalculationUseCase
@@ -58,6 +61,7 @@ class RecommendationViewModelTest {
 
         override fun observeRecommendations(
             type: RecommendationType,
+            config: RecommendationLabConfig,
         ): Flow<List<RecommendedAnime>> =
             when (type) {
                 RecommendationType.GENRE -> genreFlow
@@ -74,6 +78,11 @@ class RecommendationViewModelTest {
         override suspend fun triggerImmediateEvaluation() {
             triggerCount++
         }
+
+        override suspend fun calculateLabMatchCount(
+            type: RecommendationType,
+            config: RecommendationLabConfig,
+        ): Int = 42
     }
 
     private class FakeIgnoredAnimeRepository : IgnoredAnimeRepository {
@@ -191,11 +200,18 @@ class RecommendationViewModelTest {
                     RemoveAnimeFromNotInterestedUseCase(fakeIgnoredAnimeRepository),
             )
 
+        val calculateCount = CalculateLabMatchCountUseCase(fakeRepository)
+        val recommendationInteractor =
+            RecommendationInteractor(
+                observeRecommendations = observeRecs,
+                observeRecommendationState = observeState,
+                triggerCalculation = triggerCalc,
+                scheduleWork = scheduleWork,
+                calculateLabMatchCount = calculateCount,
+            )
+
         return RecommendationViewModel(
-            observeRecommendationsUseCase = observeRecs,
-            observeRecommendationStateUseCase = observeState,
-            triggerCalculationUseCase = triggerCalc,
-            scheduleRecommendationWorkUseCase = scheduleWork,
+            recommendations = recommendationInteractor,
             newSeasons = newSeasonsInteractor,
             ignoredAnimeInteractor = ignoredAnimeInteractor,
         )
@@ -679,6 +695,116 @@ class RecommendationViewModelTest {
             testScheduler.advanceUntilIdle()
 
             assertEquals(initialTriggerCount, fakeRepository.triggerCount)
+
+            collectJob.cancel()
+        }
+
+    @Test
+    fun `onEvent OpenLab opens the lab sheet`() =
+        runTest {
+            fakeRepository.genreFlow.value = listOf(sampleAnime(1L, "Anime 1"))
+            val viewModel = createViewModel()
+            val collectJob =
+                launch(UnconfinedTestDispatcher(testScheduler)) {
+                    viewModel.uiState.collect()
+                }
+            testScheduler.advanceUntilIdle()
+
+            viewModel.onEvent(RecommendationUiEvent.OpenLab)
+            testScheduler.advanceUntilIdle()
+
+            assertTrue(viewModel.uiState.value.isLabOpen)
+
+            collectJob.cancel()
+        }
+
+    @Test
+    fun `onEvent CloseLab closes the lab sheet`() =
+        runTest {
+            fakeRepository.genreFlow.value = listOf(sampleAnime(1L, "Anime 1"))
+            val viewModel = createViewModel()
+            val collectJob =
+                launch(UnconfinedTestDispatcher(testScheduler)) {
+                    viewModel.uiState.collect()
+                }
+            testScheduler.advanceUntilIdle()
+
+            viewModel.onEvent(RecommendationUiEvent.OpenLab)
+            testScheduler.advanceUntilIdle()
+            assertTrue(viewModel.uiState.value.isLabOpen)
+
+            viewModel.onEvent(RecommendationUiEvent.CloseLab)
+            testScheduler.advanceUntilIdle()
+            assertFalse(viewModel.uiState.value.isLabOpen)
+
+            collectJob.cancel()
+        }
+
+    @Test
+    fun `onEvent UpdateLabDraft updates lab draft config and calculates match count`() =
+        runTest {
+            fakeRepository.genreFlow.value = listOf(sampleAnime(1L, "Anime 1"))
+            val viewModel = createViewModel()
+            val collectJob =
+                launch(UnconfinedTestDispatcher(testScheduler)) {
+                    viewModel.uiState.collect()
+                }
+            testScheduler.advanceUntilIdle()
+
+            val customConfig = RecommendationLabConfig(familiarity = 0.8f, popularity = 0.2f)
+            viewModel.onEvent(RecommendationUiEvent.UpdateLabDraft(customConfig))
+            testScheduler.advanceUntilIdle()
+
+            assertEquals(customConfig, viewModel.uiState.value.labConfig)
+            assertEquals(42, viewModel.uiState.value.labPreviewCount)
+
+            collectJob.cancel()
+        }
+
+    @Test
+    fun `onEvent ApplyLabConfig applies config and closes lab sheet`() =
+        runTest {
+            fakeRepository.genreFlow.value = listOf(sampleAnime(1L, "Anime 1"))
+            val viewModel = createViewModel()
+            val collectJob =
+                launch(UnconfinedTestDispatcher(testScheduler)) {
+                    viewModel.uiState.collect()
+                }
+            testScheduler.advanceUntilIdle()
+
+            viewModel.onEvent(RecommendationUiEvent.OpenLab)
+            testScheduler.advanceUntilIdle()
+            assertTrue(viewModel.uiState.value.isLabOpen)
+
+            val customConfig = RecommendationLabConfig(familiarity = 0.9f)
+            viewModel.onEvent(RecommendationUiEvent.ApplyLabConfig(customConfig))
+            testScheduler.advanceUntilIdle()
+
+            assertFalse(viewModel.uiState.value.isLabOpen)
+            assertEquals(customConfig, viewModel.uiState.value.labConfig)
+
+            collectJob.cancel()
+        }
+
+    @Test
+    fun `onEvent ResetLabConfig resets lab config to default`() =
+        runTest {
+            fakeRepository.genreFlow.value = listOf(sampleAnime(1L, "Anime 1"))
+            val viewModel = createViewModel()
+            val collectJob =
+                launch(UnconfinedTestDispatcher(testScheduler)) {
+                    viewModel.uiState.collect()
+                }
+            testScheduler.advanceUntilIdle()
+
+            val customConfig = RecommendationLabConfig(familiarity = 0.9f)
+            viewModel.onEvent(RecommendationUiEvent.ApplyLabConfig(customConfig))
+            testScheduler.advanceUntilIdle()
+            assertEquals(customConfig, viewModel.uiState.value.labConfig)
+
+            viewModel.onEvent(RecommendationUiEvent.ResetLabConfig)
+            testScheduler.advanceUntilIdle()
+            assertEquals(RecommendationLabConfig(), viewModel.uiState.value.labConfig)
 
             collectJob.cancel()
         }
