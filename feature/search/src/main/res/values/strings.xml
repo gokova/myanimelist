@@ -27,6 +27,9 @@
     <string name="search_episodes_unknown">\?&#160;eps</string>
     <string name="search_initial_title">Search MyAnimeList</string>
     <string name="search_initial_description">Find anime titles, check ratings, and see your personal taste match.</string>
+    <string name="search_results_answering_query">Showing results for “%s”</string>
+    <string name="search_replacing_search_indicator">Searching for “%s”…</string>
+    <string name="search_replacement_failed">Search for “%s” failed. Showing prior results.</string>
 
     <!-- AI Search Strings -->
     <string name="ai_search_mode_toggle_cd">Toggle AI-assisted search</string>

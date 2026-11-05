@@ -1,6 +1,8 @@
 package com.gokova.myanimelist.feature.taste.presentation.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
@@ -21,6 +23,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,10 +52,13 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.gokova.myanimelist.core.ui.theme.BubbleColorScheme
+import com.gokova.myanimelist.core.ui.theme.MotionTokens
 import com.gokova.myanimelist.core.ui.theme.TasteColors
 import com.gokova.myanimelist.core.ui.theme.spacing
 import com.gokova.myanimelist.feature.taste.R
 import com.gokova.myanimelist.feature.taste.domain.model.TasteBubble
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import kotlin.math.sqrt
 
 private const val MIN_SCALE = 0.6f
@@ -83,18 +89,55 @@ private class PackedBubbleChartState(
     val scale: Float,
     val offset: Offset,
     val onTransform: (pan: Offset, zoom: Float) -> Unit,
+    val onInterrupt: () -> Unit,
 ) {
     val isTransformed: Boolean get() = scale != DEFAULT_SCALE || offset != Offset.Zero
 }
 
 @Composable
-private fun rememberPackedBubbleChartState(recenterTrigger: Int): PackedBubbleChartState {
+private fun rememberPackedBubbleChartState(
+    recenterTrigger: Int,
+    bubbles: List<TasteBubble>,
+): PackedBubbleChartState {
     var scale by remember { mutableFloatStateOf(DEFAULT_SCALE) }
     var offset by remember { mutableStateOf(Offset.Zero) }
+    val coroutineScope = rememberCoroutineScope()
+    var recenterJob by remember { mutableStateOf<Job?>(null) }
 
-    LaunchedEffect(recenterTrigger) {
+    // Category or bubbles change resets immediately without animation
+    LaunchedEffect(bubbles) {
+        recenterJob?.cancel()
+        recenterJob = null
         scale = DEFAULT_SCALE
         offset = Offset.Zero
+    }
+
+    // Explicit recenter tap animates over 220ms using LinearOutSlowInEasing (no overshoot)
+    LaunchedEffect(recenterTrigger) {
+        if (recenterTrigger > 0) {
+            recenterJob?.cancel()
+            val startScale = scale
+            val startOffset = offset
+            recenterJob =
+                coroutineScope.launch {
+                    val spec =
+                        tween<Float>(
+                            durationMillis = MotionTokens.DURATION_CHART_RECENTER,
+                            easing = MotionTokens.EasingEnter,
+                        )
+                    animate(0f, 1f, animationSpec = spec) { fraction, _ ->
+                        scale = startScale + (DEFAULT_SCALE - startScale) * fraction
+                        offset =
+                            Offset(
+                                x = startOffset.x + (0f - startOffset.x) * fraction,
+                                y = startOffset.y + (0f - startOffset.y) * fraction,
+                            )
+                    }
+                    scale = DEFAULT_SCALE
+                    offset = Offset.Zero
+                    recenterJob = null
+                }
+        }
     }
 
     return remember(scale, offset) {
@@ -102,8 +145,14 @@ private fun rememberPackedBubbleChartState(recenterTrigger: Int): PackedBubbleCh
             scale = scale,
             offset = offset,
             onTransform = { pan, zoom ->
+                recenterJob?.cancel()
+                recenterJob = null
                 scale = (scale * zoom).coerceIn(MIN_SCALE, MAX_SCALE)
                 offset += pan
+            },
+            onInterrupt = {
+                recenterJob?.cancel()
+                recenterJob = null
             },
         )
     }
@@ -117,7 +166,7 @@ fun PackedBubbleChart(
     modifier: Modifier = Modifier,
     selectedBubble: TasteBubble? = null,
 ) {
-    val state = rememberPackedBubbleChartState(recenterTrigger)
+    val state = rememberPackedBubbleChartState(recenterTrigger, bubbles)
     val density = LocalDensity.current
     val isDark = isSystemInDarkTheme()
     val textMeasurer = rememberTextMeasurer()
@@ -134,7 +183,10 @@ fun PackedBubbleChart(
 
     BoxWithConstraints(modifier = modifier.fillMaxSize().clipToBounds()) {
         val center = Offset(constraints.maxWidth / 2f, constraints.maxHeight / 2f)
-        val fitScale = calculateFitScale(bubbles, constraints, density)
+        val fitScale =
+            remember(bubbles, constraints, density) {
+                calculateFitScale(bubbles, constraints, density)
+            }
         val viewport = ChartViewport(center, state.offset, state.scale * fitScale)
 
         Canvas(
@@ -147,7 +199,7 @@ fun PackedBubbleChart(
                         viewport = viewport,
                         density = density,
                         onBubbleClick = actions.onBubbleClick,
-                        onTransform = state.onTransform,
+                        state = state,
                     ),
         ) {
             val context =
@@ -206,17 +258,18 @@ private fun Modifier.chartGestures(
     viewport: ChartViewport,
     density: Density,
     onBubbleClick: (TasteBubble) -> Unit,
-    onTransform: (pan: Offset, zoom: Float) -> Unit,
+    state: PackedBubbleChartState,
 ): Modifier =
     this
         .pointerInput(bubbles, viewport) {
             detectTapGestures { tapOffset ->
+                state.onInterrupt()
                 val clicked = findTappedBubble(tapOffset, bubbles, viewport, density)
                 if (clicked != null) onBubbleClick(clicked)
             }
         }.pointerInput(Unit) {
             detectTransformGestures { _, pan, zoom, _ ->
-                onTransform(pan, zoom)
+                state.onTransform(pan, zoom)
             }
         }
 

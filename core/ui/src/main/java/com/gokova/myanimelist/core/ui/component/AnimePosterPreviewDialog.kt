@@ -1,8 +1,6 @@
 package com.gokova.myanimelist.core.ui.component
 
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -21,6 +19,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,17 +43,22 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.gokova.myanimelist.core.ui.R
 import com.gokova.myanimelist.core.ui.preview.StandardPreviews
+import com.gokova.myanimelist.core.ui.theme.MotionTokens
 import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
 import com.gokova.myanimelist.core.ui.theme.spacing
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlin.time.Duration.Companion.milliseconds
 
 private const val SCRIM_ALPHA = 0.65f
 private const val POSTER_SCREEN_RATIO = 0.82f
 private const val POSTER_ASPECT_RATIO = 2f / 3f
-private const val DISMISS_DELAY_MS = 150L
 private val FALLBACK_POSTER_WIDTH = 260.dp
+
+@Immutable
+private data class PosterPreviewData(
+    val thumbnailUrl: String?,
+    val largeImageUrl: String?,
+    val title: String,
+)
 
 @Composable
 fun AnimePosterPreviewDialog(
@@ -64,31 +68,87 @@ fun AnimePosterPreviewDialog(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val poster =
+        remember(thumbnailUrl, largeImageUrl, title) {
+            PosterPreviewData(thumbnailUrl, largeImageUrl, title)
+        }
+
     if (LocalInspectionMode.current) {
-        AnimePosterPreviewOverlay(
-            thumbnailUrl = thumbnailUrl,
-            largeImageUrl = largeImageUrl,
-            title = title,
-            onDismiss = onDismiss,
+        AnimePosterPreviewSurface(
+            poster = poster,
+            animatedAlpha = 1f,
+            animatedScale = 1f,
+            onClose = onDismiss,
             modifier = modifier,
         )
     } else {
-        Dialog(
-            onDismissRequest = onDismiss,
-            properties =
-                DialogProperties(
-                    usePlatformDefaultWidth = false,
-                    decorFitsSystemWindows = false,
-                ),
-        ) {
-            AnimePosterPreviewOverlay(
-                thumbnailUrl = thumbnailUrl,
-                largeImageUrl = largeImageUrl,
-                title = title,
-                onDismiss = onDismiss,
-                modifier = modifier,
-            )
+        AnimePosterPreviewDialogWindow(
+            poster = poster,
+            onDismiss = onDismiss,
+            modifier = modifier,
+        )
+    }
+}
+
+@Composable
+private fun AnimePosterPreviewDialogWindow(
+    poster: PosterPreviewData,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val animatable = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+    var isDismissing by remember { mutableStateOf(false) }
+
+    val dismissWithAnimation: () -> Unit = {
+        if (!isDismissing) {
+            isDismissing = true
+            scope.launch {
+                try {
+                    animatable.animateTo(
+                        targetValue = 0f,
+                        animationSpec =
+                            tween(
+                                durationMillis = MotionTokens.DURATION_POSTER_EXIT,
+                                easing = MotionTokens.EasingExit,
+                            ),
+                    )
+                } finally {
+                    onDismiss()
+                }
+            }
         }
+    }
+
+    LaunchedEffect(Unit) {
+        animatable.animateTo(
+            targetValue = 1f,
+            animationSpec =
+                tween(
+                    durationMillis = MotionTokens.DURATION_POSTER_ENTER,
+                    easing = MotionTokens.EasingEnter,
+                ),
+        )
+    }
+
+    Dialog(
+        onDismissRequest = dismissWithAnimation,
+        properties =
+            DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false,
+            ),
+    ) {
+        val scale =
+            MotionTokens.SCALE_POSTER_MIN +
+                (1f - MotionTokens.SCALE_POSTER_MIN) * animatable.value
+        AnimePosterPreviewSurface(
+            poster = poster,
+            animatedAlpha = animatable.value,
+            animatedScale = scale,
+            onClose = dismissWithAnimation,
+            modifier = modifier,
+        )
     }
 }
 
@@ -100,36 +160,27 @@ fun AnimePosterPreviewOverlay(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var isVisible by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
-
-    LaunchedEffect(Unit) {
-        isVisible = true
-    }
-
-    val animatedScale by animateFloatAsState(
-        targetValue = if (isVisible) 1f else 0.7f,
-        animationSpec =
-            spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessMediumLow,
-            ),
-        label = "poster_spring_scale",
-    )
-    val animatedAlpha by animateFloatAsState(
-        targetValue = if (isVisible) 1f else 0f,
-        animationSpec = tween(durationMillis = 200),
-        label = "poster_alpha",
-    )
-
-    fun dismissWithAnimation() {
-        scope.launch {
-            isVisible = false
-            delay(DISMISS_DELAY_MS.milliseconds)
-            onDismiss()
+    val poster =
+        remember(thumbnailUrl, largeImageUrl, title) {
+            PosterPreviewData(thumbnailUrl, largeImageUrl, title)
         }
-    }
+    AnimePosterPreviewSurface(
+        poster = poster,
+        animatedAlpha = 1f,
+        animatedScale = 1f,
+        onClose = onDismiss,
+        modifier = modifier,
+    )
+}
 
+@Composable
+private fun AnimePosterPreviewSurface(
+    poster: PosterPreviewData,
+    animatedAlpha: Float,
+    animatedScale: Float,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Box(
         modifier =
             modifier
@@ -139,15 +190,13 @@ fun AnimePosterPreviewOverlay(
                 ).clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
-                    onClick = { dismissWithAnimation() },
+                    onClick = onClose,
                 ),
         contentAlignment = Alignment.Center,
     ) {
         PosterContentCard(
-            thumbnailUrl = thumbnailUrl,
-            largeImageUrl = largeImageUrl,
-            title = title,
-            onClose = { dismissWithAnimation() },
+            poster = poster,
+            onClose = onClose,
             modifier =
                 Modifier.graphicsLayer {
                     scaleX = animatedScale
@@ -160,9 +209,7 @@ fun AnimePosterPreviewOverlay(
 
 @Composable
 private fun PosterContentCard(
-    thumbnailUrl: String?,
-    largeImageUrl: String?,
-    title: String,
+    poster: PosterPreviewData,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -184,11 +231,7 @@ private fun PosterContentCard(
                     .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center,
         ) {
-            PosterImages(
-                thumbnailUrl = thumbnailUrl,
-                largeImageUrl = largeImageUrl,
-                title = title,
-            )
+            PosterImages(poster = poster)
         }
 
         PosterCloseButton(
@@ -223,20 +266,16 @@ private fun Modifier.posterSizing(): Modifier {
 }
 
 @Composable
-private fun PosterImages(
-    thumbnailUrl: String?,
-    largeImageUrl: String?,
-    title: String,
-) {
+private fun PosterImages(poster: PosterPreviewData) {
     val context = LocalContext.current
     val hasDistinctLargeImage =
-        !largeImageUrl.isNullOrBlank() &&
-            largeImageUrl != thumbnailUrl &&
-            !thumbnailUrl.isNullOrBlank()
+        !poster.largeImageUrl.isNullOrBlank() &&
+            poster.largeImageUrl != poster.thumbnailUrl &&
+            !poster.thumbnailUrl.isNullOrBlank()
 
     if (hasDistinctLargeImage) {
         AsyncImage(
-            model = thumbnailUrl,
+            model = poster.thumbnailUrl,
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
@@ -245,10 +284,10 @@ private fun PosterImages(
             model =
                 ImageRequest
                     .Builder(context)
-                    .data(largeImageUrl)
+                    .data(poster.largeImageUrl)
                     .crossfade(true)
                     .build(),
-            contentDescription = title,
+            contentDescription = poster.title,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
         )
@@ -257,10 +296,10 @@ private fun PosterImages(
             model =
                 ImageRequest
                     .Builder(context)
-                    .data(largeImageUrl ?: thumbnailUrl)
+                    .data(poster.largeImageUrl ?: poster.thumbnailUrl)
                     .crossfade(true)
                     .build(),
-            contentDescription = title,
+            contentDescription = poster.title,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
         )

@@ -19,6 +19,13 @@
     <string name="my_list_status_on_hold">On Hold</string>
     <string name="my_list_status_dropped">Dropped</string>
     <string name="my_list_status_plan_to_watch">Plan to Watch</string>
+    <string name="my_list_view_all">View all</string>
+    <string name="my_list_empty_category_title">No anime in this category</string>
+    <string name="my_list_empty_category_description">You don\'t have any anime marked as %s.</string>
+    <string name="my_list_empty_account_title">Your list is empty</string>
+    <string name="my_list_empty_account_description">Anime you add to your MyAnimeList account will appear here.</string>
+    <string name="my_list_initial_sync_failed_title">Couldn\'t load your list</string>
+    <string name="my_list_initial_sync_failed_description">Please check your network connection and try again.</string>
     <string name="my_list_empty_title">No anime in this category</string>
     <string name="my_list_empty_description">Items in your MyAnimeList account will appear here.</string>
     <string name="my_list_sync_now">Sync Now</string>

@@ -162,7 +162,7 @@ private fun LoginButton(
                 disabledContainerColor = MaterialTheme.colorScheme.primary,
                 disabledContentColor = MaterialTheme.colorScheme.onPrimary,
             ),
-        modifier = Modifier.height(56.dp).defaultMinSize(minWidth = 260.dp),
+        modifier = Modifier.defaultMinSize(minWidth = 260.dp, minHeight = 56.dp),
     ) {
         if (isLoading) {
             Row(verticalAlignment = Alignment.CenterVertically) {

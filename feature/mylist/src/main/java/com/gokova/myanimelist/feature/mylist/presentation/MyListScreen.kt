@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -46,14 +47,17 @@ import com.gokova.myanimelist.core.ui.component.editlist.withStatus
 import com.gokova.myanimelist.core.ui.preview.StandardPreviews
 import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
 import com.gokova.myanimelist.core.ui.theme.spacing
+import com.gokova.myanimelist.feature.mylist.R
 import com.gokova.myanimelist.feature.mylist.domain.model.ListFilterCategory
 import com.gokova.myanimelist.feature.mylist.domain.model.SortOption
 import com.gokova.myanimelist.feature.mylist.domain.model.UserAnime
 import com.gokova.myanimelist.feature.mylist.presentation.components.AnimeCard
 import com.gokova.myanimelist.feature.mylist.presentation.components.AnimeCardActions
 import com.gokova.myanimelist.feature.mylist.presentation.components.MyListCategoryTabs
-import com.gokova.myanimelist.feature.mylist.presentation.components.MyListEmptyState
+import com.gokova.myanimelist.feature.mylist.presentation.components.MyListEmptyStateContainer
 import com.gokova.myanimelist.feature.mylist.presentation.components.MyListHeader
+import com.gokova.myanimelist.feature.mylist.presentation.components.MyListInitialSyncLoading
+import com.gokova.myanimelist.feature.mylist.presentation.components.getCategoryTabTitleRes
 import com.gokova.myanimelist.core.ui.R as CoreUiR
 
 @Composable
@@ -269,44 +273,85 @@ private fun MyListBody(
     onPosterClick: (UserAnime) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (uiState.animeList.isEmpty() && !uiState.isLoadingInitial) {
-        Box(
-            modifier = modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center,
-        ) {
-            MyListEmptyState(
-                onSyncClick = actions.onRefresh,
-                modifier = Modifier.padding(bottom = MaterialTheme.spacing.huge),
+    when (val state = uiState.contentState) {
+        MyListContentState.LoadingLocal -> {
+            Box(
+                modifier = modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator()
+            }
+        }
+        MyListContentState.InitialSync -> MyListInitialSyncLoading(modifier = modifier)
+        MyListContentState.InitialFailure -> {
+            MyListEmptyStateContainer(
+                title = stringResource(R.string.my_list_initial_sync_failed_title),
+                description = stringResource(R.string.my_list_initial_sync_failed_description),
+                buttonText = stringResource(R.string.my_list_retry),
+                onButtonClick = actions.onRefresh,
+                modifier = modifier,
             )
         }
-    } else if (uiState.animeList.isEmpty()) {
-        Box(
-            modifier = modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center,
-        ) {
-            CircularProgressIndicator()
+        MyListContentState.EmptyAccount -> {
+            MyListEmptyStateContainer(
+                title = stringResource(R.string.my_list_empty_account_title),
+                description = stringResource(R.string.my_list_empty_account_description),
+                buttonText = stringResource(R.string.my_list_sync_now),
+                onButtonClick = actions.onRefresh,
+                modifier = modifier,
+            )
         }
-    } else {
-        val windowInfo = LocalWindowInfo.current
-        val density = LocalDensity.current
-        val screenWidthDp = with(density) { windowInfo.containerSize.width.toDp() }
-        val isExpanded = screenWidthDp >= EXPANDED_WIDTH_BREAKPOINT
+        is MyListContentState.EmptyCategory -> {
+            val categoryLabel = stringResource(getCategoryTabTitleRes(state.category))
+            MyListEmptyStateContainer(
+                title = stringResource(R.string.my_list_empty_category_title),
+                description =
+                    stringResource(
+                        R.string.my_list_empty_category_description,
+                        categoryLabel,
+                    ),
+                buttonText = stringResource(R.string.my_list_view_all),
+                onButtonClick = { actions.onCategorySelected(ListFilterCategory.ALL) },
+                modifier = modifier,
+            )
+        }
+        is MyListContentState.HasContent -> {
+            MyListContentLayout(
+                uiState = uiState,
+                actions = actions,
+                onPosterClick = onPosterClick,
+                modifier = modifier,
+            )
+        }
+    }
+}
 
-        if (isExpanded) {
-            MyListGrid(
-                uiState = uiState,
-                actions = actions,
-                onPosterClick = onPosterClick,
-                modifier = modifier,
-            )
-        } else {
-            MyListColumn(
-                uiState = uiState,
-                actions = actions,
-                onPosterClick = onPosterClick,
-                modifier = modifier,
-            )
-        }
+@Composable
+private fun MyListContentLayout(
+    uiState: MyListUiState,
+    actions: MyListActions,
+    onPosterClick: (UserAnime) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val windowInfo = LocalWindowInfo.current
+    val density = LocalDensity.current
+    val screenWidthDp = with(density) { windowInfo.containerSize.width.toDp() }
+    val isExpanded = screenWidthDp >= EXPANDED_WIDTH_BREAKPOINT
+
+    if (isExpanded) {
+        MyListGrid(
+            uiState = uiState,
+            actions = actions,
+            onPosterClick = onPosterClick,
+            modifier = modifier,
+        )
+    } else {
+        MyListColumn(
+            uiState = uiState,
+            actions = actions,
+            onPosterClick = onPosterClick,
+            modifier = modifier,
+        )
     }
 }
 

@@ -17,7 +17,7 @@ import com.gokova.myanimelist.core.ui.theme.spacing
 import com.gokova.myanimelist.feature.mylist.R
 import com.gokova.myanimelist.feature.mylist.domain.model.ListFilterCategory
 
-private fun getTabTitleRes(category: ListFilterCategory): Int =
+internal fun getCategoryTabTitleRes(category: ListFilterCategory): Int =
     when (category) {
         ListFilterCategory.ALL -> R.string.my_list_tab_all
         ListFilterCategory.WATCHING -> R.string.my_list_tab_watching
@@ -54,7 +54,7 @@ fun MyListCategoryTabs(
                     Modifier.heightIn(min = MaterialTheme.spacing.minTouchTarget),
                 text = {
                     Text(
-                        text = stringResource(getTabTitleRes(category)),
+                        text = stringResource(getCategoryTabTitleRes(category)),
                         style = MaterialTheme.typography.labelLarge,
                         color =
                             if (isSelected) {

@@ -310,7 +310,10 @@ class NewSeasonRepositoryImplTest {
             val state = repository.observeNewSeasonState().first()
 
             assertTrue(state is NewSeasonState.Ready)
-            assertEquals(8, (state as NewSeasonState.Ready).count)
+            val ready = state as NewSeasonState.Ready
+            assertEquals(8, ready.count)
+            assertTrue(ready.isRefreshing)
+            assertFalse(ready.isQueued)
         }
 
     @Test

@@ -29,6 +29,8 @@ sealed interface RecommendationUiState {
         val recommendations: List<RecommendedAnime> = emptyList(),
         val newSeasons: List<NewSeasonAnime> = emptyList(),
         val newSeasonSort: NewSeasonSortOption = NewSeasonSortOption.RELEASE_DATE_DESC,
+        val isRefreshing: Boolean = false,
+        val isQueued: Boolean = false,
     ) : RecommendationUiState
 
     data class Error(

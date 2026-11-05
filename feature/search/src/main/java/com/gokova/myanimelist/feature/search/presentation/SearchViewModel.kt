@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.gokova.myanimelist.core.ai.model.AiException
 import com.gokova.myanimelist.core.datastore.AiPreferences
 import com.gokova.myanimelist.feature.search.R
+import com.gokova.myanimelist.feature.search.domain.model.SearchResultPage
 import com.gokova.myanimelist.feature.search.domain.usecase.AiSearchAnimeUseCase
 import com.gokova.myanimelist.feature.search.domain.usecase.LoadMoreSearchResultsUseCase
 import com.gokova.myanimelist.feature.search.domain.usecase.SearchAnimeUseCase
@@ -40,10 +41,11 @@ class SearchViewModel
         private var searchJob: Job? = null
         private var paginationJob: Job? = null
         private var nextPageUrl: String? = null
+        private var activeRequestId: Long = 0L
 
         fun onQueryChange(newQuery: String) {
             val current = _uiState.value
-            if (newQuery != current.query) {
+            if (current is SearchUiState.Searching && newQuery != current.query) {
                 searchJob?.cancel()
                 paginationJob?.cancel()
             }
@@ -52,8 +54,6 @@ class SearchViewModel
                     is SearchUiState.Content ->
                         current.copy(
                             query = newQuery,
-                            isLoadingMore = false,
-                            loadMoreErrorRes = null,
                         )
                     else ->
                         SearchUiState.Initial(
@@ -66,121 +66,205 @@ class SearchViewModel
         }
 
         fun onSearch() {
-            val currentQuery = _uiState.value.query.trim()
-            if (currentQuery.length < SearchAnimeUseCase.MIN_QUERY_LENGTH) return
+            val currentDraft = _uiState.value.query.trim()
+            if (currentDraft.length < SearchAnimeUseCase.MIN_QUERY_LENGTH) return
 
+            val requestId = ++activeRequestId
             searchJob?.cancel()
             paginationJob?.cancel()
-            nextPageUrl = null
-            _uiState.value =
-                SearchUiState.Searching(
-                    query = currentQuery,
-                    aiPrompt = _uiState.value.aiPrompt,
-                )
+
+            val current = _uiState.value
+            if (current is SearchUiState.Content) {
+                val replacingState =
+                    current.copy(
+                        query = currentDraft,
+                        isReplacing = true,
+                        replacementQuery = currentDraft,
+                        isLoadingMore = false,
+                        loadMoreErrorRes = null,
+                    )
+                standardState = replacingState
+                _uiState.value = replacingState
+            } else {
+                nextPageUrl = null
+                val searchingState =
+                    SearchUiState.Searching(
+                        query = currentDraft,
+                        aiPrompt = current.aiPrompt,
+                    )
+                standardState = searchingState
+                _uiState.value = searchingState
+            }
 
             searchJob =
                 viewModelScope.launch {
-                    searchAnimeUseCase(currentQuery)
+                    searchAnimeUseCase(currentDraft)
                         .onSuccess { page ->
-                            val latest = _uiState.value
-                            if (latest.mode != SearchMode.STANDARD ||
-                                latest.query != currentQuery
-                            ) {
-                                return@launch
-                            }
-
-                            nextPageUrl = page.nextUrl
-                            val newState =
-                                if (page.items.isEmpty()) {
-                                    SearchUiState.Empty(
-                                        query = currentQuery,
-                                        aiPrompt = latest.aiPrompt,
-                                    )
-                                } else {
-                                    SearchUiState.Content(
-                                        query = currentQuery,
-                                        aiPrompt = latest.aiPrompt,
-                                        animes = page.items,
-                                        hasMore = !page.nextUrl.isNullOrBlank(),
-                                    )
-                                }
-                            standardState = newState
-                            _uiState.value = newState
+                            handleSearchSuccess(page, requestId, currentDraft)
                         }.onFailure { throwable ->
-                            val latest = _uiState.value
-                            if (latest.mode != SearchMode.STANDARD ||
-                                latest.query != currentQuery
-                            ) {
-                                return@launch
-                            }
-
-                            val errorState =
-                                SearchUiState.Error(
-                                    query = currentQuery,
-                                    aiPrompt = latest.aiPrompt,
-                                    message = throwable.localizedMessage,
-                                )
-                            standardState = errorState
-                            _uiState.value = errorState
+                            handleSearchFailure(throwable, requestId, currentDraft)
                         }
                 }
+        }
+
+        private suspend fun handleSearchSuccess(
+            page: SearchResultPage,
+            requestId: Long,
+            submittedQuery: String,
+        ) {
+            if (requestId != activeRequestId || _uiState.value.mode != SearchMode.STANDARD) {
+                return
+            }
+
+            nextPageUrl = page.nextUrl
+            val currentUi = _uiState.value
+            val newState =
+                if (page.items.isEmpty()) {
+                    SearchUiState.Empty(
+                        query = currentUi.query,
+                        aiPrompt = currentUi.aiPrompt,
+                    )
+                } else {
+                    SearchUiState.Content(
+                        query = currentUi.query,
+                        resultQuery = submittedQuery,
+                        aiPrompt = currentUi.aiPrompt,
+                        animes = page.items,
+                        hasMore = !page.nextUrl.isNullOrBlank(),
+                    )
+                }
+            standardState = newState
+            _uiState.value = newState
+        }
+
+        private suspend fun handleSearchFailure(
+            throwable: Throwable,
+            requestId: Long,
+            submittedQuery: String,
+        ) {
+            if (requestId != activeRequestId || _uiState.value.mode != SearchMode.STANDARD) {
+                return
+            }
+
+            val currentUi = _uiState.value
+            if (currentUi is SearchUiState.Content && currentUi.isReplacing) {
+                val reverted =
+                    currentUi.copy(
+                        isReplacing = false,
+                        replacementQuery = null,
+                    )
+                standardState = reverted
+                _uiState.value = reverted
+                eventChannel.send(
+                    SearchUiEvent.ShowSnackbar(
+                        messageRes = R.string.search_replacement_failed,
+                        formatArg = submittedQuery,
+                    ),
+                )
+            } else {
+                val errorState =
+                    SearchUiState.Error(
+                        query = currentUi.query,
+                        aiPrompt = currentUi.aiPrompt,
+                        message = throwable.localizedMessage,
+                    )
+                standardState = errorState
+                _uiState.value = errorState
+            }
         }
 
         fun onLoadMore() {
             val current = _uiState.value as? SearchUiState.Content ?: return
             val url = nextPageUrl
-            if (!current.hasMore || current.isLoadingMore || url.isNullOrBlank()) return
+            if (canLoadMore(current, url) && url != null) {
+                executeLoadMore(current, url, current.resultQuery, activeRequestId)
+            }
+        }
 
-            val requestQuery = current.query
+        private fun canLoadMore(
+            current: SearchUiState.Content,
+            url: String?,
+        ): Boolean {
+            val isBusy = current.isReplacing || current.isLoadingMore
+            val hasTarget = current.hasMore && !url.isNullOrBlank()
+            return !isBusy && hasTarget
+        }
+
+        private fun executeLoadMore(
+            current: SearchUiState.Content,
+            url: String,
+            boundResultQuery: String,
+            requestId: Long,
+        ) {
             paginationJob?.cancel()
-            _uiState.value = current.copy(isLoadingMore = true, loadMoreErrorRes = null)
+            val loadingMoreState = current.copy(isLoadingMore = true, loadMoreErrorRes = null)
+            standardState = loadingMoreState
+            _uiState.value = loadingMoreState
 
             paginationJob =
                 viewModelScope.launch {
                     loadMoreSearchResultsUseCase(url)
                         .onSuccess { nextPage ->
-                            val latest = _uiState.value as? SearchUiState.Content ?: return@launch
-                            if (latest.mode != SearchMode.STANDARD ||
-                                latest.query != requestQuery
-                            ) {
-                                return@launch
-                            }
-
-                            nextPageUrl = nextPage.nextUrl
-                            val existingIds = latest.animes.map { it.id }.toSet()
-                            val uniqueNewItems = nextPage.items.filter { it.id !in existingIds }
-                            val merged =
-                                latest.copy(
-                                    animes = latest.animes + uniqueNewItems,
-                                    hasMore = !nextPage.nextUrl.isNullOrBlank(),
-                                    isLoadingMore = false,
-                                    loadMoreErrorRes = null,
-                                )
-                            standardState = merged
-                            _uiState.value = merged
+                            handleLoadMoreSuccess(nextPage, boundResultQuery, requestId)
                         }.onFailure {
-                            val latest = _uiState.value as? SearchUiState.Content ?: return@launch
-                            if (latest.mode != SearchMode.STANDARD ||
-                                latest.query != requestQuery
-                            ) {
-                                return@launch
-                            }
-
-                            val errorState =
-                                latest.copy(
-                                    isLoadingMore = false,
-                                    loadMoreErrorRes = R.string.search_load_more_error,
-                                )
-                            standardState = errorState
-                            _uiState.value = errorState
-                            eventChannel.send(
-                                SearchUiEvent.ShowSnackbar(R.string.search_load_more_error),
-                            )
+                            handleLoadMoreFailure(boundResultQuery, requestId)
                         }
                 }
         }
 
+        private fun handleLoadMoreSuccess(
+            nextPage: SearchResultPage,
+            boundResultQuery: String,
+            requestId: Long,
+        ) {
+            val latest = _uiState.value as? SearchUiState.Content ?: return
+            if (requestId != activeRequestId ||
+                latest.mode != SearchMode.STANDARD ||
+                latest.resultQuery != boundResultQuery
+            ) {
+                return
+            }
+
+            nextPageUrl = nextPage.nextUrl
+            val existingIds = latest.animes.map { it.id }.toSet()
+            val uniqueNewItems = nextPage.items.filter { it.id !in existingIds }
+            val merged =
+                latest.copy(
+                    animes = latest.animes + uniqueNewItems,
+                    hasMore = !nextPage.nextUrl.isNullOrBlank(),
+                    isLoadingMore = false,
+                    loadMoreErrorRes = null,
+                )
+            standardState = merged
+            _uiState.value = merged
+        }
+
+        private suspend fun handleLoadMoreFailure(
+            boundResultQuery: String,
+            requestId: Long,
+        ) {
+            val latest = _uiState.value as? SearchUiState.Content ?: return
+            if (requestId != activeRequestId ||
+                latest.mode != SearchMode.STANDARD ||
+                latest.resultQuery != boundResultQuery
+            ) {
+                return
+            }
+
+            val errorState =
+                latest.copy(
+                    isLoadingMore = false,
+                    loadMoreErrorRes = R.string.search_load_more_error,
+                )
+            standardState = errorState
+            _uiState.value = errorState
+            eventChannel.send(
+                SearchUiEvent.ShowSnackbar(R.string.search_load_more_error),
+            )
+        }
+
         fun onClearQuery() {
+            activeRequestId++
             searchJob?.cancel()
             paginationJob?.cancel()
             nextPageUrl = null
@@ -194,6 +278,7 @@ class SearchViewModel
         }
 
         fun onToggleMode() {
+            activeRequestId++
             searchJob?.cancel()
             paginationJob?.cancel()
             viewModelScope.launch {

@@ -11,9 +11,19 @@ class SearchPreviewParameterProvider : PreviewParameterProvider<SearchUiState> {
             SearchUiState.Searching(query = "Frieren"),
             SearchUiState.Content(
                 query = "Frieren",
+                resultQuery = "Frieren",
                 animes = sampleSearchAnimeList,
                 hasMore = true,
                 isLoadingMore = false,
+            ),
+            SearchUiState.Content(
+                query = "Frieren Season 2",
+                resultQuery = "Frieren",
+                animes = sampleSearchAnimeList,
+                hasMore = true,
+                isLoadingMore = false,
+                isReplacing = true,
+                replacementQuery = "Frieren Season 2",
             ),
             SearchUiState.Empty(query = "NonexistentAnimeTitle"),
             SearchUiState.Error(

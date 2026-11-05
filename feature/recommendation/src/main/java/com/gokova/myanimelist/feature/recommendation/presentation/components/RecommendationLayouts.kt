@@ -1,5 +1,6 @@
 package com.gokova.myanimelist.feature.recommendation.presentation.components
 
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,8 +11,10 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.gokova.myanimelist.core.ui.theme.MotionTokens
 import com.gokova.myanimelist.core.ui.theme.spacing
 import com.gokova.myanimelist.feature.recommendation.domain.model.NewSeasonAnime
 import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationType
@@ -39,20 +42,22 @@ fun RecommendationBodyContent(
     itemActions: RecommendationItemActions,
     modifier: Modifier = Modifier,
 ) {
-    if (state.selectedType == RecommendationType.NEW_SEASONS) {
-        NewSeasonContent(
-            newSeasons = state.newSeasons,
-            isExpanded = isExpanded,
-            itemActions = itemActions,
-            modifier = modifier,
-        )
-    } else {
-        RecommendationItemsContent(
-            state = state,
-            isExpanded = isExpanded,
-            itemActions = itemActions,
-            modifier = modifier,
-        )
+    key(state.selectedType) {
+        if (state.selectedType == RecommendationType.NEW_SEASONS) {
+            NewSeasonContent(
+                newSeasons = state.newSeasons,
+                isExpanded = isExpanded,
+                itemActions = itemActions,
+                modifier = modifier,
+            )
+        } else {
+            RecommendationItemsContent(
+                state = state,
+                isExpanded = isExpanded,
+                itemActions = itemActions,
+                modifier = modifier,
+            )
+        }
     }
 }
 
@@ -63,63 +68,136 @@ fun NewSeasonContent(
     itemActions: RecommendationItemActions,
     modifier: Modifier = Modifier,
 ) {
+    if (isExpanded) {
+        NewSeasonGrid(newSeasons = newSeasons, itemActions = itemActions, modifier = modifier)
+    } else {
+        NewSeasonList(newSeasons = newSeasons, itemActions = itemActions, modifier = modifier)
+    }
+}
+
+@Composable
+private fun NewSeasonGrid(
+    newSeasons: List<NewSeasonAnime>,
+    itemActions: RecommendationItemActions,
+    modifier: Modifier = Modifier,
+) {
     val padding =
         PaddingValues(
             horizontal = MaterialTheme.spacing.screenHorizontal,
             vertical = MaterialTheme.spacing.small,
         )
-    val spacing = MaterialTheme.spacing.medium
-    val cardContent: @Composable (NewSeasonAnime) -> Unit = { anime ->
-        val notInterestedAction = {
-            itemActions.onNotInterested(
-                NotInterestedSheetData(
-                    animeId = anime.animeId,
-                    title = anime.subtitleTitle ?: anime.displayTitle,
-                    titleEnglish =
-                        anime.displayTitle.takeIf { anime.subtitleTitle != null },
-                    pictureUrl = anime.thumbnailUrl,
-                ),
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(minSize = GRID_CELL_MIN_SIZE),
+        modifier = modifier.fillMaxSize(),
+        contentPadding = padding,
+        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium),
+    ) {
+        items(newSeasons, key = { it.animeId }) { anime ->
+            NewSeasonItemCard(
+                anime = anime,
+                itemActions = itemActions,
+                modifier =
+                    Modifier.animateItem(
+                        fadeInSpec =
+                            tween(
+                                durationMillis = MotionTokens.DURATION_ITEM_PLACEMENT,
+                                easing = MotionTokens.EasingEnter,
+                            ),
+                        fadeOutSpec =
+                            tween(
+                                durationMillis = MotionTokens.DURATION_ITEM_PLACEMENT,
+                                easing = MotionTokens.EasingExit,
+                            ),
+                        placementSpec =
+                            tween(
+                                durationMillis = MotionTokens.DURATION_ITEM_PLACEMENT,
+                                easing = MotionTokens.EasingStandard,
+                            ),
+                    ),
             )
         }
-        NewSeasonCard(
-            anime = anime,
-            actions =
-                RecommendationCardActions(
-                    onPosterClick = {
-                        itemActions.onPosterClick(
-                            PosterPreviewData(
-                                thumbnailUrl = anime.thumbnailUrl,
-                                largeImageUrl = anime.largeImageUrl,
-                                title = anime.displayTitle,
+    }
+}
+
+@Composable
+private fun NewSeasonList(
+    newSeasons: List<NewSeasonAnime>,
+    itemActions: RecommendationItemActions,
+    modifier: Modifier = Modifier,
+) {
+    val padding =
+        PaddingValues(
+            horizontal = MaterialTheme.spacing.screenHorizontal,
+            vertical = MaterialTheme.spacing.small,
+        )
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = padding,
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium),
+    ) {
+        items(newSeasons, key = { it.animeId }) { anime ->
+            NewSeasonItemCard(
+                anime = anime,
+                itemActions = itemActions,
+                modifier =
+                    Modifier.animateItem(
+                        fadeInSpec =
+                            tween(
+                                durationMillis = MotionTokens.DURATION_ITEM_PLACEMENT,
+                                easing = MotionTokens.EasingEnter,
                             ),
-                        )
-                    },
-                    onCardClick = { itemActions.onAnimeClick(anime.animeId) },
-                    onCardLongClick = notInterestedAction,
-                    onMoreClick = notInterestedAction,
-                ),
+                        fadeOutSpec =
+                            tween(
+                                durationMillis = MotionTokens.DURATION_ITEM_PLACEMENT,
+                                easing = MotionTokens.EasingExit,
+                            ),
+                        placementSpec =
+                            tween(
+                                durationMillis = MotionTokens.DURATION_ITEM_PLACEMENT,
+                                easing = MotionTokens.EasingStandard,
+                            ),
+                    ),
+            )
+        }
+    }
+}
+
+@Composable
+private fun NewSeasonItemCard(
+    anime: NewSeasonAnime,
+    itemActions: RecommendationItemActions,
+    modifier: Modifier = Modifier,
+) {
+    val notInterestedAction = {
+        itemActions.onNotInterested(
+            NotInterestedSheetData(
+                animeId = anime.animeId,
+                title = anime.subtitleTitle ?: anime.displayTitle,
+                titleEnglish = anime.displayTitle.takeIf { anime.subtitleTitle != null },
+                pictureUrl = anime.thumbnailUrl,
+            ),
         )
     }
-
-    if (isExpanded) {
-        LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = GRID_CELL_MIN_SIZE),
-            modifier = modifier.fillMaxSize(),
-            contentPadding = padding,
-            horizontalArrangement = Arrangement.spacedBy(spacing),
-            verticalArrangement = Arrangement.spacedBy(spacing),
-        ) {
-            items(newSeasons, key = { it.animeId }) { cardContent(it) }
-        }
-    } else {
-        LazyColumn(
-            modifier = modifier.fillMaxSize(),
-            contentPadding = padding,
-            verticalArrangement = Arrangement.spacedBy(spacing),
-        ) {
-            items(newSeasons, key = { it.animeId }) { cardContent(it) }
-        }
-    }
+    NewSeasonCard(
+        anime = anime,
+        modifier = modifier,
+        actions =
+            RecommendationCardActions(
+                onPosterClick = {
+                    itemActions.onPosterClick(
+                        PosterPreviewData(
+                            thumbnailUrl = anime.thumbnailUrl,
+                            largeImageUrl = anime.largeImageUrl,
+                            title = anime.displayTitle,
+                        ),
+                    )
+                },
+                onCardClick = { itemActions.onAnimeClick(anime.animeId) },
+                onCardLongClick = notInterestedAction,
+                onMoreClick = notInterestedAction,
+            ),
+    )
 }
 
 @Composable
@@ -129,61 +207,138 @@ fun RecommendationItemsContent(
     itemActions: RecommendationItemActions,
     modifier: Modifier = Modifier,
 ) {
+    if (isExpanded) {
+        RecommendationGrid(state = state, itemActions = itemActions, modifier = modifier)
+    } else {
+        RecommendationList(state = state, itemActions = itemActions, modifier = modifier)
+    }
+}
+
+@Composable
+private fun RecommendationGrid(
+    state: RecommendationUiState.Success,
+    itemActions: RecommendationItemActions,
+    modifier: Modifier = Modifier,
+) {
     val padding =
         PaddingValues(
             horizontal = MaterialTheme.spacing.screenHorizontal,
             vertical = MaterialTheme.spacing.small,
         )
-    val spacing = MaterialTheme.spacing.medium
-    val cardContent: @Composable (RecommendedAnime) -> Unit = { anime ->
-        val notInterestedAction = {
-            itemActions.onNotInterested(
-                NotInterestedSheetData(
-                    animeId = anime.animeId,
-                    title = anime.title,
-                    titleEnglish = anime.titleEnglish,
-                    pictureUrl = anime.thumbnailUrl,
-                ),
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(minSize = GRID_CELL_MIN_SIZE),
+        modifier = modifier.fillMaxSize(),
+        contentPadding = padding,
+        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium),
+    ) {
+        items(state.recommendations, key = { it.animeId }) { anime ->
+            RecommendationItemCard(
+                anime = anime,
+                selectedType = state.selectedType,
+                itemActions = itemActions,
+                modifier =
+                    Modifier.animateItem(
+                        fadeInSpec =
+                            tween(
+                                durationMillis = MotionTokens.DURATION_ITEM_PLACEMENT,
+                                easing = MotionTokens.EasingEnter,
+                            ),
+                        fadeOutSpec =
+                            tween(
+                                durationMillis = MotionTokens.DURATION_ITEM_PLACEMENT,
+                                easing = MotionTokens.EasingExit,
+                            ),
+                        placementSpec =
+                            tween(
+                                durationMillis = MotionTokens.DURATION_ITEM_PLACEMENT,
+                                easing = MotionTokens.EasingStandard,
+                            ),
+                    ),
             )
         }
-        RecommendationCard(
-            anime = anime,
-            selectedType = state.selectedType,
-            actions =
-                RecommendationCardActions(
-                    onPosterClick = {
-                        itemActions.onPosterClick(
-                            PosterPreviewData(
-                                thumbnailUrl = anime.thumbnailUrl,
-                                largeImageUrl = anime.largeImageUrl,
-                                title = anime.displayTitle(),
+    }
+}
+
+@Composable
+private fun RecommendationList(
+    state: RecommendationUiState.Success,
+    itemActions: RecommendationItemActions,
+    modifier: Modifier = Modifier,
+) {
+    val padding =
+        PaddingValues(
+            horizontal = MaterialTheme.spacing.screenHorizontal,
+            vertical = MaterialTheme.spacing.small,
+        )
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = padding,
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium),
+    ) {
+        items(state.recommendations, key = { it.animeId }) { anime ->
+            RecommendationItemCard(
+                anime = anime,
+                selectedType = state.selectedType,
+                itemActions = itemActions,
+                modifier =
+                    Modifier.animateItem(
+                        fadeInSpec =
+                            tween(
+                                durationMillis = MotionTokens.DURATION_ITEM_PLACEMENT,
+                                easing = MotionTokens.EasingEnter,
                             ),
-                        )
-                    },
-                    onCardClick = { itemActions.onAnimeClick(anime.animeId) },
-                    onCardLongClick = notInterestedAction,
-                    onMoreClick = notInterestedAction,
-                ),
+                        fadeOutSpec =
+                            tween(
+                                durationMillis = MotionTokens.DURATION_ITEM_PLACEMENT,
+                                easing = MotionTokens.EasingExit,
+                            ),
+                        placementSpec =
+                            tween(
+                                durationMillis = MotionTokens.DURATION_ITEM_PLACEMENT,
+                                easing = MotionTokens.EasingStandard,
+                            ),
+                    ),
+            )
+        }
+    }
+}
+
+@Composable
+private fun RecommendationItemCard(
+    anime: RecommendedAnime,
+    selectedType: RecommendationType,
+    itemActions: RecommendationItemActions,
+    modifier: Modifier = Modifier,
+) {
+    val notInterestedAction = {
+        itemActions.onNotInterested(
+            NotInterestedSheetData(
+                animeId = anime.animeId,
+                title = anime.title,
+                titleEnglish = anime.titleEnglish,
+                pictureUrl = anime.thumbnailUrl,
+            ),
         )
     }
-
-    if (isExpanded) {
-        LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = GRID_CELL_MIN_SIZE),
-            modifier = modifier.fillMaxSize(),
-            contentPadding = padding,
-            horizontalArrangement = Arrangement.spacedBy(spacing),
-            verticalArrangement = Arrangement.spacedBy(spacing),
-        ) {
-            items(state.recommendations, key = { it.animeId }) { cardContent(it) }
-        }
-    } else {
-        LazyColumn(
-            modifier = modifier.fillMaxSize(),
-            contentPadding = padding,
-            verticalArrangement = Arrangement.spacedBy(spacing),
-        ) {
-            items(state.recommendations, key = { it.animeId }) { cardContent(it) }
-        }
-    }
+    RecommendationCard(
+        anime = anime,
+        selectedType = selectedType,
+        modifier = modifier,
+        actions =
+            RecommendationCardActions(
+                onPosterClick = {
+                    itemActions.onPosterClick(
+                        PosterPreviewData(
+                            thumbnailUrl = anime.thumbnailUrl,
+                            largeImageUrl = anime.largeImageUrl,
+                            title = anime.displayTitle(),
+                        ),
+                    )
+                },
+                onCardClick = { itemActions.onAnimeClick(anime.animeId) },
+                onCardLongClick = notInterestedAction,
+                onMoreClick = notInterestedAction,
+            ),
+    )
 }

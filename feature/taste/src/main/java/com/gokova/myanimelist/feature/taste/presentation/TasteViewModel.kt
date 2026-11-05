@@ -52,7 +52,6 @@ class TasteViewModel
                 AppLog.viewModel.d { "Switching selectedType to ${type.name} and resetting bubble" }
                 selectedType.value = type
                 selectedBubble.value = null
-                recenterTrigger.value++
             }
         }
 

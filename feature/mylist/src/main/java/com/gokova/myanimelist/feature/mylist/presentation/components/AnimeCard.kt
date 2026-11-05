@@ -1,5 +1,7 @@
 package com.gokova.myanimelist.feature.mylist.presentation.components
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -23,7 +25,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,6 +38,7 @@ import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.PreviewParameter
@@ -38,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.gokova.myanimelist.core.ui.component.badge.PersonalScoreBadge
 import com.gokova.myanimelist.core.ui.preview.StandardPreviews
+import com.gokova.myanimelist.core.ui.theme.MotionTokens
 import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
 import com.gokova.myanimelist.core.ui.theme.componentSizes
 import com.gokova.myanimelist.core.ui.theme.spacing
@@ -125,6 +134,7 @@ private fun AnimeCardDetails(
             ProgressSection(
                 watchedEpisodes = anime.watchedEpisodes,
                 totalEpisodes = anime.totalEpisodes,
+                isSavingProgress = isSavingProgress,
             )
 
             Spacer(modifier = Modifier.height(MaterialTheme.spacing.micro))
@@ -297,25 +307,86 @@ private fun MetadataRow(
 }
 
 @Composable
+private fun rememberAnimatedEpisodeProgress(
+    watchedEpisodes: Int,
+    targetFraction: Float,
+    isKnownTotal: Boolean,
+    isSavingProgress: Boolean,
+): Animatable<Float, *> {
+    val animatedProgress = remember { Animatable(targetFraction) }
+    var wasSaving by remember { mutableStateOf(false) }
+    var lastWatchedEpisodes by remember { mutableIntStateOf(watchedEpisodes) }
+
+    LaunchedEffect(isSavingProgress) {
+        if (isSavingProgress) {
+            wasSaving = true
+        } else if (wasSaving) {
+            wasSaving = false
+            if (watchedEpisodes > lastWatchedEpisodes && isKnownTotal) {
+                animatedProgress.animateTo(
+                    targetValue = targetFraction,
+                    animationSpec =
+                        tween(
+                            durationMillis = MotionTokens.DURATION_PROGRESS_SEGMENT,
+                            easing = MotionTokens.EasingEnter,
+                        ),
+                )
+            } else {
+                animatedProgress.snapTo(targetFraction)
+            }
+            lastWatchedEpisodes = watchedEpisodes
+        }
+    }
+
+    LaunchedEffect(targetFraction) {
+        if (!wasSaving && !isSavingProgress) {
+            animatedProgress.snapTo(targetFraction)
+            lastWatchedEpisodes = watchedEpisodes
+        }
+    }
+
+    return animatedProgress
+}
+
+@Composable
 private fun ProgressSection(
     watchedEpisodes: Int,
     totalEpisodes: Int?,
+    isSavingProgress: Boolean,
 ) {
+    val isKnownTotal = totalEpisodes != null && totalEpisodes > 0
     val totalEpText =
-        totalEpisodes?.takeIf { it > 0 }?.toString()
-            ?: stringResource(R.string.my_list_episodes_unknown)
+        if (isKnownTotal) {
+            totalEpisodes.toString()
+        } else {
+            stringResource(R.string.my_list_episodes_unknown)
+        }
+
+    val targetFraction =
+        if (isKnownTotal) {
+            (watchedEpisodes.toFloat() / totalEpisodes.toFloat()).coerceIn(0f, 1f)
+        } else {
+            0f
+        }
+
+    val animatedProgress =
+        rememberAnimatedEpisodeProgress(
+            watchedEpisodes = watchedEpisodes,
+            targetFraction = targetFraction,
+            isKnownTotal = isKnownTotal,
+            isSavingProgress = isSavingProgress,
+        )
 
     Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall)) {
-        if (totalEpisodes != null && totalEpisodes > 0) {
-            val progressFraction =
-                (watchedEpisodes.toFloat() / totalEpisodes.toFloat()).coerceIn(0f, 1f)
+        if (isKnownTotal) {
             LinearProgressIndicator(
-                progress = { progressFraction },
+                progress = { animatedProgress.value },
                 modifier =
                     Modifier
                         .fillMaxWidth()
                         .height(MaterialTheme.spacing.progressBarHeight)
-                        .clip(MaterialTheme.shapes.extraSmall),
+                        .clip(MaterialTheme.shapes.extraSmall)
+                        .clearAndSetSemantics { },
                 color = MaterialTheme.colorScheme.primary,
                 trackColor = MaterialTheme.colorScheme.surfaceVariant,
                 gapSize = MaterialTheme.spacing.none,

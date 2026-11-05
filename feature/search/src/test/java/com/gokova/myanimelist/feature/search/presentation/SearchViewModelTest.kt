@@ -426,6 +426,137 @@ class SearchViewModelTest {
             assertTrue(viewModel.uiState.value is SearchUiState.AiInitial)
         }
 
+    @Test
+    fun onQueryChangeInContentPreservesResultQueryAndResults() =
+        runTest(testDispatcher) {
+            val item = createTestItem(1L, "Naruto")
+            fakeRepository.searchResult = Result.success(SearchResultPage(items = listOf(item)))
+
+            viewModel.onQueryChange("Naruto")
+            viewModel.onSearch()
+            advanceUntilIdle()
+
+            val initialContent = viewModel.uiState.value as SearchUiState.Content
+            assertEquals("Naruto", initialContent.query)
+            assertEquals("Naruto", initialContent.resultQuery)
+            assertEquals(1, initialContent.animes.size)
+
+            viewModel.onQueryChange("Naruto Shippuden")
+            val updatedContent = viewModel.uiState.value as SearchUiState.Content
+            assertEquals("Naruto Shippuden", updatedContent.query)
+            assertEquals("Naruto", updatedContent.resultQuery)
+            assertEquals(1, updatedContent.animes.size)
+        }
+
+    @Test
+    fun subsequentSearchInContentRetainsPriorResultsWithReplacingStatus() =
+        runTest(testDispatcher) {
+            val narutoItem = createTestItem(1L, "Naruto")
+            val bleachItem = createTestItem(2L, "Bleach")
+
+            fakeRepository.searchResult =
+                Result.success(SearchResultPage(items = listOf(narutoItem)))
+            viewModel.onQueryChange("Naruto")
+            viewModel.onSearch()
+            advanceUntilIdle()
+
+            fakeRepository.searchLambda = {
+                delay(100.milliseconds)
+                Result.success(SearchResultPage(items = listOf(bleachItem)))
+            }
+
+            viewModel.onQueryChange("Bleach")
+            viewModel.onSearch()
+
+            val replacingState = viewModel.uiState.value as SearchUiState.Content
+            assertTrue(replacingState.isReplacing)
+            assertEquals("Bleach", replacingState.replacementQuery)
+            assertEquals("Naruto", replacingState.resultQuery)
+            assertEquals(1, replacingState.animes.size)
+            assertEquals("Naruto", replacingState.animes[0].title)
+
+            advanceUntilIdle()
+
+            val finalState = viewModel.uiState.value as SearchUiState.Content
+            assertFalse(finalState.isReplacing)
+            assertEquals("Bleach", finalState.query)
+            assertEquals("Bleach", finalState.resultQuery)
+            assertEquals(1, finalState.animes.size)
+            assertEquals("Bleach", finalState.animes[0].title)
+        }
+
+    @Test
+    fun failedReplacementSearchRetainsPriorResultsAndEmitsSnackbar() =
+        runTest(testDispatcher) {
+            val narutoItem = createTestItem(1L, "Naruto")
+            fakeRepository.searchResult =
+                Result.success(SearchResultPage(items = listOf(narutoItem)))
+            viewModel.onQueryChange("Naruto")
+            viewModel.onSearch()
+            advanceUntilIdle()
+
+            fakeRepository.searchLambda = {
+                delay(50.milliseconds)
+                Result.failure(IOException("Server error"))
+            }
+
+            var receivedEvent: SearchUiEvent? = null
+            val eventJob =
+                launch {
+                    viewModel.events.collect { receivedEvent = it }
+                }
+
+            viewModel.onQueryChange("Bleach")
+            viewModel.onSearch()
+            assertTrue((viewModel.uiState.value as SearchUiState.Content).isReplacing)
+
+            advanceUntilIdle()
+
+            val content = viewModel.uiState.value as SearchUiState.Content
+            assertFalse(content.isReplacing)
+            assertEquals("Naruto", content.resultQuery)
+            assertEquals(1, content.animes.size)
+            assertEquals("Naruto", content.animes[0].title)
+
+            assertTrue(receivedEvent is SearchUiEvent.ShowSnackbar)
+            val snackbar = receivedEvent as SearchUiEvent.ShowSnackbar
+            assertEquals(R.string.search_replacement_failed, snackbar.messageRes)
+            assertEquals("Bleach", snackbar.formatArg)
+
+            eventJob.cancel()
+        }
+
+    @Test
+    fun onLoadMoreIsSuppressedWhileReplacementSearchIsActive() =
+        runTest(testDispatcher) {
+            val item1 = createTestItem(1L, "Naruto")
+            fakeRepository.searchResult =
+                Result.success(SearchResultPage(items = listOf(item1), nextUrl = "page2"))
+
+            viewModel.onQueryChange("Naruto")
+            viewModel.onSearch()
+            advanceUntilIdle()
+
+            fakeRepository.searchLambda = {
+                delay(200.milliseconds)
+                Result.success(SearchResultPage(items = listOf(createTestItem(2L, "Bleach"))))
+            }
+
+            viewModel.onQueryChange("Bleach")
+            viewModel.onSearch()
+
+            var loadMoreCalled = false
+            fakeRepository.loadMoreLambda = {
+                loadMoreCalled = true
+                Result.success(SearchResultPage(items = emptyList()))
+            }
+
+            viewModel.onLoadMore()
+            assertFalse(loadMoreCalled)
+
+            advanceUntilIdle()
+        }
+
     private fun createTestItem(
         id: Long,
         title: String,

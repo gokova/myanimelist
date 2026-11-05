@@ -222,7 +222,7 @@ private fun TitleSection(
         if (onMoreClick != null) {
             IconButton(
                 onClick = onMoreClick,
-                modifier = Modifier.size(28.dp),
+                modifier = Modifier.size(48.dp),
             ) {
                 Icon(
                     imageVector = Icons.Default.MoreVert,
@@ -243,10 +243,10 @@ private fun BadgesRow(
     meanScore: Double?,
     modifier: Modifier = Modifier,
 ) {
-    Row(
+    FlowRow(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
     ) {
         Surface(
             shape = MaterialTheme.shapes.extraSmall,

@@ -48,12 +48,12 @@ class RecommendationRepositoryImpl
             ) { userList, recCount, workInfos ->
                 val activeOrFinished =
                     workInfos.filter { it.state != WorkInfo.State.CANCELLED }
-                val isWorking =
+                val isRunning = activeOrFinished.any { it.state == WorkInfo.State.RUNNING }
+                val isQueued =
                     activeOrFinished.any {
-                        it.state == WorkInfo.State.RUNNING ||
-                            it.state == WorkInfo.State.ENQUEUED ||
-                            it.state == WorkInfo.State.BLOCKED
+                        it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.BLOCKED
                     }
+                val isWorking = isRunning || isQueued
                 val hasFailed =
                     activeOrFinished.any { it.state == WorkInfo.State.FAILED }
                 val hasSucceeded =
@@ -64,7 +64,11 @@ class RecommendationRepositoryImpl
                     userList.size < MIN_USER_LIST_THRESHOLD ->
                         RecommendationEngineState.EmptyInsufficientData
                     recCount > 0 ->
-                        RecommendationEngineState.Ready(recCount)
+                        RecommendationEngineState.Ready(
+                            totalCount = recCount,
+                            isRefreshing = isRunning,
+                            isQueued = isQueued,
+                        )
                     isWorking ->
                         RecommendationEngineState.Calculating
                     hasFailed ->

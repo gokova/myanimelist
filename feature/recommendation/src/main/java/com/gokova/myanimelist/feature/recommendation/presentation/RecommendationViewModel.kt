@@ -98,6 +98,8 @@ class RecommendationViewModel
                         RecommendationUiState.Success(
                             selectedType = type,
                             recommendations = recommendations,
+                            isRefreshing = engineState.isRefreshing,
+                            isQueued = engineState.isQueued,
                         )
                     }
                 }
@@ -136,6 +138,8 @@ class RecommendationViewModel
                             selectedType = RecommendationType.NEW_SEASONS,
                             newSeasons = seasons,
                             newSeasonSort = sort,
+                            isRefreshing = state.isRefreshing,
+                            isQueued = state.isQueued,
                         )
                     }
                 }
@@ -201,6 +205,19 @@ class RecommendationViewModel
         }
 
         private fun handleRefresh() {
+            val currentState = uiState.value
+            val isBusy =
+                when (currentState) {
+                    is RecommendationUiState.Calculating -> true
+                    is RecommendationUiState.Success ->
+                        currentState.isRefreshing ||
+                            currentState.isQueued
+                    else -> false
+                }
+            if (isBusy) {
+                AppLog.ui.i { "Suppressing duplicate recalculation for ${selectedType.value}" }
+                return
+            }
             AppLog.ui.i { "User triggered recalculation for type: ${selectedType.value}" }
             viewModelScope.launch {
                 try {
