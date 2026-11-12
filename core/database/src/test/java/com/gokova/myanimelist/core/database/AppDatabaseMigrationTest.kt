@@ -232,6 +232,36 @@ class AppDatabaseMigrationTest {
         assertEquals(listOf(expectedSql), executedStatements)
     }
 
+    @Test
+    fun `migration 6 to 7 has correct version boundaries`() {
+        assertEquals(6, AppDatabase.MIGRATION_6_7.startVersion)
+        assertEquals(7, AppDatabase.MIGRATION_6_7.endVersion)
+    }
+
+    @Test
+    fun `migration 6 to 7 creates anime_relationships table and indices`() {
+        val executedStatements = mutableListOf<String>()
+        val fakeDatabase =
+            Proxy.newProxyInstance(
+                SupportSQLiteDatabase::class.java.classLoader,
+                arrayOf(SupportSQLiteDatabase::class.java),
+            ) { _, method, args ->
+                if (method.name == "execSQL" && args != null && args.isNotEmpty()) {
+                    executedStatements.add(args[0] as String)
+                }
+                null
+            } as SupportSQLiteDatabase
+
+        AppDatabase.MIGRATION_6_7.migrate(fakeDatabase)
+
+        assertEquals(3, executedStatements.size)
+        assertTrue(
+            executedStatements[0].contains("CREATE TABLE IF NOT EXISTS `anime_relationships`"),
+        )
+        assertTrue(executedStatements[1].contains("index_anime_relationships_source_anime_id"))
+        assertTrue(executedStatements[2].contains("index_anime_relationships_target_anime_id"))
+    }
+
     private fun executeMigration45(): List<String> {
         val executedStatements = mutableListOf<String>()
         val fakeDatabase =

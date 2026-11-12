@@ -11,12 +11,15 @@ class FakeAnimeDetailsRepository : AnimeDetailsRepository {
     var fetchResult: Result<AnimeDetails>? = null
     var addResult: Result<Unit> = Result.success(Unit)
     var addCalledWithId: Long? = null
+    var hasFranchise: Boolean = false
 
     fun emitDetails(details: AnimeDetails?) {
         detailsFlow.value = details
     }
 
     override fun observeAnimeDetails(animeId: Long): Flow<AnimeDetails?> = detailsFlow.asStateFlow()
+
+    override fun observeHasFranchise(animeId: Long): Flow<Boolean> = MutableStateFlow(hasFranchise)
 
     override suspend fun fetchFreshAnimeDetails(animeId: Long): Result<AnimeDetails> =
         fetchResult ?: detailsFlow.value?.let { Result.success(it) }

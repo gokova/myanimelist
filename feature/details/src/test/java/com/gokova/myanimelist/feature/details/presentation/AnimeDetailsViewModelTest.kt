@@ -16,6 +16,7 @@ import com.gokova.myanimelist.feature.details.domain.model.AnimeDetails
 import com.gokova.myanimelist.feature.details.domain.usecase.AddAnimeToMyListUseCase
 import com.gokova.myanimelist.feature.details.domain.usecase.AnimeStatusInteractor
 import com.gokova.myanimelist.feature.details.domain.usecase.ObserveAnimeDetailsUseCase
+import com.gokova.myanimelist.feature.details.domain.usecase.ObserveHasFranchiseUseCase
 import com.gokova.myanimelist.feature.details.domain.usecase.RefreshAnimeDetailsUseCase
 import com.gokova.myanimelist.feature.details.fakes.FakeAnimeDetailsRepository
 import com.gokova.myanimelist.feature.details.fakes.FakeIgnoredAnimeRepository
@@ -47,6 +48,7 @@ class AnimeDetailsViewModelTest {
     private lateinit var repository: FakeAnimeDetailsRepository
     private lateinit var statusRepository: FakeUserAnimeListStatusRepository
     private lateinit var observeUseCase: ObserveAnimeDetailsUseCase
+    private lateinit var observeHasFranchiseUseCase: ObserveHasFranchiseUseCase
     private lateinit var refreshUseCase: RefreshAnimeDetailsUseCase
     private lateinit var addUseCase: AddAnimeToMyListUseCase
     private lateinit var updateUseCase: UpdateAnimeStatusUseCase
@@ -89,6 +91,7 @@ class AnimeDetailsViewModelTest {
         repository = FakeAnimeDetailsRepository()
         statusRepository = FakeUserAnimeListStatusRepository()
         observeUseCase = ObserveAnimeDetailsUseCase(repository)
+        observeHasFranchiseUseCase = ObserveHasFranchiseUseCase(repository)
         refreshUseCase = RefreshAnimeDetailsUseCase(repository)
         addUseCase = AddAnimeToMyListUseCase(repository)
         updateUseCase = UpdateAnimeStatusUseCase(statusRepository)
@@ -113,6 +116,7 @@ class AnimeDetailsViewModelTest {
         return AnimeDetailsViewModel(
             savedStateHandle = savedStateHandle,
             observeAnimeDetailsUseCase = observeUseCase,
+            observeHasFranchiseUseCase = observeHasFranchiseUseCase,
             refreshAnimeDetailsUseCase = refreshUseCase,
             addAnimeToMyListUseCase = addUseCase,
             statusInteractor = statusInteractor,
@@ -133,6 +137,16 @@ class AnimeDetailsViewModelTest {
             assertFalse(state.isLoading)
             assertFalse(state.isRefreshing)
             assertEquals(testDetails, state.details)
+        }
+
+    @Test
+    fun `observeHasFranchise updates uiState hasFranchiseMap`() =
+        runTest {
+            repository.hasFranchise = true
+            val viewModel = createViewModel()
+            advanceUntilIdle()
+
+            assertTrue(viewModel.uiState.value.hasFranchiseMap)
         }
 
     @Test

@@ -156,6 +156,7 @@ dependencies {
     implementation(project(":feature:details"))
     implementation(project(":feature:profile"))
     implementation(project(":feature:search"))
+    implementation(project(":feature:franchise"))
 
     // Logging
     implementation(libs.timber)

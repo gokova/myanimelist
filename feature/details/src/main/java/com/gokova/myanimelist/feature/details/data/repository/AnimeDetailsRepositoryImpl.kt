@@ -1,12 +1,15 @@
 package com.gokova.myanimelist.feature.details.data.repository
 
+import com.gokova.myanimelist.core.database.dao.AnimeRelationshipDao
 import com.gokova.myanimelist.core.database.dao.UserAnimeListDao
 import com.gokova.myanimelist.core.database.entity.AnimeEntity
+import com.gokova.myanimelist.core.database.entity.AnimeRelationshipEntity
 import com.gokova.myanimelist.core.database.entity.UserAnimeListEntity
 import com.gokova.myanimelist.core.database.util.UserAnimeListSyncCoordinator
 import com.gokova.myanimelist.core.domain.logging.AppLog
 import com.gokova.myanimelist.core.network.api.MalApiService
 import com.gokova.myanimelist.core.network.di.IoDispatcher
+import com.gokova.myanimelist.core.network.model.RelatedAnimeEdgeDto
 import com.gokova.myanimelist.feature.details.data.mapper.AnimeDetailsMapper
 import com.gokova.myanimelist.feature.details.domain.model.AnimeDetails
 import com.gokova.myanimelist.feature.details.domain.repository.AnimeDetailsRepository
@@ -31,6 +34,7 @@ class AnimeDetailsRepositoryImpl
     constructor(
         private val malApiService: MalApiService,
         private val userAnimeListDao: UserAnimeListDao,
+        private val animeRelationshipDao: AnimeRelationshipDao,
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
         private val syncCoordinator: UserAnimeListSyncCoordinator = UserAnimeListSyncCoordinator(),
     ) : AnimeDetailsRepository {
@@ -55,6 +59,9 @@ class AnimeDetailsRepositoryImpl
                 }
             }.flowOn(ioDispatcher)
 
+        override fun observeHasFranchise(animeId: Long): Flow<Boolean> =
+            animeRelationshipDao.observeHasRelationships(animeId).flowOn(ioDispatcher)
+
         override suspend fun fetchFreshAnimeDetails(animeId: Long): Result<AnimeDetails> =
             syncCoordinator.withLock {
                 withContext(ioDispatcher) {
@@ -62,6 +69,8 @@ class AnimeDetailsRepositoryImpl
                         val dto = malApiService.getAnimeDetails(animeId)
                         val entity = AnimeDetailsMapper.toAnimeEntity(dto)
                         freshEntityCache.update { it.withBoundedEntry(animeId to entity) }
+
+                        persistRelatedAnime(animeId, dto.relatedAnime)
 
                         val existingEntity = userAnimeListDao.getAnimeEntityById(animeId)
                         val hasExistingTrackedEntity = existingEntity != null
@@ -203,6 +212,39 @@ class AnimeDetailsRepositoryImpl
                     null
                 }
             } ?: 0L
+        }
+
+        private suspend fun persistRelatedAnime(
+            animeId: Long,
+            relatedAnime: List<RelatedAnimeEdgeDto>?,
+        ) {
+            if (relatedAnime.isNullOrEmpty()) return
+            val relationships =
+                relatedAnime.map { edge ->
+                    AnimeRelationshipEntity(
+                        sourceAnimeId = animeId,
+                        targetAnimeId = edge.node.id,
+                        relationType = edge.relationType,
+                        relationTypeFormatted = edge.relationTypeFormatted,
+                    )
+                }
+            val animeStubs =
+                relatedAnime.map { edge ->
+                    AnimeEntity(
+                        id = edge.node.id,
+                        title = edge.node.title,
+                        titleEnglish = null,
+                        mainPictureMedium = edge.node.mainPicture?.medium,
+                        mainPictureLarge = edge.node.mainPicture?.large,
+                        mediaType = null,
+                        airingStatus = null,
+                        numEpisodes = null,
+                        startSeasonYear = null,
+                        startSeasonSeason = null,
+                        meanScore = null,
+                    )
+                }
+            animeRelationshipDao.saveRelationships(relationships, animeStubs)
         }
 
         private fun <K, V> Map<K, V>.withBoundedEntry(

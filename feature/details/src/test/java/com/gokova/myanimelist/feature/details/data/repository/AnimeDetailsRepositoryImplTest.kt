@@ -1,7 +1,9 @@
 package com.gokova.myanimelist.feature.details.data.repository
 
+import com.gokova.myanimelist.core.database.dao.AnimeRelationshipDao
 import com.gokova.myanimelist.core.database.dao.UserAnimeListDao
 import com.gokova.myanimelist.core.database.entity.AnimeEntity
+import com.gokova.myanimelist.core.database.entity.AnimeRelationshipEntity
 import com.gokova.myanimelist.core.database.entity.UserAnimeListEntity
 import com.gokova.myanimelist.core.database.model.UserAnimeListItem
 import com.gokova.myanimelist.core.network.api.MalApiService
@@ -9,11 +11,13 @@ import com.gokova.myanimelist.core.network.model.AnimeDetailsDto
 import com.gokova.myanimelist.core.network.model.AnimeNodeDto
 import com.gokova.myanimelist.core.network.model.AnimeRecommendationEdgeDto
 import com.gokova.myanimelist.core.network.model.MyListStatusDto
+import com.gokova.myanimelist.core.network.model.RelatedAnimeEdgeDto
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -29,17 +33,20 @@ import java.sql.SQLException
 class AnimeDetailsRepositoryImplTest {
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var fakeDao: FakeUserAnimeListDao
+    private lateinit var fakeRelationshipDao: FakeAnimeRelationshipDao
     private lateinit var fakeApi: FakeMalApiService
     private lateinit var repository: AnimeDetailsRepositoryImpl
 
     @Before
     fun setUp() {
         fakeDao = FakeUserAnimeListDao()
+        fakeRelationshipDao = FakeAnimeRelationshipDao()
         fakeApi = FakeMalApiService()
         repository =
             AnimeDetailsRepositoryImpl(
                 malApiService = fakeApi,
                 userAnimeListDao = fakeDao,
+                animeRelationshipDao = fakeRelationshipDao,
                 ioDispatcher = testDispatcher,
             )
     }
@@ -325,6 +332,58 @@ class AnimeDetailsRepositoryImplTest {
             assertEquals(null, fakeDao.getUserAnimeById(animeId))
         }
 
+    @Test
+    fun `fetchFreshAnimeDetails saves relationships and stubs when related_anime is returned`() =
+        runTest(testDispatcher) {
+            val animeId = 100L
+            val relatedEdge =
+                RelatedAnimeEdgeDto(
+                    node = AnimeNodeDto(id = 200L, title = "Sequel 200"),
+                    relationType = "sequel",
+                    relationTypeFormatted = "Sequel",
+                )
+            fakeApi.detailsMap[animeId] =
+                AnimeDetailsDto(
+                    id = animeId,
+                    title = "Season 1",
+                    relatedAnime = listOf(relatedEdge),
+                )
+
+            val result = repository.fetchFreshAnimeDetails(animeId)
+            advanceUntilIdle()
+
+            assertTrue(result.isSuccess)
+            assertTrue(
+                fakeRelationshipDao.savedRelationships.any {
+                    it.sourceAnimeId == animeId &&
+                        it.targetAnimeId == 200L &&
+                        it.relationType == "sequel"
+                },
+            )
+            assertTrue(
+                fakeRelationshipDao.savedAnimeStubs.any {
+                    it.id == 200L && it.title == "Sequel 200"
+                },
+            )
+        }
+
+    @Test
+    fun `observeHasFranchise returns true when relationships exist in dao`() =
+        runTest(testDispatcher) {
+            val animeId = 100L
+            fakeRelationshipDao.savedRelationships.add(
+                AnimeRelationshipEntity(
+                    sourceAnimeId = animeId,
+                    targetAnimeId = 200L,
+                    relationType = "sequel",
+                    relationTypeFormatted = "Sequel",
+                ),
+            )
+
+            val hasFranchise = repository.observeHasFranchise(animeId).first()
+            assertTrue(hasFranchise)
+        }
+
     private class FakeUserAnimeListDao : UserAnimeListDao {
         val animeEntities = mutableMapOf<Long, MutableStateFlow<AnimeEntity?>>()
         val userAnimeItems = mutableMapOf<Long, MutableStateFlow<UserAnimeListItem?>>()
@@ -458,5 +517,41 @@ class AnimeDetailsRepositoryImplTest {
             userId: String,
             fields: String,
         ) = throw UnsupportedOperationException()
+    }
+
+    private class FakeAnimeRelationshipDao : AnimeRelationshipDao {
+        val savedRelationships = mutableListOf<AnimeRelationshipEntity>()
+        val savedAnimeStubs = mutableListOf<AnimeEntity>()
+
+        override suspend fun upsertRelationships(relationships: List<AnimeRelationshipEntity>) {
+            savedRelationships.addAll(relationships)
+        }
+
+        override suspend fun insertAnimeStubs(animes: List<AnimeEntity>) {
+            savedAnimeStubs.addAll(animes)
+        }
+
+        override fun observeHasRelationships(animeId: Long): Flow<Boolean> =
+            flowOf(
+                savedRelationships.any {
+                    it.sourceAnimeId == animeId || it.targetAnimeId == animeId
+                },
+            )
+
+        override suspend fun getRelationshipsForAnimeIds(
+            animeIds: Set<Long>,
+        ): List<AnimeRelationshipEntity> =
+            savedRelationships.filter {
+                it.sourceAnimeId in animeIds || it.targetAnimeId in animeIds
+            }
+
+        override suspend fun getExistingAnimeIds(animeIds: Set<Long>): List<Long> =
+            savedAnimeStubs.map { it.id }.filter { it in animeIds }
+
+        override fun observeAnimeEntitiesByIds(animeIds: Set<Long>): Flow<List<AnimeEntity>> =
+            flowOf(savedAnimeStubs.filter { it.id in animeIds })
+
+        override fun observeUserAnimeByIds(animeIds: Set<Long>): Flow<List<UserAnimeListItem>> =
+            flowOf(emptyList())
     }
 }
