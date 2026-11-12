@@ -119,6 +119,8 @@ interface RecommendationDao {
           AND id NOT IN (SELECT parent_anime_id FROM new_season_animes)
           AND id NOT IN (SELECT anime_id FROM recommendation_candidates)
           AND id NOT IN (SELECT anime_id FROM ignored_animes)
+          AND id NOT IN (SELECT source_anime_id FROM anime_relationships)
+          AND id NOT IN (SELECT target_anime_id FROM anime_relationships)
         """,
     )
     suspend fun deleteNonUserData(animeIds: List<Long>): Int

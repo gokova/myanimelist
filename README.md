@@ -23,6 +23,7 @@ tracking, visual taste analytics, and recommendations.
 *   **Granular Taste Drill-Down**: Interactive bottom sheet displaying genre/theme statistics, average user rating, and individual anime cards with quick-reference status tags.
 *   **Smart Recommendation Engine (TF-IDF & Quality Scoring)**: Autonomous two-stage `WorkManager` pipeline (`FetchCandidatesWorker` + `EvaluateRecommendationsWorker`) evaluating seasonal and all-time anime against the user's personal taste profile using TF-IDF genre/theme weighting and global quality multiplier to produce ranked recommendations with match percentages.
 *   **New Seasons Discovery**: Automatically discovers upcoming, ongoing, and recently aired sequels, prequels, and side stories for anime in the user's list. Features polite request pacing, rich metadata enrichment, contextual relation badges (*"Sequel to..."*), and multiple sort orders (Release Date, Score, Title).
+*   **Interactive Franchise Map & Roadmap**: Dynamic 2D graph visualizing full franchise continuations (sequels, prequels, OVAs, films, and spin-offs).
 *   **Anime Details**: Rich detail views featuring episode counts, synopsis, seasonal air dates, genres, production metadata, and direct list status management.
 *   **Online Anime Search**: Explicit-submission anime title search against the MAL catalog with minimum-length validation, IME action execution, personalized taste match calculation, and infinite scroll pagination.
 *   **AI-Assisted Search (BYOK)**: Natural-language anime discovery powered by Google Gemini (Bring Your Own Key). Employs a token-efficient, injection-resilient pipeline that combines structured Gemini candidate suggestions with live MyAnimeList verification, personal taste scoring, omission auditing, and a dedicated encrypted API key management surface.
@@ -66,6 +67,7 @@ The project enforces a **Feature-based Multi-Module** architecture to establish 
     ├── taste/                  # Packed bubble chart analytics and bottom sheet drill-down
     ├── recommendation/         # Background recommendation engine and suggestions UI
     ├── details/                # Detailed anime views, list status editing, and metadata presentation
+    ├── franchise/              # Visual franchise roadmap, chronological spine layout, and multi-touch graph
     ├── search/                 # Standard search, AI natural-language search, and candidate verification
     └── profile/                # User profile, statistics, BYOK AI key management, and CSV backup
 ```
@@ -169,3 +171,5 @@ All architectural decisions, design tokens, and feature specifications are maint
     *   [09: Edit My List Status & Progress](docs/09_edit_my_list.md)
     *   [10: Not Interested / Ignore Feature](docs/10_not_interested_feature.md)
     *   [11: AI-Assisted Search](docs/11_ai_assisted_search.md)
+    *   [12: Recommendation Lab](docs/12_recommendation_lab.md)
+    *   [13: Franchise Map / Roadmap](docs/13_franchise_map_feature.md)

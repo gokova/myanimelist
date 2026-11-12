@@ -7,10 +7,12 @@ import androidx.work.ListenableWorker.Result
 import androidx.work.WorkerFactory
 import androidx.work.WorkerParameters
 import androidx.work.testing.TestListenableWorkerBuilder
+import com.gokova.myanimelist.core.database.dao.AnimeRelationshipDao
 import com.gokova.myanimelist.core.database.dao.IgnoredAnimeDao
 import com.gokova.myanimelist.core.database.dao.NewSeasonDao
 import com.gokova.myanimelist.core.database.dao.UserAnimeListDao
 import com.gokova.myanimelist.core.database.entity.AnimeEntity
+import com.gokova.myanimelist.core.database.entity.AnimeRelationshipEntity
 import com.gokova.myanimelist.core.database.entity.IgnoredAnimeEntity
 import com.gokova.myanimelist.core.database.entity.NewSeasonAnimeEntity
 import com.gokova.myanimelist.core.database.entity.UserAnimeListEntity
@@ -23,6 +25,7 @@ import com.gokova.myanimelist.core.network.model.MyListStatusDto
 import com.gokova.myanimelist.core.network.model.RelatedAnimeEdgeDto
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
@@ -34,10 +37,12 @@ import retrofit2.HttpException
 import retrofit2.Response
 import java.net.SocketTimeoutException
 
+@Suppress("LargeClass")
 class FetchNewSeasonsWorkerTest {
     private lateinit var fakeUserAnimeListDao: FakeUserAnimeListDao
     private lateinit var fakeNewSeasonDao: FakeNewSeasonDao
     private lateinit var fakeIgnoredAnimeDao: FakeIgnoredAnimeDao
+    private lateinit var fakeAnimeRelationshipDao: FakeAnimeRelationshipDao
     private lateinit var fakeMalApiService: FakeMalApiService
     private lateinit var fakeSyncTracker: FakeNewSeasonSyncTracker
     private lateinit var fakeScheduler: FakeNewSeasonScheduler
@@ -47,6 +52,7 @@ class FetchNewSeasonsWorkerTest {
         fakeUserAnimeListDao = FakeUserAnimeListDao()
         fakeNewSeasonDao = FakeNewSeasonDao()
         fakeIgnoredAnimeDao = FakeIgnoredAnimeDao()
+        fakeAnimeRelationshipDao = FakeAnimeRelationshipDao()
         fakeMalApiService = FakeMalApiService()
         fakeSyncTracker = FakeNewSeasonSyncTracker()
         fakeScheduler = FakeNewSeasonScheduler()
@@ -88,6 +94,16 @@ class FetchNewSeasonsWorkerTest {
             assertTrue(fakeNewSeasonDao.transactionCalled)
             assertEquals(1, fakeNewSeasonDao.savedNewSeasons.size)
             assertEquals(101L, fakeNewSeasonDao.savedNewSeasons[0].animeId)
+            assertTrue(
+                fakeAnimeRelationshipDao.savedRelationships.any {
+                    it.sourceAnimeId == 1L && it.targetAnimeId == 101L
+                },
+            )
+            assertTrue(
+                fakeAnimeRelationshipDao.savedAnimeStubs.any {
+                    it.id == 101L
+                },
+            )
         }
 
     @Test
@@ -704,6 +720,7 @@ class FetchNewSeasonsWorkerTest {
                                 fakeUserAnimeListDao,
                                 fakeNewSeasonDao,
                                 fakeIgnoredAnimeDao,
+                                fakeAnimeRelationshipDao,
                                 fakeSyncTracker,
                                 fakeScheduler,
                             )
@@ -1000,4 +1017,40 @@ class FetchNewSeasonsWorkerTest {
 
         override suspend fun getAllIgnoredAnime(): List<IgnoredAnimeEntity> = emptyList()
     }
+}
+
+private class FakeAnimeRelationshipDao : AnimeRelationshipDao {
+    val savedRelationships = mutableListOf<AnimeRelationshipEntity>()
+    val savedAnimeStubs = mutableListOf<AnimeEntity>()
+
+    override suspend fun upsertRelationships(relationships: List<AnimeRelationshipEntity>) {
+        savedRelationships.addAll(relationships)
+    }
+
+    override suspend fun insertAnimeStubs(animes: List<AnimeEntity>) {
+        savedAnimeStubs.addAll(animes)
+    }
+
+    override fun observeHasRelationships(animeId: Long): Flow<Boolean> =
+        flowOf(
+            savedRelationships.any {
+                it.sourceAnimeId == animeId || it.targetAnimeId == animeId
+            },
+        )
+
+    override suspend fun getRelationshipsForAnimeIds(
+        animeIds: Set<Long>,
+    ): List<AnimeRelationshipEntity> =
+        savedRelationships.filter {
+            it.sourceAnimeId in animeIds || it.targetAnimeId in animeIds
+        }
+
+    override suspend fun getExistingAnimeIds(animeIds: Set<Long>): List<Long> =
+        savedAnimeStubs.map { it.id }.filter { it in animeIds }
+
+    override fun observeAnimeEntitiesByIds(animeIds: Set<Long>): Flow<List<AnimeEntity>> =
+        flowOf(savedAnimeStubs.filter { it.id in animeIds })
+
+    override fun observeUserAnimeByIds(animeIds: Set<Long>): Flow<List<UserAnimeListItem>> =
+        flowOf(emptyList())
 }

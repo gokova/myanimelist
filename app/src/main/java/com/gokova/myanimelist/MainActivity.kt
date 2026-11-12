@@ -32,6 +32,8 @@ import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
 import com.gokova.myanimelist.feature.auth.AuthScreen
 import com.gokova.myanimelist.feature.details.navigation.AnimeDetailsRoute
 import com.gokova.myanimelist.feature.details.presentation.AnimeDetailsScreen
+import com.gokova.myanimelist.feature.franchise.navigation.FranchiseRoute
+import com.gokova.myanimelist.feature.franchise.presentation.FranchiseScreen
 import com.gokova.myanimelist.feature.profile.navigation.ProfileRoute
 import com.gokova.myanimelist.feature.profile.presentation.ProfileScreen
 import com.gokova.myanimelist.feature.search.navigation.SearchRoute
@@ -203,14 +205,29 @@ fun AppNavigation(
                 onNavigateToProfile = { navController.navigate(ProfileRoute) },
             )
         }
-        composable<AnimeDetailsRoute> {
-            AnimeDetailsScreen(
-                onBackClick = { navController.popBackStack() },
-                onAnimeClick = { animeId ->
-                    navController.navigate(AnimeDetailsRoute(animeId))
-                },
-            )
-        }
+        detailsAndFranchiseDestinations(navController)
+    }
+}
+
+private fun NavGraphBuilder.detailsAndFranchiseDestinations(navController: NavController) {
+    composable<AnimeDetailsRoute> {
+        AnimeDetailsScreen(
+            onBackClick = { navController.popBackStack() },
+            onAnimeClick = { animeId ->
+                navController.navigate(AnimeDetailsRoute(animeId))
+            },
+            onFranchiseClick = { animeId ->
+                navController.navigate(FranchiseRoute(animeId))
+            },
+        )
+    }
+    composable<FranchiseRoute> {
+        FranchiseScreen(
+            onAnimeClick = { animeId ->
+                navController.navigate(AnimeDetailsRoute(animeId))
+            },
+            onBackClick = { navController.popBackStack() },
+        )
     }
 }
 

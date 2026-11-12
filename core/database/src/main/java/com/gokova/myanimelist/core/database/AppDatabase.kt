@@ -6,11 +6,13 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.gokova.myanimelist.core.database.converter.AnimeTypeConverters
+import com.gokova.myanimelist.core.database.dao.AnimeRelationshipDao
 import com.gokova.myanimelist.core.database.dao.IgnoredAnimeDao
 import com.gokova.myanimelist.core.database.dao.NewSeasonDao
 import com.gokova.myanimelist.core.database.dao.RecommendationDao
 import com.gokova.myanimelist.core.database.dao.UserAnimeListDao
 import com.gokova.myanimelist.core.database.entity.AnimeEntity
+import com.gokova.myanimelist.core.database.entity.AnimeRelationshipEntity
 import com.gokova.myanimelist.core.database.entity.IgnoredAnimeEntity
 import com.gokova.myanimelist.core.database.entity.NewSeasonAnimeEntity
 import com.gokova.myanimelist.core.database.entity.RecommendationCandidateEntity
@@ -25,8 +27,9 @@ import com.gokova.myanimelist.core.database.entity.UserAnimeListEntity
         RecommendationCandidateEntity::class,
         NewSeasonAnimeEntity::class,
         IgnoredAnimeEntity::class,
+        AnimeRelationshipEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = false,
 )
 @TypeConverters(AnimeTypeConverters::class)
@@ -38,6 +41,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun newSeasonDao(): NewSeasonDao
 
     abstract fun ignoredAnimeDao(): IgnoredAnimeDao
+
+    abstract fun animeRelationshipDao(): AnimeRelationshipDao
 
     companion object {
         val MIGRATION_1_2 =
@@ -259,6 +264,34 @@ abstract class AppDatabase : RoomDatabase() {
                             PRIMARY KEY(`anime_id`)
                         )
                         """.trimIndent(),
+                    )
+                }
+            }
+
+        val MIGRATION_6_7 =
+            object : Migration(6, 7) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL(
+                        """
+                        CREATE TABLE IF NOT EXISTS `anime_relationships` (
+                            `source_anime_id` INTEGER NOT NULL,
+                            `target_anime_id` INTEGER NOT NULL,
+                            `relation_type` TEXT NOT NULL,
+                            `relation_type_formatted` TEXT NOT NULL,
+                            `created_at` INTEGER NOT NULL,
+                            PRIMARY KEY(`source_anime_id`, `target_anime_id`, `relation_type`)
+                        )
+                        """.trimIndent(),
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS " +
+                            "`index_anime_relationships_source_anime_id` " +
+                            "ON `anime_relationships` (`source_anime_id`)",
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS " +
+                            "`index_anime_relationships_target_anime_id` " +
+                            "ON `anime_relationships` (`target_anime_id`)",
                     )
                 }
             }

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="franchise_top_bar_title">Franchise Map</string>
+    <string name="franchise_action_switch_to_list">Switch to list view</string>
+    <string name="franchise_action_switch_to_map">Switch to map view</string>
+    <string name="franchise_action_center_origin">Center on current anime</string>
+    <string name="franchise_action_fit_map">Fit map</string>
+    <string name="franchise_action_zoom_in">Zoom in</string>
+    <string name="franchise_action_zoom_out">Zoom out</string>
+    <string name="franchise_empty_title">No franchise relationships found</string>
+    <string name="franchise_empty_message">Relationships will appear here as they are discovered or as you view related anime.</string>
+    <string name="franchise_node_origin_badge">Current</string>
+    <string name="franchise_node_not_interested">Not interested</string>
+    <string name="franchise_node_episodes_format">%1$d / %2$s ep</string>
+    <string name="franchise_node_episodes_unknown">\?</string>
+    <string name="franchise_sheet_open_details">View Full Details</string>
+    <string name="franchise_sheet_increment_episode">+1 Episode</string>
+    <string name="franchise_sheet_progress">Progress: %1$d / %2$s episodes</string>
+    <string name="franchise_sheet_unignore">Remove from Not Interested</string>
+    <string name="franchise_list_mainline_header">Main Story Sequence</string>
+    <string name="franchise_list_side_works_header">Side Stories &amp; Specials</string>
+    <string name="franchise_list_side_works_for">Related to %1$s</string>
+    <string name="franchise_accessibility_node">%1$s, %2$s, format %3$s, status %4$s</string>
+    <string name="franchise_node_status_not_in_list">Not in list</string>
+    <string name="franchise_connection_sequel">Sequel</string>
+    <string name="franchise_connection_prequel">Prequel</string>
+    <string name="franchise_error_update_episode">Failed to update episode progress</string>
+</resources>

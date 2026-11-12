@@ -10,5 +10,6 @@ data class AnimeDetailsActions(
     val onAnimeClick: (Long) -> Unit,
     val onEditStatusClick: () -> Unit = {},
     val onToggleNotInterested: () -> Unit = {},
+    val onFranchiseClick: () -> Unit = {},
     val onSheetActions: EditAnimeStatusSheetActions? = null,
 )

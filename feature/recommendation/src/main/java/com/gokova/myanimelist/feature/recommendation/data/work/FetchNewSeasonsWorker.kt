@@ -4,10 +4,12 @@ import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.gokova.myanimelist.core.database.dao.AnimeRelationshipDao
 import com.gokova.myanimelist.core.database.dao.IgnoredAnimeDao
 import com.gokova.myanimelist.core.database.dao.NewSeasonDao
 import com.gokova.myanimelist.core.database.dao.UserAnimeListDao
 import com.gokova.myanimelist.core.database.entity.AnimeEntity
+import com.gokova.myanimelist.core.database.entity.AnimeRelationshipEntity
 import com.gokova.myanimelist.core.database.entity.NewSeasonAnimeEntity
 import com.gokova.myanimelist.core.database.model.UserAnimeListItem
 import com.gokova.myanimelist.core.domain.logging.AppLog
@@ -37,6 +39,7 @@ class FetchNewSeasonsWorker
         private val userAnimeListDao: UserAnimeListDao,
         private val newSeasonDao: NewSeasonDao,
         private val ignoredAnimeDao: IgnoredAnimeDao,
+        private val animeRelationshipDao: AnimeRelationshipDao,
         private val syncTracker: NewSeasonSyncTracker,
         private val scheduler: NewSeasonScheduler,
     ) : CoroutineWorker(context, params) {
@@ -253,6 +256,7 @@ class FetchNewSeasonsWorker
             var hasTreeError =
                 when (fetchResult) {
                     is FetchItemResult.Success -> {
+                        recordRelationships(parentId, fetchResult.details.relatedAnime)
                         collector.enqueueDirectEdges(fetchResult.details.relatedAnime, parentId)
                         false
                     }
@@ -333,6 +337,7 @@ class FetchNewSeasonsWorker
                     )
                 when (detailsResult) {
                     is FetchItemResult.Success -> {
+                        recordRelationships(candidateId, detailsResult.details.relatedAnime)
                         state.handleFetchSuccess(candidateId, newSeason, detailsResult.details)
                         existingAnimeIds.add(candidateId)
                         if (isContinuation && item.depth < MAX_RECURSION_DEPTH) {
@@ -385,6 +390,7 @@ class FetchNewSeasonsWorker
                 )
             when (relResult) {
                 is FetchItemResult.Success -> {
+                    recordRelationships(item.candidateId, relResult.details.relatedAnime)
                     collector.discover(item, relResult.details.relatedAnime.orEmpty())
                 }
                 is FetchItemResult.NotFound -> Unit
@@ -392,6 +398,39 @@ class FetchNewSeasonsWorker
             }
             delay(POLITE_DELAY_MS.milliseconds)
             return success
+        }
+
+        private suspend fun recordRelationships(
+            sourceAnimeId: Long,
+            relatedAnime: List<RelatedAnimeEdgeDto>?,
+        ) {
+            if (relatedAnime.isNullOrEmpty()) return
+            val relationships =
+                relatedAnime.map { edge ->
+                    AnimeRelationshipEntity(
+                        sourceAnimeId = sourceAnimeId,
+                        targetAnimeId = edge.node.id,
+                        relationType = edge.relationType,
+                        relationTypeFormatted = edge.relationTypeFormatted,
+                    )
+                }
+            val animeStubs =
+                relatedAnime.map { edge ->
+                    AnimeEntity(
+                        id = edge.node.id,
+                        title = edge.node.title,
+                        titleEnglish = null,
+                        mainPictureMedium = edge.node.mainPicture?.medium,
+                        mainPictureLarge = edge.node.mainPicture?.large,
+                        mediaType = null,
+                        airingStatus = null,
+                        numEpisodes = null,
+                        startSeasonYear = null,
+                        startSeasonSeason = null,
+                        meanScore = null,
+                    )
+                }
+            animeRelationshipDao.saveRelationships(relationships, animeStubs)
         }
 
         private suspend fun pruneObsoleteSeasons(

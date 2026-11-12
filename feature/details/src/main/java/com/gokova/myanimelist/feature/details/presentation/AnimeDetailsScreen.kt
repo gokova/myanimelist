@@ -14,15 +14,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
@@ -30,8 +24,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,8 +35,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -60,6 +50,7 @@ import com.gokova.myanimelist.core.ui.theme.spacing
 import com.gokova.myanimelist.feature.details.R
 import com.gokova.myanimelist.feature.details.domain.model.AnimeDetails
 import com.gokova.myanimelist.feature.details.presentation.components.AnimeDetailsHeaderState
+import com.gokova.myanimelist.feature.details.presentation.components.AnimeDetailsTopBar
 import com.gokova.myanimelist.feature.details.presentation.components.CompactAnimeDetailsLayout
 import com.gokova.myanimelist.feature.details.presentation.components.WideAnimeDetailsLayout
 import com.gokova.myanimelist.core.ui.R as CoreUiR
@@ -75,6 +66,7 @@ fun AnimeDetailsScreen(
     onBackClick: () -> Unit,
     onAnimeClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
+    onFranchiseClick: (Long) -> Unit = {},
     viewModel: AnimeDetailsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -101,6 +93,7 @@ fun AnimeDetailsScreen(
                 onAnimeClick = onAnimeClick,
                 onEditStatusClick = { viewModel.setEditingSheet(open = true) },
                 onToggleNotInterested = viewModel::onToggleNotInterested,
+                onFranchiseClick = { uiState.details?.id?.let(onFranchiseClick) },
                 onSheetActions = sheetActions,
             ),
         modifier = modifier,
@@ -228,11 +221,8 @@ fun AnimeDetailsContent(
     Scaffold(
         topBar = {
             AnimeDetailsTopBar(
-                title = uiState.details?.displayTitle,
-                canToggleNotInterested = uiState.details?.let { !it.isInUserList } == true,
-                isNotInterested = uiState.isNotInterested,
-                onBackClick = actions.onBackClick,
-                onToggleNotInterested = actions.onToggleNotInterested,
+                uiState = uiState,
+                actions = actions,
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -303,73 +293,6 @@ private fun AnimeDetailsContentBody(
             }
         }
     }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun AnimeDetailsTopBar(
-    title: String?,
-    canToggleNotInterested: Boolean,
-    isNotInterested: Boolean,
-    onBackClick: () -> Unit,
-    onToggleNotInterested: () -> Unit,
-) {
-    TopAppBar(
-        title = {
-            Text(
-                text = title ?: stringResource(R.string.details_top_bar_title),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        },
-        navigationIcon = {
-            IconButton(onClick = onBackClick) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription =
-                        stringResource(
-                            R.string.details_back_button_content_description,
-                        ),
-                )
-            }
-        },
-        actions = {
-            if (canToggleNotInterested) {
-                IconButton(onClick = onToggleNotInterested) {
-                    Icon(
-                        imageVector =
-                            if (isNotInterested) {
-                                Icons.Filled.VisibilityOff
-                            } else {
-                                Icons.Outlined.VisibilityOff
-                            },
-                        contentDescription =
-                            stringResource(
-                                if (isNotInterested) {
-                                    R.string.details_action_remove_not_interested
-                                } else {
-                                    R.string.details_action_mark_not_interested
-                                },
-                            ),
-                        tint =
-                            if (isNotInterested) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                    )
-                }
-            }
-        },
-        colors =
-            TopAppBarDefaults.topAppBarColors(
-                containerColor = MaterialTheme.colorScheme.surface,
-                titleContentColor = MaterialTheme.colorScheme.onSurface,
-                navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
-            ),
-    )
 }
 
 @Composable

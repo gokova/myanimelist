@@ -12,5 +12,6 @@ data class AnimeDetailsUiState(
     val details: AnimeDetails? = null,
     @StringRes val errorMessageRes: Int? = null,
     val canRetry: Boolean = false,
+    val hasFranchiseMap: Boolean = false,
     val editingSheetState: EditAnimeStatusSheetState? = null,
 )

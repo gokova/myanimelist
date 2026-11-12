@@ -12,6 +12,7 @@
 
     <string name="details_action_mark_not_interested">Mark as Not Interested</string>
     <string name="details_action_remove_not_interested">Remove from Not Interested</string>
+    <string name="details_action_franchise_map">Franchise Map</string>
     <string name="details_badge_not_interested">Not Interested</string>
     <string name="details_restore_from_not_interested">Hidden from Recommendations &#183; Tap to Restore</string>
     <string name="details_snackbar_marked_not_interested">Marked as Not Interested</string>

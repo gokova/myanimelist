@@ -13,6 +13,7 @@ import com.gokova.myanimelist.feature.details.domain.model.AnimeDetails
 import com.gokova.myanimelist.feature.details.domain.usecase.AddAnimeToMyListUseCase
 import com.gokova.myanimelist.feature.details.domain.usecase.AnimeStatusInteractor
 import com.gokova.myanimelist.feature.details.domain.usecase.ObserveAnimeDetailsUseCase
+import com.gokova.myanimelist.feature.details.domain.usecase.ObserveHasFranchiseUseCase
 import com.gokova.myanimelist.feature.details.domain.usecase.RefreshAnimeDetailsUseCase
 import com.gokova.myanimelist.feature.details.navigation.AnimeDetailsRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -29,12 +30,13 @@ import javax.inject.Inject
 import com.gokova.myanimelist.core.ui.R as CoreUiR
 
 @HiltViewModel
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "LongParameterList")
 class AnimeDetailsViewModel
     @Inject
     constructor(
         savedStateHandle: SavedStateHandle,
         private val observeAnimeDetailsUseCase: ObserveAnimeDetailsUseCase,
+        private val observeHasFranchiseUseCase: ObserveHasFranchiseUseCase,
         private val refreshAnimeDetailsUseCase: RefreshAnimeDetailsUseCase,
         private val addAnimeToMyListUseCase: AddAnimeToMyListUseCase,
         private val statusInteractor: AnimeStatusInteractor,
@@ -61,6 +63,11 @@ class AnimeDetailsViewModel
                             details = mergeDetails(current.details, localDetails),
                         )
                     }
+                }
+            }
+            viewModelScope.launch {
+                observeHasFranchiseUseCase(animeId).collect { hasFranchise ->
+                    _uiState.update { it.copy(hasFranchiseMap = hasFranchise) }
                 }
             }
             viewModelScope.launch {

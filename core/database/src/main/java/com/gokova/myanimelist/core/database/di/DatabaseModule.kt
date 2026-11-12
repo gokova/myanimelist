@@ -3,6 +3,7 @@ package com.gokova.myanimelist.core.database.di
 import android.content.Context
 import androidx.room.Room
 import com.gokova.myanimelist.core.database.AppDatabase
+import com.gokova.myanimelist.core.database.dao.AnimeRelationshipDao
 import com.gokova.myanimelist.core.database.dao.IgnoredAnimeDao
 import com.gokova.myanimelist.core.database.dao.NewSeasonDao
 import com.gokova.myanimelist.core.database.dao.RecommendationDao
@@ -35,6 +36,7 @@ object DatabaseModule {
                 AppDatabase.MIGRATION_3_4,
                 AppDatabase.MIGRATION_4_5,
                 AppDatabase.MIGRATION_5_6,
+                AppDatabase.MIGRATION_6_7,
             ).build()
 
     @Provides
@@ -54,6 +56,11 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideIgnoredAnimeDao(database: AppDatabase): IgnoredAnimeDao = database.ignoredAnimeDao()
+
+    @Provides
+    @Singleton
+    fun provideAnimeRelationshipDao(database: AppDatabase): AnimeRelationshipDao =
+        database.animeRelationshipDao()
 
     @Provides
     @Singleton
