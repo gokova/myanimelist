@@ -68,4 +68,33 @@
     <string name="score_public_content_description">Score: %1$s</string>
     <string name="score_user_content_description">Personal score: %1$s</string>
     <string name="taste_match_content_description">%1$d percent match</string>
+
+    <!-- Offline Sync & Conflicts -->
+    <string name="sync_status_pending">Pending sync</string>
+    <string name="sync_status_syncing">Syncing…</string>
+    <string name="sync_status_conflict">Conflict</string>
+    <string name="sync_status_failed">Sync failed</string>
+    <string name="sync_status_auth_required">Sign in</string>
+    <string name="sync_status_pending_content_description">Changes pending sync</string>
+    <string name="sync_status_syncing_content_description">Synchronizing with MyAnimeList</string>
+    <string name="sync_status_conflict_content_description">Conflict detected: progress changed elsewhere</string>
+    <string name="sync_status_failed_content_description">Synchronization failed</string>
+    <string name="sync_status_auth_required_content_description">Authentication required to sync</string>
+
+    <string name="conflict_sheet_title">Progress changed elsewhere</string>
+    <string name="conflict_sheet_description">This anime was updated on MyAnimeList while your device was offline. Review and choose which progress to keep.</string>
+    <string name="conflict_sheet_label_last_synced">Last synced</string>
+    <string name="conflict_sheet_label_device">This device</string>
+    <string name="conflict_sheet_label_remote">MyAnimeList</string>
+    <string name="conflict_sheet_episodes">Episode %1$d</string>
+    <string name="conflict_sheet_episodes_unwatched">Not started</string>
+    <string name="conflict_sheet_episode_short">Ep %1$d</string>
+    <string name="conflict_sheet_score_format">Score: %1$d</string>
+    <string name="conflict_sheet_score_unrated">Unrated</string>
+    <string name="conflict_sheet_action_keep_device">Keep Device (%1$s)</string>
+    <string name="conflict_sheet_action_use_remote">Use MAL (%1$s)</string>
+    <string name="conflict_sheet_action_edit">Edit</string>
+    <string name="conflict_sheet_close">Close</string>
+
+    <string name="logout_dialog_unsynced_warning">You have unsynced update(s). Logging out will permanently discard these changes.</string>
 </resources>

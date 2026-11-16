@@ -1,9 +1,19 @@
 package com.gokova.myanimelist.feature.mylist.presentation
 
+import com.gokova.myanimelist.core.domain.model.AnimeConflictDetails
+import com.gokova.myanimelist.core.domain.model.AnimeConflictValues
+import com.gokova.myanimelist.core.domain.model.ConflictResolution
+import com.gokova.myanimelist.core.domain.model.PendingAnimeMutation
+import com.gokova.myanimelist.core.domain.model.SyncMutationState
 import com.gokova.myanimelist.core.domain.model.UpdateUserAnimeStatusParams
 import com.gokova.myanimelist.core.domain.model.UserAnimeListUpdate
 import com.gokova.myanimelist.core.domain.repository.UserAnimeListStatusRepository
 import com.gokova.myanimelist.core.domain.usecase.DeleteAnimeFromListUseCase
+import com.gokova.myanimelist.core.domain.usecase.ObservePendingMutationByIdUseCase
+import com.gokova.myanimelist.core.domain.usecase.ObservePendingMutationsUseCase
+import com.gokova.myanimelist.core.domain.usecase.PendingMutationInteractor
+import com.gokova.myanimelist.core.domain.usecase.ResolveAnimeConflictUseCase
+import com.gokova.myanimelist.core.domain.usecase.SyncPendingMutationsUseCase
 import com.gokova.myanimelist.core.domain.usecase.UpdateAnimeStatusUseCase
 import com.gokova.myanimelist.core.ui.component.editlist.withStatus
 import com.gokova.myanimelist.feature.mylist.R
@@ -14,6 +24,7 @@ import com.gokova.myanimelist.feature.mylist.domain.model.UserAnimeStatus
 import com.gokova.myanimelist.feature.mylist.domain.usecase.ObserveUserAnimeListUseCase
 import com.gokova.myanimelist.feature.mylist.domain.usecase.SyncUserAnimeListUseCase
 import com.gokova.myanimelist.feature.mylist.testing.FakeMyListRepository
+import com.gokova.myanimelist.feature.mylist.testing.FakePendingMutationRepository
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -51,6 +62,7 @@ class MainDispatcherRule(
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
+@Suppress("LargeClass")
 class MyListViewModelTest {
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
@@ -83,16 +95,29 @@ class MyListViewModelTest {
     private fun createViewModel(
         repository: FakeMyListRepository = FakeMyListRepository(),
         statusRepository: FakeUserAnimeListStatusRepository = FakeUserAnimeListStatusRepository(),
+        pendingMutationRepository: FakePendingMutationRepository = FakePendingMutationRepository(),
     ): MyListViewModel {
         val observeUseCase = ObserveUserAnimeListUseCase(repository)
         val syncUseCase = SyncUserAnimeListUseCase(repository)
         val updateUseCase = UpdateAnimeStatusUseCase(statusRepository)
         val deleteUseCase = DeleteAnimeFromListUseCase(statusRepository)
+        val pendingMutationInteractor =
+            PendingMutationInteractor(
+                observePendingMutations =
+                    ObservePendingMutationsUseCase(pendingMutationRepository),
+                observePendingMutationById =
+                    ObservePendingMutationByIdUseCase(pendingMutationRepository),
+                resolveAnimeConflict =
+                    ResolveAnimeConflictUseCase(pendingMutationRepository),
+                syncPendingMutations =
+                    SyncPendingMutationsUseCase(pendingMutationRepository),
+            )
         return MyListViewModel(
             observeUserAnimeListUseCase = observeUseCase,
             syncUserAnimeListUseCase = syncUseCase,
             updateAnimeStatusUseCase = updateUseCase,
             deleteAnimeFromListUseCase = deleteUseCase,
+            pendingMutationInteractor = pendingMutationInteractor,
         )
     }
 
@@ -753,6 +778,160 @@ class MyListViewModelTest {
                 viewModel.uiState.value.contentState,
             )
 
+            collectJob.cancel()
+        }
+
+    @Test
+    fun `pending mutations update pendingCount and conflictCount in uiState`() =
+        runTest {
+            val pendingRepo = FakePendingMutationRepository()
+            val viewModel = createViewModel(pendingMutationRepository = pendingRepo)
+            val collectJob = launch { viewModel.uiState.collect {} }
+            advanceUntilIdle()
+
+            assertEquals(0, viewModel.uiState.value.pendingCount)
+            assertEquals(0, viewModel.uiState.value.conflictCount)
+
+            val queued =
+                PendingAnimeMutation(
+                    animeId = 1L,
+                    status = "watching",
+                    numEpisodesWatched = 5,
+                    score = 8,
+                    isRewatching = false,
+                    syncState = SyncMutationState.PENDING,
+                )
+            val conflict =
+                PendingAnimeMutation(
+                    animeId = 2L,
+                    status = "completed",
+                    numEpisodesWatched = 12,
+                    score = 9,
+                    isRewatching = false,
+                    syncState = SyncMutationState.CONFLICT,
+                )
+            pendingRepo.setPendingMutations(listOf(queued, conflict))
+            advanceUntilIdle()
+
+            assertEquals(1, viewModel.uiState.value.pendingCount)
+            assertEquals(1, viewModel.uiState.value.conflictCount)
+            collectJob.cancel()
+        }
+
+    @Test
+    fun `onConflictClick opens conflict sheet and dismiss closes it`() =
+        runTest {
+            val pendingRepo = FakePendingMutationRepository()
+            val viewModel = createViewModel(pendingMutationRepository = pendingRepo)
+            val collectJob = launch { viewModel.uiState.collect {} }
+            advanceUntilIdle()
+
+            val conflictDetails =
+                AnimeConflictDetails(
+                    animeId = 10L,
+                    baseline =
+                        AnimeConflictValues(episodesWatched = 6, status = "watching", score = 7),
+                    device =
+                        AnimeConflictValues(episodesWatched = 12, status = "completed", score = 10),
+                    remote =
+                        AnimeConflictValues(episodesWatched = 8, status = "watching", score = 7),
+                )
+            val userAnime =
+                createAnime(
+                    id = 10L,
+                    title = "Conflict Anime",
+                    status = UserAnimeStatus.COMPLETED,
+                    score = 10,
+                    watchedEpisodes = 12,
+                ).copy(
+                    pendingMutation =
+                        PendingAnimeMutation(
+                            animeId = 10L,
+                            status = "completed",
+                            numEpisodesWatched = 12,
+                            score = 10,
+                            syncState = SyncMutationState.CONFLICT,
+                            conflictDetails = conflictDetails,
+                        ),
+                )
+
+            viewModel.onConflictClick(userAnime)
+            advanceUntilIdle()
+
+            val sheetState = viewModel.uiState.value.conflictSheetState
+            assertNotNull(sheetState)
+            assertEquals(10L, sheetState?.animeId)
+            assertEquals("Conflict Anime", sheetState?.animeTitle)
+            assertEquals(conflictDetails.baseline, sheetState?.baseline)
+            assertEquals(conflictDetails.device, sheetState?.device)
+            assertEquals(conflictDetails.remote, sheetState?.remote)
+
+            viewModel.onDismissConflictSheet()
+            advanceUntilIdle()
+            assertNull(viewModel.uiState.value.conflictSheetState)
+            collectJob.cancel()
+        }
+
+    @Test
+    fun `onResolveConflictKeepDevice delegates to interactor with KeepDevice resolution`() =
+        runTest {
+            val pendingRepo = FakePendingMutationRepository()
+            val viewModel = createViewModel(pendingMutationRepository = pendingRepo)
+            val collectJob = launch { viewModel.uiState.collect {} }
+            advanceUntilIdle()
+
+            val conflictDetails =
+                AnimeConflictDetails(
+                    animeId = 10L,
+                    baseline =
+                        AnimeConflictValues(episodesWatched = 6, status = "watching", score = 7),
+                    device =
+                        AnimeConflictValues(episodesWatched = 12, status = "completed", score = 10),
+                    remote =
+                        AnimeConflictValues(episodesWatched = 8, status = "watching", score = 7),
+                )
+            val userAnime =
+                createAnime(
+                    id = 10L,
+                    title = "Conflict Anime",
+                    status = UserAnimeStatus.COMPLETED,
+                    score = 10,
+                    watchedEpisodes = 12,
+                ).copy(
+                    pendingMutation =
+                        PendingAnimeMutation(
+                            animeId = 10L,
+                            status = "completed",
+                            numEpisodesWatched = 12,
+                            score = 10,
+                            syncState = SyncMutationState.CONFLICT,
+                            conflictDetails = conflictDetails,
+                        ),
+                )
+            viewModel.onConflictClick(userAnime)
+            advanceUntilIdle()
+
+            viewModel.onResolveConflictKeepDevice()
+            advanceUntilIdle()
+
+            assertEquals(10L, pendingRepo.lastResolvedAnimeId)
+            assertEquals(ConflictResolution.KeepDevice, pendingRepo.lastResolution)
+            assertNull(viewModel.uiState.value.conflictSheetState)
+            collectJob.cancel()
+        }
+
+    @Test
+    fun `onSyncPendingNow delegates to syncAllPending`() =
+        runTest {
+            val pendingRepo = FakePendingMutationRepository()
+            val viewModel = createViewModel(pendingMutationRepository = pendingRepo)
+            val collectJob = launch { viewModel.uiState.collect {} }
+            advanceUntilIdle()
+
+            viewModel.onSyncPendingNow()
+            advanceUntilIdle()
+
+            assertTrue(pendingRepo.syncAllCalled)
             collectJob.cancel()
         }
 

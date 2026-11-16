@@ -1,14 +1,21 @@
 package com.gokova.myanimelist.feature.details.presentation
 
 import androidx.lifecycle.SavedStateHandle
+import com.gokova.myanimelist.core.domain.model.PendingAnimeMutation
+import com.gokova.myanimelist.core.domain.model.SyncMutationState
 import com.gokova.myanimelist.core.domain.model.UpdateUserAnimeStatusParams
 import com.gokova.myanimelist.core.domain.model.UserAnimeListUpdate
 import com.gokova.myanimelist.core.domain.repository.UserAnimeListStatusRepository
 import com.gokova.myanimelist.core.domain.usecase.DeleteAnimeFromListUseCase
 import com.gokova.myanimelist.core.domain.usecase.IgnoredAnimeInteractor
 import com.gokova.myanimelist.core.domain.usecase.ObserveIsAnimeNotInterestedUseCase
+import com.gokova.myanimelist.core.domain.usecase.ObservePendingMutationByIdUseCase
+import com.gokova.myanimelist.core.domain.usecase.ObservePendingMutationsUseCase
+import com.gokova.myanimelist.core.domain.usecase.PendingMutationInteractor
 import com.gokova.myanimelist.core.domain.usecase.RemoveAnimeFromNotInterestedUseCase
+import com.gokova.myanimelist.core.domain.usecase.ResolveAnimeConflictUseCase
 import com.gokova.myanimelist.core.domain.usecase.SetAnimeNotInterestedUseCase
+import com.gokova.myanimelist.core.domain.usecase.SyncPendingMutationsUseCase
 import com.gokova.myanimelist.core.domain.usecase.UpdateAnimeStatusUseCase
 import com.gokova.myanimelist.core.ui.component.editlist.withStatus
 import com.gokova.myanimelist.feature.details.R
@@ -20,6 +27,7 @@ import com.gokova.myanimelist.feature.details.domain.usecase.ObserveHasFranchise
 import com.gokova.myanimelist.feature.details.domain.usecase.RefreshAnimeDetailsUseCase
 import com.gokova.myanimelist.feature.details.fakes.FakeAnimeDetailsRepository
 import com.gokova.myanimelist.feature.details.fakes.FakeIgnoredAnimeRepository
+import com.gokova.myanimelist.feature.details.fakes.FakePendingMutationRepository
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -43,6 +51,7 @@ import java.io.IOException
 import com.gokova.myanimelist.core.ui.R as CoreUiR
 
 @OptIn(ExperimentalCoroutinesApi::class)
+@Suppress("LargeClass")
 class AnimeDetailsViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var repository: FakeAnimeDetailsRepository
@@ -55,8 +64,10 @@ class AnimeDetailsViewModelTest {
     private lateinit var deleteUseCase: DeleteAnimeFromListUseCase
 
     private lateinit var fakeIgnoredRepository: FakeIgnoredAnimeRepository
+    private lateinit var fakePendingMutationRepository: FakePendingMutationRepository
     private lateinit var statusInteractor: AnimeStatusInteractor
     private lateinit var ignoredAnimeInteractor: IgnoredAnimeInteractor
+    private lateinit var pendingMutationInteractor: PendingMutationInteractor
 
     private val testDetails =
         AnimeDetails(
@@ -104,6 +115,18 @@ class AnimeDetailsViewModelTest {
                 setNotInterested = SetAnimeNotInterestedUseCase(fakeIgnoredRepository),
                 removeNotInterested = RemoveAnimeFromNotInterestedUseCase(fakeIgnoredRepository),
             )
+        fakePendingMutationRepository = FakePendingMutationRepository()
+        pendingMutationInteractor =
+            PendingMutationInteractor(
+                observePendingMutations =
+                    ObservePendingMutationsUseCase(fakePendingMutationRepository),
+                observePendingMutationById =
+                    ObservePendingMutationByIdUseCase(fakePendingMutationRepository),
+                resolveAnimeConflict =
+                    ResolveAnimeConflictUseCase(fakePendingMutationRepository),
+                syncPendingMutations =
+                    SyncPendingMutationsUseCase(fakePendingMutationRepository),
+            )
     }
 
     @After
@@ -121,6 +144,7 @@ class AnimeDetailsViewModelTest {
             addAnimeToMyListUseCase = addUseCase,
             statusInteractor = statusInteractor,
             ignoredAnimeInteractor = ignoredAnimeInteractor,
+            pendingMutationInteractor = pendingMutationInteractor,
         )
     }
 
@@ -778,6 +802,28 @@ class AnimeDetailsViewModelTest {
 
             assertFalse(viewModel.uiState.value.isNotInterested)
             assertFalse(fakeIgnoredRepository.isIgnored(42L))
+        }
+
+    @Test
+    fun `observePendingMutationById updates uiState pendingMutation`() =
+        runTest {
+            val viewModel = createViewModel(animeId = 42L)
+            advanceUntilIdle()
+            assertNull(viewModel.uiState.value.pendingMutation)
+
+            val mutation =
+                PendingAnimeMutation(
+                    animeId = 42L,
+                    status = "watching",
+                    numEpisodesWatched = 5,
+                    score = 8,
+                    isRewatching = false,
+                    syncState = SyncMutationState.PENDING,
+                )
+            fakePendingMutationRepository.emitMutation(mutation)
+            advanceUntilIdle()
+
+            assertEquals(mutation, viewModel.uiState.value.pendingMutation)
         }
 
     private class FakeUserAnimeListStatusRepository : UserAnimeListStatusRepository {

@@ -8,6 +8,8 @@ import com.gokova.myanimelist.core.domain.model.UpdateUserAnimeStatusParams
 import com.gokova.myanimelist.core.network.api.MalApiService
 import com.gokova.myanimelist.core.network.model.AnimeDetailsDto
 import com.gokova.myanimelist.core.network.model.MyListStatusDto
+import com.gokova.myanimelist.feature.mylist.testing.FakePendingMutationRepository
+import com.gokova.myanimelist.feature.mylist.testing.FakePendingMutationScheduler
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -24,16 +26,22 @@ class UserAnimeListStatusRepositoryImplTest {
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var fakeMalApiService: FakeMalApiService
     private lateinit var fakeUserAnimeListDao: FakeUserAnimeListDao
+    private lateinit var fakePendingMutationRepository: FakePendingMutationRepository
+    private lateinit var fakePendingMutationScheduler: FakePendingMutationScheduler
     private lateinit var repository: UserAnimeListStatusRepositoryImpl
 
     @Before
     fun setUp() {
         fakeMalApiService = FakeMalApiService()
         fakeUserAnimeListDao = FakeUserAnimeListDao()
+        fakePendingMutationRepository = FakePendingMutationRepository()
+        fakePendingMutationScheduler = FakePendingMutationScheduler()
         repository =
             UserAnimeListStatusRepositoryImpl(
                 malApiService = fakeMalApiService,
                 userAnimeListDao = fakeUserAnimeListDao,
+                pendingMutationRepository = fakePendingMutationRepository,
+                pendingMutationScheduler = fakePendingMutationScheduler,
                 ioDispatcher = testDispatcher,
             )
     }
@@ -167,6 +175,89 @@ class UserAnimeListStatusRepositoryImplTest {
             assertEquals(null, fakeUserAnimeListDao.lastDeletedAnimeId)
         }
 
+    @Test
+    fun `updateAnimeStatus when cached saves mutation locally and fast-paths sync`() =
+        runTest(testDispatcher) {
+            val animeId = 123L
+            fakeUserAnimeListDao.cachedUserAnimeMap[animeId] =
+                UserAnimeListItem(
+                    anime = createAnimeEntity(id = animeId),
+                    userAnime =
+                        UserAnimeListEntity(
+                            animeId = animeId,
+                            status = "watching",
+                            score = 7,
+                            numEpisodesWatched = 3,
+                            isRewatching = false,
+                            updatedAt = "2026-10-19T10:00:00Z",
+                        ),
+                )
+
+            val params =
+                UpdateUserAnimeStatusParams(
+                    status = "watching",
+                    score = 8,
+                    numWatchedEpisodes = 4,
+                )
+
+            val result = repository.updateAnimeStatus(animeId = animeId, params = params)
+
+            assertTrue(result.isSuccess)
+            assertEquals(animeId, fakePendingMutationRepository.syncMutationId)
+            assertEquals(0, fakePendingMutationScheduler.scheduleCallCount)
+        }
+
+    @Test
+    fun `updateAnimeStatus when fast-path sync fails schedules background sync`() =
+        runTest(testDispatcher) {
+            val animeId = 123L
+            fakeUserAnimeListDao.cachedUserAnimeMap[animeId] =
+                UserAnimeListItem(
+                    anime = createAnimeEntity(id = animeId),
+                    userAnime =
+                        UserAnimeListEntity(
+                            animeId = animeId,
+                            status = "watching",
+                            score = 7,
+                            numEpisodesWatched = 3,
+                            isRewatching = false,
+                            updatedAt = "2026-10-19T10:00:00Z",
+                        ),
+                )
+
+            fakePendingMutationRepository.shouldFailSync = true
+
+            val params =
+                UpdateUserAnimeStatusParams(
+                    status = "watching",
+                    score = 8,
+                    numWatchedEpisodes = 4,
+                )
+
+            val result = repository.updateAnimeStatus(animeId = animeId, params = params)
+
+            assertTrue(result.isSuccess)
+            assertEquals(1, fakePendingMutationScheduler.scheduleCallCount)
+        }
+
+    private fun createAnimeEntity(
+        id: Long = 123L,
+        title: String = "Cached Anime",
+        numEpisodes: Int? = 12,
+    ) = AnimeEntity(
+        id = id,
+        title = title,
+        titleEnglish = null,
+        mainPictureMedium = null,
+        mainPictureLarge = null,
+        mediaType = null,
+        airingStatus = null,
+        numEpisodes = numEpisodes,
+        startSeasonYear = null,
+        startSeasonSeason = null,
+        meanScore = null,
+    )
+
     private class FakeMalApiService : MalApiService {
         var updateStatusResponse: MyListStatusDto = MyListStatusDto()
         var deleteResponse: Response<Unit> = Response.success(Unit)
@@ -255,6 +346,8 @@ class UserAnimeListStatusRepositoryImplTest {
         var lastDeletedAnimeId: Long? = null
         var returnNullEntity: Boolean = false
 
+        var cachedUserAnimeMap = mutableMapOf<Long, UserAnimeListItem>()
+
         override suspend fun addAnimeToUserListAndClean(userAnime: UserAnimeListEntity) {
             savedUserAnime = userAnime
         }
@@ -273,7 +366,12 @@ class UserAnimeListStatusRepositoryImplTest {
 
         override fun observeUserAnimeById(animeId: Long): Flow<UserAnimeListItem?> = flowOf(null)
 
-        override suspend fun getUserAnimeById(animeId: Long): UserAnimeListItem? = null
+        override suspend fun getUserAnimeById(animeId: Long): UserAnimeListItem? =
+            cachedUserAnimeMap[animeId]
+
+        override suspend fun getPendingMutationAnimeIds(): List<Long> = emptyList()
+
+        override suspend fun deleteUserAnimeByIds(ids: List<Long>): Int = 0
 
         override fun observeAnimeEntityById(animeId: Long): Flow<AnimeEntity?> = flowOf(null)
 

@@ -44,7 +44,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.gokova.myanimelist.core.domain.model.SyncMutationState
 import com.gokova.myanimelist.core.ui.component.badge.PersonalScoreBadge
+import com.gokova.myanimelist.core.ui.component.badge.SyncStatusBadge
 import com.gokova.myanimelist.core.ui.preview.StandardPreviews
 import com.gokova.myanimelist.core.ui.theme.MotionTokens
 import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
@@ -136,6 +138,18 @@ private fun AnimeCardDetails(
                 totalEpisodes = anime.totalEpisodes,
                 isSavingProgress = isSavingProgress,
             )
+
+            anime.pendingMutation?.let { pending ->
+                SyncStatusBadge(
+                    state = pending.syncState,
+                    onClick =
+                        if (pending.syncState == SyncMutationState.CONFLICT) {
+                            actions.onConflictClick
+                        } else {
+                            null
+                        },
+                )
+            }
 
             Spacer(modifier = Modifier.height(MaterialTheme.spacing.micro))
 

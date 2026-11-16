@@ -262,6 +262,56 @@ class AppDatabaseMigrationTest {
         assertTrue(executedStatements[2].contains("index_anime_relationships_target_anime_id"))
     }
 
+    @Test
+    fun `migration 7 to 8 has correct version boundaries`() {
+        assertEquals(7, AppDatabase.MIGRATION_7_8.startVersion)
+        assertEquals(8, AppDatabase.MIGRATION_7_8.endVersion)
+    }
+
+    @Test
+    fun `migration 7 to 8 creates pending_user_anime_mutations table and indices`() {
+        val executedStatements = mutableListOf<String>()
+        val fakeDatabase =
+            Proxy.newProxyInstance(
+                SupportSQLiteDatabase::class.java.classLoader,
+                arrayOf(SupportSQLiteDatabase::class.java),
+            ) { _, method, args ->
+                if (method.name == "execSQL" && args != null && args.isNotEmpty()) {
+                    executedStatements.add(args[0] as String)
+                }
+                null
+            } as SupportSQLiteDatabase
+
+        AppDatabase.MIGRATION_7_8.migrate(fakeDatabase)
+
+        assertEquals(4, executedStatements.size)
+        assertTrue(
+            executedStatements[0].contains(
+                "CREATE TABLE IF NOT EXISTS `pending_user_anime_mutations`",
+            ),
+        )
+        assertTrue(
+            executedStatements[0].contains(
+                "FOREIGN KEY(`anime_id`) REFERENCES `animes`(`id`)",
+            ),
+        )
+        assertTrue(
+            executedStatements[1].contains(
+                "index_pending_user_anime_mutations_anime_id",
+            ),
+        )
+        assertTrue(
+            executedStatements[2].contains(
+                "index_pending_user_anime_mutations_sync_state",
+            ),
+        )
+        assertTrue(
+            executedStatements[3].contains(
+                "index_pending_user_anime_mutations_created_at",
+            ),
+        )
+    }
+
     private fun executeMigration45(): List<String> {
         val executedStatements = mutableListOf<String>()
         val fakeDatabase =

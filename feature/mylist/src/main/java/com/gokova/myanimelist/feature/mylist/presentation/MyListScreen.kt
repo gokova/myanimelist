@@ -40,8 +40,7 @@ import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.gokova.myanimelist.core.ui.component.AnimePosterPreviewDialog
-import com.gokova.myanimelist.core.ui.component.editlist.EditAnimeStatusBottomSheet
+import com.gokova.myanimelist.core.ui.component.conflict.ConflictSheetActions
 import com.gokova.myanimelist.core.ui.component.editlist.EditAnimeStatusSheetActions
 import com.gokova.myanimelist.core.ui.component.editlist.withStatus
 import com.gokova.myanimelist.core.ui.preview.StandardPreviews
@@ -57,6 +56,8 @@ import com.gokova.myanimelist.feature.mylist.presentation.components.MyListCateg
 import com.gokova.myanimelist.feature.mylist.presentation.components.MyListEmptyStateContainer
 import com.gokova.myanimelist.feature.mylist.presentation.components.MyListHeader
 import com.gokova.myanimelist.feature.mylist.presentation.components.MyListInitialSyncLoading
+import com.gokova.myanimelist.feature.mylist.presentation.components.MyListOverlays
+import com.gokova.myanimelist.feature.mylist.presentation.components.PendingSyncBanner
 import com.gokova.myanimelist.feature.mylist.presentation.components.getCategoryTabTitleRes
 import com.gokova.myanimelist.core.ui.R as CoreUiR
 
@@ -71,21 +72,12 @@ fun MyListScreen(
 
     MyListEventsEffect(viewModel = viewModel, snackbarHostState = snackbarHostState)
 
-    val sheetActions = rememberMyListSheetActions(viewModel = viewModel)
+    val actions = rememberMyListActions(viewModel = viewModel, onAnimeClick = onAnimeClick)
 
     MyListContent(
         uiState = uiState,
         snackbarHostState = snackbarHostState,
-        actions =
-            MyListActions(
-                onCategorySelected = viewModel::onCategorySelected,
-                onSortSelected = viewModel::onSortOptionSelected,
-                onRefresh = { viewModel.onSync(isPullToRefresh = true) },
-                onAnimeClick = onAnimeClick,
-                onQuickIncrement = viewModel::onQuickIncrement,
-                onEditClick = viewModel::setEditingAnime,
-                onSheetActions = sheetActions,
-            ),
+        actions = actions,
         modifier = modifier,
     )
 }
@@ -170,30 +162,54 @@ private suspend fun showPromptSnackbar(
 }
 
 @Composable
-private fun rememberMyListSheetActions(viewModel: MyListViewModel): EditAnimeStatusSheetActions =
-    remember(viewModel) {
-        EditAnimeStatusSheetActions(
-            onStatusChange = { status ->
-                viewModel.updateEditingSheet { it.withStatus(status) }
-            },
-            onEpisodesChange = { ep ->
-                viewModel.updateEditingSheet { it.copy(episodesWatched = ep) }
-            },
-            onScoreChange = { score ->
-                viewModel.updateEditingSheet { it.copy(score = score) }
-            },
-            onRewatchingChange = { rewatching ->
-                viewModel.updateEditingSheet { it.copy(isRewatching = rewatching) }
-            },
-            onSave = viewModel::onSaveEditSheet,
-            onRequestDelete = {
-                viewModel.updateEditingSheet { it.copy(showDeleteConfirmation = true) }
-            },
-            onConfirmDelete = viewModel::onConfirmDeleteFromList,
-            onDismissDeleteConfirmation = {
-                viewModel.updateEditingSheet { it.copy(showDeleteConfirmation = false) }
-            },
-            onDismiss = { viewModel.setEditingAnime(null) },
+private fun rememberMyListActions(
+    viewModel: MyListViewModel,
+    onAnimeClick: (Long) -> Unit,
+): MyListActions =
+    remember(viewModel, onAnimeClick) {
+        val sheetActions =
+            EditAnimeStatusSheetActions(
+                onStatusChange = { status ->
+                    viewModel.updateEditingSheet { it.withStatus(status) }
+                },
+                onEpisodesChange = { ep ->
+                    viewModel.updateEditingSheet { it.copy(episodesWatched = ep) }
+                },
+                onScoreChange = { score ->
+                    viewModel.updateEditingSheet { it.copy(score = score) }
+                },
+                onRewatchingChange = { rewatching ->
+                    viewModel.updateEditingSheet { it.copy(isRewatching = rewatching) }
+                },
+                onSave = viewModel::onSaveEditSheet,
+                onRequestDelete = {
+                    viewModel.updateEditingSheet { it.copy(showDeleteConfirmation = true) }
+                },
+                onConfirmDelete = viewModel::onConfirmDeleteFromList,
+                onDismissDeleteConfirmation = {
+                    viewModel.updateEditingSheet { it.copy(showDeleteConfirmation = false) }
+                },
+                onDismiss = { viewModel.setEditingAnime(null) },
+            )
+        val conflictSheetActions =
+            ConflictSheetActions(
+                onKeepDevice = viewModel::onResolveConflictKeepDevice,
+                onUseRemote = viewModel::onResolveConflictUseRemote,
+                onCustomEdit = viewModel::onResolveConflictCustomEdit,
+                onDismiss = viewModel::onDismissConflictSheet,
+            )
+        MyListActions(
+            onCategorySelected = viewModel::onCategorySelected,
+            onSortSelected = viewModel::onSortOptionSelected,
+            onRefresh = { viewModel.onSync(isPullToRefresh = true) },
+            onAnimeClick = onAnimeClick,
+            onQuickIncrement = viewModel::onQuickIncrement,
+            onEditClick = viewModel::setEditingAnime,
+            onConflictClick = viewModel::onConflictClick,
+            onSyncPendingNow = viewModel::onSyncPendingNow,
+            onReviewConflicts = viewModel::onReviewConflicts,
+            onSheetActions = sheetActions,
+            onConflictSheetActions = conflictSheetActions,
         )
     }
 
@@ -204,7 +220,11 @@ data class MyListActions(
     val onAnimeClick: (Long) -> Unit = {},
     val onQuickIncrement: (UserAnime) -> Unit = {},
     val onEditClick: (UserAnime) -> Unit = {},
+    val onConflictClick: (UserAnime) -> Unit = {},
+    val onSyncPendingNow: () -> Unit = {},
+    val onReviewConflicts: () -> Unit = {},
     val onSheetActions: EditAnimeStatusSheetActions? = null,
+    val onConflictSheetActions: ConflictSheetActions? = null,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -238,6 +258,17 @@ fun MyListContent(
                     selectedSort = uiState.selectedSort,
                     onSortSelected = actions.onSortSelected,
                 )
+                PendingSyncBanner(
+                    pendingCount = uiState.pendingCount,
+                    conflictCount = uiState.conflictCount,
+                    onSyncClick = actions.onSyncPendingNow,
+                    onReviewClick = actions.onReviewConflicts,
+                    modifier =
+                        Modifier.padding(
+                            horizontal = MaterialTheme.spacing.screenHorizontal,
+                            vertical = MaterialTheme.spacing.extraSmall,
+                        ),
+                )
                 MyListBody(
                     uiState = uiState,
                     actions = actions,
@@ -247,21 +278,12 @@ fun MyListContent(
         }
     }
 
-    previewAnime?.let { anime ->
-        AnimePosterPreviewDialog(
-            thumbnailUrl = anime.thumbnailUrl,
-            largeImageUrl = anime.largeImageUrl,
-            title = anime.displayTitle,
-            onDismiss = { previewAnime = null },
-        )
-    }
-
-    if (uiState.editingSheetState != null && actions.onSheetActions != null) {
-        EditAnimeStatusBottomSheet(
-            state = uiState.editingSheetState,
-            actions = actions.onSheetActions,
-        )
-    }
+    MyListOverlays(
+        uiState = uiState,
+        actions = actions,
+        previewAnime = previewAnime,
+        onDismissPreview = { previewAnime = null },
+    )
 }
 
 private val EXPANDED_WIDTH_BREAKPOINT = 600.dp
@@ -389,6 +411,7 @@ private fun MyListGrid(
                         onCardClick = { actions.onAnimeClick(anime.id) },
                         onEditClick = { actions.onEditClick(anime) },
                         onQuickIncrement = { actions.onQuickIncrement(anime) },
+                        onConflictClick = { actions.onConflictClick(anime) },
                     ),
                 isSavingProgress = uiState.savingProgressAnimeIds.contains(anime.id),
                 modifier = Modifier.fillMaxWidth(),
@@ -427,6 +450,7 @@ private fun MyListColumn(
                         onCardClick = { actions.onAnimeClick(anime.id) },
                         onEditClick = { actions.onEditClick(anime) },
                         onQuickIncrement = { actions.onQuickIncrement(anime) },
+                        onConflictClick = { actions.onConflictClick(anime) },
                     ),
                 isSavingProgress = uiState.savingProgressAnimeIds.contains(anime.id),
                 modifier = Modifier.fillMaxWidth(),

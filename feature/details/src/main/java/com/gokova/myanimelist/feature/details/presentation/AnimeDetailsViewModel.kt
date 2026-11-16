@@ -7,6 +7,7 @@ import androidx.navigation.toRoute
 import com.gokova.myanimelist.core.domain.logging.AppLog
 import com.gokova.myanimelist.core.domain.model.UpdateUserAnimeStatusParams
 import com.gokova.myanimelist.core.domain.usecase.IgnoredAnimeInteractor
+import com.gokova.myanimelist.core.domain.usecase.PendingMutationInteractor
 import com.gokova.myanimelist.core.ui.component.editlist.EditAnimeStatusSheetState
 import com.gokova.myanimelist.feature.details.R
 import com.gokova.myanimelist.feature.details.domain.model.AnimeDetails
@@ -41,6 +42,7 @@ class AnimeDetailsViewModel
         private val addAnimeToMyListUseCase: AddAnimeToMyListUseCase,
         private val statusInteractor: AnimeStatusInteractor,
         private val ignoredAnimeInteractor: IgnoredAnimeInteractor,
+        pendingMutationInteractor: PendingMutationInteractor,
     ) : ViewModel() {
         val animeId: Long =
             runCatching { savedStateHandle.toRoute<AnimeDetailsRoute>().animeId }
@@ -73,6 +75,11 @@ class AnimeDetailsViewModel
             viewModelScope.launch {
                 ignoredAnimeInteractor.observeIsIgnored(animeId).collect { isIgnored ->
                     _uiState.update { it.copy(isNotInterested = isIgnored) }
+                }
+            }
+            viewModelScope.launch {
+                pendingMutationInteractor.observePendingMutationById(animeId).collect { mutation ->
+                    _uiState.update { it.copy(pendingMutation = mutation) }
                 }
             }
             onRefresh(isInitial = true)

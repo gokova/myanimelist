@@ -113,6 +113,10 @@ class RecommendationRepositoryImplTest {
         override suspend fun deleteIgnoredAnime(animeId: Long): Int = 0
 
         override suspend fun deleteUserAnime(animeId: Long): Int = 0
+
+        override suspend fun getPendingMutationAnimeIds(): List<Long> = emptyList()
+
+        override suspend fun deleteUserAnimeByIds(ids: List<Long>): Int = 0
     }
 
     private class FakeRecommendationScheduler : RecommendationScheduler {

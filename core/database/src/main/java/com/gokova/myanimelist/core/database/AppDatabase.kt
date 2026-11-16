@@ -9,12 +9,14 @@ import com.gokova.myanimelist.core.database.converter.AnimeTypeConverters
 import com.gokova.myanimelist.core.database.dao.AnimeRelationshipDao
 import com.gokova.myanimelist.core.database.dao.IgnoredAnimeDao
 import com.gokova.myanimelist.core.database.dao.NewSeasonDao
+import com.gokova.myanimelist.core.database.dao.PendingUserAnimeMutationDao
 import com.gokova.myanimelist.core.database.dao.RecommendationDao
 import com.gokova.myanimelist.core.database.dao.UserAnimeListDao
 import com.gokova.myanimelist.core.database.entity.AnimeEntity
 import com.gokova.myanimelist.core.database.entity.AnimeRelationshipEntity
 import com.gokova.myanimelist.core.database.entity.IgnoredAnimeEntity
 import com.gokova.myanimelist.core.database.entity.NewSeasonAnimeEntity
+import com.gokova.myanimelist.core.database.entity.PendingUserAnimeMutationEntity
 import com.gokova.myanimelist.core.database.entity.RecommendationCandidateEntity
 import com.gokova.myanimelist.core.database.entity.RecommendationEntity
 import com.gokova.myanimelist.core.database.entity.UserAnimeListEntity
@@ -28,13 +30,16 @@ import com.gokova.myanimelist.core.database.entity.UserAnimeListEntity
         NewSeasonAnimeEntity::class,
         IgnoredAnimeEntity::class,
         AnimeRelationshipEntity::class,
+        PendingUserAnimeMutationEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = false,
 )
 @TypeConverters(AnimeTypeConverters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userAnimeListDao(): UserAnimeListDao
+
+    abstract fun pendingUserAnimeMutationDao(): PendingUserAnimeMutationDao
 
     abstract fun recommendationDao(): RecommendationDao
 
@@ -292,6 +297,52 @@ abstract class AppDatabase : RoomDatabase() {
                         "CREATE INDEX IF NOT EXISTS " +
                             "`index_anime_relationships_target_anime_id` " +
                             "ON `anime_relationships` (`target_anime_id`)",
+                    )
+                }
+            }
+
+        val MIGRATION_7_8 =
+            object : Migration(7, 8) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL(
+                        """
+                        CREATE TABLE IF NOT EXISTS `pending_user_anime_mutations` (
+                            `anime_id` INTEGER NOT NULL,
+                            `status` TEXT,
+                            `num_episodes_watched` INTEGER,
+                            `score` INTEGER,
+                            `is_rewatching` INTEGER,
+                            `baseline_status` TEXT,
+                            `baseline_episodes` INTEGER,
+                            `baseline_score` INTEGER,
+                            `baseline_is_rewatching` INTEGER,
+                            `remote_status` TEXT,
+                            `remote_episodes` INTEGER,
+                            `remote_score` INTEGER,
+                            `remote_is_rewatching` INTEGER,
+                            `created_at` INTEGER NOT NULL,
+                            `sync_state` TEXT NOT NULL,
+                            `sync_error_message` TEXT,
+                            PRIMARY KEY(`anime_id`),
+                            FOREIGN KEY(`anime_id`) REFERENCES `animes`(`id`)
+                                 ON UPDATE NO ACTION ON DELETE CASCADE
+                        )
+                        """.trimIndent(),
+                    )
+                    db.execSQL(
+                        "CREATE UNIQUE INDEX IF NOT EXISTS " +
+                            "`index_pending_user_anime_mutations_anime_id` " +
+                            "ON `pending_user_anime_mutations` (`anime_id`)",
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS " +
+                            "`index_pending_user_anime_mutations_sync_state` " +
+                            "ON `pending_user_anime_mutations` (`sync_state`)",
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS " +
+                            "`index_pending_user_anime_mutations_created_at` " +
+                            "ON `pending_user_anime_mutations` (`created_at`)",
                     )
                 }
             }
