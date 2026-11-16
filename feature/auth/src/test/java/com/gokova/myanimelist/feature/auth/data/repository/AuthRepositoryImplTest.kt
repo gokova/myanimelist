@@ -1,12 +1,19 @@
 package com.gokova.myanimelist.feature.auth.data.repository
 
 import com.gokova.myanimelist.core.datastore.AuthPreferences
+import com.gokova.myanimelist.core.domain.model.ConflictResolution
+import com.gokova.myanimelist.core.domain.model.PendingAnimeMutation
+import com.gokova.myanimelist.core.domain.model.UpdateUserAnimeStatusParams
+import com.gokova.myanimelist.core.domain.repository.PendingMutationRepository
+import com.gokova.myanimelist.core.domain.usecase.ClearPendingMutationsUseCase
+import com.gokova.myanimelist.core.domain.usecase.ResetAuthRequiredMutationsUseCase
 import com.gokova.myanimelist.core.network.config.OAuthConfig
 import com.gokova.myanimelist.feature.auth.data.MalOAuthClient
 import com.gokova.myanimelist.feature.auth.data.pkce.PkceGenerator
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -75,15 +82,59 @@ private class FakeAuthPreferences : AuthPreferences {
     override fun getRefreshTokenSync(): String? = refreshFlow.value
 }
 
+private class FakePendingMutationRepository : PendingMutationRepository {
+    var clearAllCalled = false
+
+    override fun observePendingMutations(): Flow<List<PendingAnimeMutation>> = flowOf(emptyList())
+
+    override fun observePendingMutation(animeId: Long): Flow<PendingAnimeMutation?> = flowOf(null)
+
+    override suspend fun getPendingMutations(): List<PendingAnimeMutation> = emptyList()
+
+    override suspend fun getPendingMutation(animeId: Long): PendingAnimeMutation? = null
+
+    override suspend fun saveMutationLocally(
+        animeId: Long,
+        params: UpdateUserAnimeStatusParams,
+    ): Result<Unit> = Result.success(Unit)
+
+    override suspend fun resolveConflict(
+        animeId: Long,
+        resolution: ConflictResolution,
+    ): Result<Unit> = Result.success(Unit)
+
+    override suspend fun discardMutation(animeId: Long): Result<Unit> = Result.success(Unit)
+
+    override suspend fun clearAllPendingMutations(): Result<Unit> {
+        clearAllCalled = true
+        return Result.success(Unit)
+    }
+
+    override suspend fun getPendingCount(): Int = 0
+
+    override suspend fun syncMutation(animeId: Long): Result<Unit> = Result.success(Unit)
+
+    override suspend fun syncAllPending(): Result<Unit> = Result.success(Unit)
+
+    override suspend fun resetAuthRequiredMutations(): Result<Unit> = Result.success(Unit)
+}
+
 class AuthRepositoryImplTest {
     private lateinit var preferences: FakeAuthPreferences
     private lateinit var pkceGenerator: PkceGenerator
     private lateinit var oAuthConfig: OAuthConfig
+    private lateinit var pendingMutationRepository: FakePendingMutationRepository
+    private lateinit var clearPendingMutationsUseCase: ClearPendingMutationsUseCase
+    private lateinit var resetAuthRequiredMutationsUseCase: ResetAuthRequiredMutationsUseCase
 
     @Before
     fun setUp() {
         preferences = FakeAuthPreferences()
         pkceGenerator = PkceGenerator()
+        pendingMutationRepository = FakePendingMutationRepository()
+        clearPendingMutationsUseCase = ClearPendingMutationsUseCase(pendingMutationRepository)
+        resetAuthRequiredMutationsUseCase =
+            ResetAuthRequiredMutationsUseCase(pendingMutationRepository)
         oAuthConfig =
             OAuthConfig(
                 clientId = "test_client_id",
@@ -91,6 +142,16 @@ class AuthRepositoryImplTest {
                 tokenUrl = "https://myanimelist.net/v1/oauth2/token",
             )
     }
+
+    private fun createRepository(oAuthClient: MalOAuthClient): AuthRepositoryImpl =
+        AuthRepositoryImpl(
+            authPreferences = preferences,
+            pkceGenerator = pkceGenerator,
+            oAuthClient = oAuthClient,
+            oAuthConfig = oAuthConfig,
+            clearPendingMutationsUseCase = clearPendingMutationsUseCase,
+            resetAuthRequiredMutationsUseCase = resetAuthRequiredMutationsUseCase,
+        )
 
     private fun createOAuthClient(
         client: OkHttpClient = OkHttpClient(),
@@ -101,14 +162,10 @@ class AuthRepositoryImplTest {
     fun `getAuthorizationUrl builds URL using OAuthConfig and saves verifier and state`() =
         runTest {
             val repository =
-                AuthRepositoryImpl(
-                    authPreferences = preferences,
-                    pkceGenerator = pkceGenerator,
-                    oAuthClient =
-                        createOAuthClient(
-                            dispatcher = StandardTestDispatcher(testScheduler),
-                        ),
-                    oAuthConfig = oAuthConfig,
+                createRepository(
+                    createOAuthClient(
+                        dispatcher = StandardTestDispatcher(testScheduler),
+                    ),
                 )
 
             val url = repository.getAuthorizationUrl()
@@ -132,14 +189,10 @@ class AuthRepositoryImplTest {
     fun `authenticate returns failure when state does not match`() =
         runTest {
             val repository =
-                AuthRepositoryImpl(
-                    authPreferences = preferences,
-                    pkceGenerator = pkceGenerator,
-                    oAuthClient =
-                        createOAuthClient(
-                            dispatcher = StandardTestDispatcher(testScheduler),
-                        ),
-                    oAuthConfig = oAuthConfig,
+                createRepository(
+                    createOAuthClient(
+                        dispatcher = StandardTestDispatcher(testScheduler),
+                    ),
                 )
 
             preferences.saveOAuthSession(verifier = "mock_verifier", state = "expected_state")
@@ -155,14 +208,10 @@ class AuthRepositoryImplTest {
     fun `authenticate returns failure when savedState is null`() =
         runTest {
             val repository =
-                AuthRepositoryImpl(
-                    authPreferences = preferences,
-                    pkceGenerator = pkceGenerator,
-                    oAuthClient =
-                        createOAuthClient(
-                            dispatcher = StandardTestDispatcher(testScheduler),
-                        ),
-                    oAuthConfig = oAuthConfig,
+                createRepository(
+                    createOAuthClient(
+                        dispatcher = StandardTestDispatcher(testScheduler),
+                    ),
                 )
 
             // Orphaned verifier with null saved state
@@ -179,14 +228,10 @@ class AuthRepositoryImplTest {
     fun `authenticate returns failure when verifier is missing`() =
         runTest {
             val repository =
-                AuthRepositoryImpl(
-                    authPreferences = preferences,
-                    pkceGenerator = pkceGenerator,
-                    oAuthClient =
-                        createOAuthClient(
-                            dispatcher = StandardTestDispatcher(testScheduler),
-                        ),
-                    oAuthConfig = oAuthConfig,
+                createRepository(
+                    createOAuthClient(
+                        dispatcher = StandardTestDispatcher(testScheduler),
+                    ),
                 )
 
             preferences.stateFlow.value = "matching_state"
@@ -226,13 +271,7 @@ class AuthRepositoryImplTest {
                     client = okHttpClient,
                     dispatcher = StandardTestDispatcher(testScheduler),
                 )
-            val repository =
-                AuthRepositoryImpl(
-                    authPreferences = preferences,
-                    pkceGenerator = pkceGenerator,
-                    oAuthClient = oAuthClient,
-                    oAuthConfig = oAuthConfig,
-                )
+            val repository = createRepository(oAuthClient)
 
             preferences.saveOAuthSession(verifier = "mock_verifier", state = "mock_state")
 
@@ -246,17 +285,13 @@ class AuthRepositoryImplTest {
         }
 
     @Test
-    fun `logout clears stored tokens and verifier`() =
+    fun `logout clears stored tokens, verifier, and pending mutations`() =
         runTest {
             val repository =
-                AuthRepositoryImpl(
-                    authPreferences = preferences,
-                    pkceGenerator = pkceGenerator,
-                    oAuthClient =
-                        createOAuthClient(
-                            dispatcher = StandardTestDispatcher(testScheduler),
-                        ),
-                    oAuthConfig = oAuthConfig,
+                createRepository(
+                    createOAuthClient(
+                        dispatcher = StandardTestDispatcher(testScheduler),
+                    ),
                 )
 
             preferences.saveTokens("token_a", "token_b")
@@ -268,5 +303,6 @@ class AuthRepositoryImplTest {
             assertNull(preferences.refreshToken.first())
             assertNull(preferences.codeVerifier.first())
             assertNull(preferences.oauthState.first())
+            assertTrue(pendingMutationRepository.clearAllCalled)
         }
 }

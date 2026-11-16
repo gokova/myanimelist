@@ -5,4 +5,5 @@ data class AnimeCardActions(
     val onCardClick: (() -> Unit)? = null,
     val onEditClick: (() -> Unit)? = null,
     val onQuickIncrement: (() -> Unit)? = null,
+    val onConflictClick: (() -> Unit)? = null,
 )

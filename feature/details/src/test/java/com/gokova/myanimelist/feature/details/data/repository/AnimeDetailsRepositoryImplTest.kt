@@ -1,9 +1,11 @@
 package com.gokova.myanimelist.feature.details.data.repository
 
 import com.gokova.myanimelist.core.database.dao.AnimeRelationshipDao
+import com.gokova.myanimelist.core.database.dao.PendingUserAnimeMutationDao
 import com.gokova.myanimelist.core.database.dao.UserAnimeListDao
 import com.gokova.myanimelist.core.database.entity.AnimeEntity
 import com.gokova.myanimelist.core.database.entity.AnimeRelationshipEntity
+import com.gokova.myanimelist.core.database.entity.PendingUserAnimeMutationEntity
 import com.gokova.myanimelist.core.database.entity.UserAnimeListEntity
 import com.gokova.myanimelist.core.database.model.UserAnimeListItem
 import com.gokova.myanimelist.core.network.api.MalApiService
@@ -34,6 +36,7 @@ class AnimeDetailsRepositoryImplTest {
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var fakeDao: FakeUserAnimeListDao
     private lateinit var fakeRelationshipDao: FakeAnimeRelationshipDao
+    private lateinit var fakePendingMutationDao: FakePendingUserAnimeMutationDao
     private lateinit var fakeApi: FakeMalApiService
     private lateinit var repository: AnimeDetailsRepositoryImpl
 
@@ -41,12 +44,14 @@ class AnimeDetailsRepositoryImplTest {
     fun setUp() {
         fakeDao = FakeUserAnimeListDao()
         fakeRelationshipDao = FakeAnimeRelationshipDao()
+        fakePendingMutationDao = FakePendingUserAnimeMutationDao()
         fakeApi = FakeMalApiService()
         repository =
             AnimeDetailsRepositoryImpl(
                 malApiService = fakeApi,
                 userAnimeListDao = fakeDao,
                 animeRelationshipDao = fakeRelationshipDao,
+                pendingMutationDao = fakePendingMutationDao,
                 ioDispatcher = testDispatcher,
             )
     }
@@ -457,6 +462,80 @@ class AnimeDetailsRepositoryImplTest {
             userAnimeItems.remove(animeId)
             return 1
         }
+
+        override suspend fun getPendingMutationAnimeIds(): List<Long> = emptyList()
+
+        override suspend fun deleteUserAnimeByIds(ids: List<Long>): Int {
+            var count = 0
+            ids.forEach { if (userAnimeItems.remove(it) != null) count++ }
+            return count
+        }
+    }
+
+    private class FakePendingUserAnimeMutationDao : PendingUserAnimeMutationDao {
+        val pendingMap = mutableMapOf<Long, PendingUserAnimeMutationEntity>()
+
+        override fun observeAllPendingMutations(): Flow<List<PendingUserAnimeMutationEntity>> =
+            flowOf(pendingMap.values.toList())
+
+        override suspend fun getAllPendingMutations(): List<PendingUserAnimeMutationEntity> =
+            pendingMap.values.toList()
+
+        override suspend fun getPendingMutationById(
+            animeId: Long,
+        ): PendingUserAnimeMutationEntity? = pendingMap[animeId]
+
+        override fun observePendingMutationById(
+            animeId: Long,
+        ): Flow<PendingUserAnimeMutationEntity?> = flowOf(pendingMap[animeId])
+
+        override suspend fun upsertPendingMutation(mutation: PendingUserAnimeMutationEntity) {
+            pendingMap[mutation.animeId] = mutation
+        }
+
+        override suspend fun updateSyncState(
+            animeId: Long,
+            syncState: String,
+            errorMessage: String?,
+        ): Int {
+            val existing = pendingMap[animeId] ?: return 0
+            pendingMap[animeId] =
+                existing.copy(syncState = syncState, syncErrorMessage = errorMessage)
+            return 1
+        }
+
+        override suspend fun updateConflict(
+            animeId: Long,
+            remoteStatus: String?,
+            remoteEpisodes: Int?,
+            remoteScore: Int?,
+            remoteIsRewatching: Boolean?,
+            syncState: String,
+        ): Int {
+            val existing = pendingMap[animeId] ?: return 0
+            pendingMap[animeId] =
+                existing.copy(
+                    remoteStatus = remoteStatus,
+                    remoteEpisodes = remoteEpisodes,
+                    remoteScore = remoteScore,
+                    remoteIsRewatching = remoteIsRewatching,
+                    syncState = syncState,
+                )
+            return 1
+        }
+
+        override suspend fun deletePendingMutation(animeId: Long): Int =
+            if (pendingMap.remove(animeId) != null) 1 else 0
+
+        override suspend fun clearAllPendingMutations(): Int {
+            val size = pendingMap.size
+            pendingMap.clear()
+            return size
+        }
+
+        override suspend fun getPendingCount(): Int = pendingMap.size
+
+        override suspend fun resetAuthRequiredMutations(): Int = 0
     }
 
     private class FakeMalApiService : MalApiService {

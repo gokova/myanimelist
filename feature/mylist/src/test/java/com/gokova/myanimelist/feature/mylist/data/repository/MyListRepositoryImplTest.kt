@@ -11,6 +11,7 @@ import com.gokova.myanimelist.core.network.model.MyListStatusDto
 import com.gokova.myanimelist.feature.mylist.data.remote.AnimeListRemoteDataSource
 import com.gokova.myanimelist.feature.mylist.domain.model.ListFilterCategory
 import com.gokova.myanimelist.feature.mylist.domain.model.SyncStatus
+import com.gokova.myanimelist.feature.mylist.testing.FakePendingUserAnimeMutationDao
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,6 +28,7 @@ import java.io.IOException
 
 class MyListRepositoryImplTest {
     private lateinit var fakeDao: FakeUserAnimeListDao
+    private lateinit var fakePendingMutationDao: FakePendingUserAnimeMutationDao
     private lateinit var fakeRemoteDataSource: FakeAnimeListRemoteDataSource
     private lateinit var fakeSyncPreferences: FakeSyncPreferences
     private lateinit var repository: MyListRepositoryImpl
@@ -34,11 +36,13 @@ class MyListRepositoryImplTest {
     @Before
     fun setUp() {
         fakeDao = FakeUserAnimeListDao()
+        fakePendingMutationDao = FakePendingUserAnimeMutationDao()
         fakeRemoteDataSource = FakeAnimeListRemoteDataSource()
         fakeSyncPreferences = FakeSyncPreferences()
         repository =
             MyListRepositoryImpl(
                 dao = fakeDao,
+                pendingMutationDao = fakePendingMutationDao,
                 remoteDataSource = fakeRemoteDataSource,
                 syncPreferences = fakeSyncPreferences,
             )
@@ -242,6 +246,10 @@ class MyListRepositoryImplTest {
         override suspend fun deleteIgnoredAnime(animeId: Long): Int = 0
 
         override suspend fun deleteUserAnime(animeId: Long): Int = 0
+
+        override suspend fun getPendingMutationAnimeIds(): List<Long> = emptyList()
+
+        override suspend fun deleteUserAnimeByIds(ids: List<Long>): Int = 0
     }
 
     companion object {

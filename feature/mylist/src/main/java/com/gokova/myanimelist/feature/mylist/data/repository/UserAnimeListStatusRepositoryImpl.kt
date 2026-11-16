@@ -7,9 +7,11 @@ import com.gokova.myanimelist.core.database.util.UserAnimeListSyncCoordinator
 import com.gokova.myanimelist.core.domain.logging.AppLog
 import com.gokova.myanimelist.core.domain.model.UpdateUserAnimeStatusParams
 import com.gokova.myanimelist.core.domain.model.UserAnimeListUpdate
+import com.gokova.myanimelist.core.domain.repository.PendingMutationRepository
 import com.gokova.myanimelist.core.domain.repository.UserAnimeListStatusRepository
 import com.gokova.myanimelist.core.network.api.MalApiService
 import com.gokova.myanimelist.core.network.di.IoDispatcher
+import com.gokova.myanimelist.feature.mylist.data.work.PendingMutationScheduler
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
@@ -23,6 +25,8 @@ class UserAnimeListStatusRepositoryImpl
     constructor(
         private val malApiService: MalApiService,
         private val userAnimeListDao: UserAnimeListDao,
+        private val pendingMutationRepository: PendingMutationRepository,
+        private val pendingMutationScheduler: PendingMutationScheduler,
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
         private val syncCoordinator: UserAnimeListSyncCoordinator = UserAnimeListSyncCoordinator(),
     ) : UserAnimeListStatusRepository {
@@ -30,57 +34,103 @@ class UserAnimeListStatusRepositoryImpl
             animeId: Long,
             params: UpdateUserAnimeStatusParams,
         ): Result<UserAnimeListUpdate> =
+            withContext(ioDispatcher) {
+                val existingItem = userAnimeListDao.getUserAnimeById(animeId)
+                if (existingItem != null) {
+                    updateCachedAnimeStatus(animeId, params)
+                } else {
+                    updateUncachedAnimeStatusOnline(animeId, params)
+                }
+            }
+
+        private suspend fun updateCachedAnimeStatus(
+            animeId: Long,
+            params: UpdateUserAnimeStatusParams,
+        ): Result<UserAnimeListUpdate> {
+            val saveResult = pendingMutationRepository.saveMutationLocally(animeId, params)
+            if (saveResult.isFailure) {
+                return Result.failure(
+                    saveResult.exceptionOrNull()
+                        ?: IllegalStateException("Failed to save mutation locally"),
+                )
+            }
+
+            val updatedItem = userAnimeListDao.getUserAnimeById(animeId)?.userAnime
+            val localUpdate =
+                UserAnimeListUpdate(
+                    animeId = animeId,
+                    status = updatedItem?.status ?: params.status ?: "",
+                    score = updatedItem?.score ?: params.score ?: 0,
+                    numEpisodesWatched =
+                        updatedItem?.numEpisodesWatched ?: params.numWatchedEpisodes ?: 0,
+                    isRewatching =
+                        updatedItem?.isRewatching ?: params.isRewatching ?: false,
+                    updatedAt = updatedItem?.updatedAt ?: "",
+                )
+
+            val syncResult = pendingMutationRepository.syncMutation(animeId)
+            if (syncResult.isFailure) {
+                pendingMutationScheduler.scheduleSync()
+            }
+
+            AppLog.domain.i {
+                "Locally saved status for animeId=$animeId (synced=${syncResult.isSuccess})"
+            }
+            return Result.success(localUpdate)
+        }
+
+        private suspend fun updateUncachedAnimeStatusOnline(
+            animeId: Long,
+            params: UpdateUserAnimeStatusParams,
+        ): Result<UserAnimeListUpdate> =
             syncCoordinator.withLock {
-                withContext(ioDispatcher) {
-                    try {
-                        val missingEntity = fetchMissingAnimeEntity(animeId)
+                try {
+                    val missingEntity = fetchMissingAnimeEntity(animeId)
+                    val statusDto =
+                        malApiService.updateMyListStatus(
+                            animeId = animeId,
+                            status = params.status,
+                            isRewatching = params.isRewatching,
+                            score = params.score,
+                            numWatchedEpisodes = params.numWatchedEpisodes,
+                        )
 
-                        val statusDto =
-                            malApiService.updateMyListStatus(
-                                animeId = animeId,
-                                status = params.status,
-                                isRewatching = params.isRewatching,
-                                score = params.score,
-                                numWatchedEpisodes = params.numWatchedEpisodes,
-                            )
-
-                        if (missingEntity != null) {
-                            userAnimeListDao.upsertAnimes(listOf(missingEntity))
-                        }
-
-                        val userAnime =
-                            UserAnimeListEntity(
-                                animeId = animeId,
-                                status = statusDto.status ?: params.status ?: "",
-                                score = statusDto.score ?: params.score ?: 0,
-                                numEpisodesWatched =
-                                    statusDto.numEpisodesWatched ?: params.numWatchedEpisodes ?: 0,
-                                updatedAt = statusDto.updatedAt ?: "",
-                                isRewatching =
-                                    statusDto.isRewatching ?: params.isRewatching ?: false,
-                            )
-
-                        userAnimeListDao.addAnimeToUserListAndClean(userAnime)
-
-                        val result =
-                            UserAnimeListUpdate(
-                                animeId = userAnime.animeId,
-                                status = userAnime.status,
-                                score = userAnime.score,
-                                numEpisodesWatched = userAnime.numEpisodesWatched,
-                                isRewatching = userAnime.isRewatching,
-                                updatedAt = userAnime.updatedAt,
-                            )
-                        AppLog.domain.i { "Successfully updated list status for animeId=$animeId" }
-                        Result.success(result)
-                    } catch (ce: CancellationException) {
-                        throw ce
-                    } catch (
-                        @Suppress("TooGenericExceptionCaught") e: Exception,
-                    ) {
-                        AppLog.network.e(e) { "Failed to update list status for animeId=$animeId" }
-                        Result.failure(e)
+                    if (missingEntity != null) {
+                        userAnimeListDao.upsertAnimes(listOf(missingEntity))
                     }
+
+                    val userAnime =
+                        UserAnimeListEntity(
+                            animeId = animeId,
+                            status = statusDto.status ?: params.status ?: "",
+                            score = statusDto.score ?: params.score ?: 0,
+                            numEpisodesWatched =
+                                statusDto.numEpisodesWatched ?: params.numWatchedEpisodes ?: 0,
+                            updatedAt = statusDto.updatedAt ?: "",
+                            isRewatching =
+                                statusDto.isRewatching ?: params.isRewatching ?: false,
+                        )
+
+                    userAnimeListDao.addAnimeToUserListAndClean(userAnime)
+
+                    val result =
+                        UserAnimeListUpdate(
+                            animeId = userAnime.animeId,
+                            status = userAnime.status,
+                            score = userAnime.score,
+                            numEpisodesWatched = userAnime.numEpisodesWatched,
+                            isRewatching = userAnime.isRewatching,
+                            updatedAt = userAnime.updatedAt,
+                        )
+                    AppLog.domain.i { "Successfully updated list status for animeId=$animeId" }
+                    Result.success(result)
+                } catch (ce: CancellationException) {
+                    throw ce
+                } catch (
+                    @Suppress("TooGenericExceptionCaught") e: Exception,
+                ) {
+                    AppLog.network.e(e) { "Failed to update list status for animeId=$animeId" }
+                    Result.failure(e)
                 }
             }
 

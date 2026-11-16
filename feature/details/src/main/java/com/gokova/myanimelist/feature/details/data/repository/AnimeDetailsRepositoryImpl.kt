@@ -1,14 +1,17 @@
 package com.gokova.myanimelist.feature.details.data.repository
 
 import com.gokova.myanimelist.core.database.dao.AnimeRelationshipDao
+import com.gokova.myanimelist.core.database.dao.PendingUserAnimeMutationDao
 import com.gokova.myanimelist.core.database.dao.UserAnimeListDao
 import com.gokova.myanimelist.core.database.entity.AnimeEntity
 import com.gokova.myanimelist.core.database.entity.AnimeRelationshipEntity
+import com.gokova.myanimelist.core.database.entity.PendingUserAnimeMutationEntity
 import com.gokova.myanimelist.core.database.entity.UserAnimeListEntity
 import com.gokova.myanimelist.core.database.util.UserAnimeListSyncCoordinator
 import com.gokova.myanimelist.core.domain.logging.AppLog
 import com.gokova.myanimelist.core.network.api.MalApiService
 import com.gokova.myanimelist.core.network.di.IoDispatcher
+import com.gokova.myanimelist.core.network.model.MyListStatusDto
 import com.gokova.myanimelist.core.network.model.RelatedAnimeEdgeDto
 import com.gokova.myanimelist.feature.details.data.mapper.AnimeDetailsMapper
 import com.gokova.myanimelist.feature.details.domain.model.AnimeDetails
@@ -29,12 +32,14 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
+@Suppress("TooManyFunctions")
 class AnimeDetailsRepositoryImpl
     @Inject
     constructor(
         private val malApiService: MalApiService,
         private val userAnimeListDao: UserAnimeListDao,
         private val animeRelationshipDao: AnimeRelationshipDao,
+        private val pendingMutationDao: PendingUserAnimeMutationDao,
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
         private val syncCoordinator: UserAnimeListSyncCoordinator = UserAnimeListSyncCoordinator(),
     ) : AnimeDetailsRepository {
@@ -80,34 +85,8 @@ class AnimeDetailsRepositoryImpl
                             userAnimeListDao.upsertAnimes(listOf(entity))
                         }
 
-                        val localBeforeUpsert =
-                            userAnimeListDao.getUserAnimeById(animeId)?.userAnime
-                        val isStaleRemote =
-                            isRemoteStatusOlderThanLocal(
-                                remoteUpdatedAt = dto.myListStatus?.updatedAt,
-                                localUpdatedAt = localBeforeUpsert?.updatedAt,
-                            )
-
-                        val statusDto = dto.myListStatus
-                        if (statusDto != null && !isStaleRemote) {
-                            val userAnime =
-                                UserAnimeListEntity(
-                                    animeId = dto.id,
-                                    status = statusDto.status ?: "plan_to_watch",
-                                    score = statusDto.score ?: 0,
-                                    numEpisodesWatched = statusDto.numEpisodesWatched ?: 0,
-                                    updatedAt = statusDto.updatedAt ?: "",
-                                    isRewatching = statusDto.isRewatching ?: false,
-                                )
-                            userAnimeListDao.upsertUserAnimeList(listOf(userAnime))
-                        }
-
                         val effectiveUserAnime =
-                            if (isStaleRemote) {
-                                localBeforeUpsert
-                            } else {
-                                userAnimeListDao.getUserAnimeById(animeId)?.userAnime
-                            }
+                            syncUserListStatusWithCache(dto.id, dto.myListStatus)
                         val domainDetails = AnimeDetailsMapper.toDomain(dto, effectiveUserAnime)
                         freshDetailsCache.update { it.withBoundedEntry(animeId to domainDetails) }
                         Result.success(domainDetails)
@@ -212,6 +191,63 @@ class AnimeDetailsRepositoryImpl
                     null
                 }
             } ?: 0L
+        }
+
+        private suspend fun syncUserListStatusWithCache(
+            animeId: Long,
+            statusDto: MyListStatusDto?,
+        ): UserAnimeListEntity? {
+            val localBeforeUpsert = userAnimeListDao.getUserAnimeById(animeId)?.userAnime
+            val pendingMutation = pendingMutationDao.getPendingMutationById(animeId)
+            val isStaleRemote =
+                pendingMutation != null ||
+                    isRemoteStatusOlderThanLocal(
+                        remoteUpdatedAt = statusDto?.updatedAt,
+                        localUpdatedAt = localBeforeUpsert?.updatedAt,
+                    )
+
+            if (statusDto != null && !isStaleRemote) {
+                val userAnime =
+                    UserAnimeListEntity(
+                        animeId = animeId,
+                        status = statusDto.status ?: "plan_to_watch",
+                        score = statusDto.score ?: 0,
+                        numEpisodesWatched = statusDto.numEpisodesWatched ?: 0,
+                        updatedAt = statusDto.updatedAt ?: "",
+                        isRewatching = statusDto.isRewatching ?: false,
+                    )
+                userAnimeListDao.upsertUserAnimeList(listOf(userAnime))
+            } else if (pendingMutation != null && statusDto != null) {
+                if (isMutationSyncedWithRemote(pendingMutation, statusDto)) {
+                    pendingMutationDao.deletePendingMutation(animeId)
+                }
+            }
+
+            return if (isStaleRemote) {
+                localBeforeUpsert
+            } else {
+                userAnimeListDao.getUserAnimeById(animeId)?.userAnime
+            }
+        }
+
+        private fun isMutationSyncedWithRemote(
+            mutation: PendingUserAnimeMutationEntity,
+            remote: MyListStatusDto,
+        ): Boolean {
+            val epMatch =
+                mutation.numEpisodesWatched == null ||
+                    mutation.numEpisodesWatched == (remote.numEpisodesWatched ?: 0)
+            val statusMatch = mutation.status == null || mutation.status == remote.status
+            val scoreMatch =
+                mutation.score == null ||
+                    mutation.score == (remote.score ?: 0)
+            val rewatchMatch =
+                mutation.isRewatching == null ||
+                    mutation.isRewatching == (remote.isRewatching ?: false)
+
+            val progressAndStatusMatch = epMatch && statusMatch
+            val scoreAndRewatchMatch = scoreMatch && rewatchMatch
+            return progressAndStatusMatch && scoreAndRewatchMatch
         }
 
         private suspend fun persistRelatedAnime(

@@ -33,8 +33,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.gokova.myanimelist.core.domain.model.PendingAnimeMutation
 import com.gokova.myanimelist.core.ui.component.badge.PersonalScoreBadge
 import com.gokova.myanimelist.core.ui.component.badge.PublicScoreBadge
+import com.gokova.myanimelist.core.ui.component.badge.SyncStatusBadge
 import com.gokova.myanimelist.core.ui.theme.OnStatusCompletedContainer
 import com.gokova.myanimelist.core.ui.theme.OnStatusDroppedContainer
 import com.gokova.myanimelist.core.ui.theme.OnStatusOnHoldContainer
@@ -93,11 +95,9 @@ fun AnimeDetailsHeader(
             Spacer(modifier = Modifier.height(MaterialTheme.spacing.extraSmall))
 
             HeaderAction(
-                isInUserList = details.isInUserList,
-                userStatus = details.userStatus,
-                isAddingToList = headerState.isAddingToList,
-                onAddToList = actions.onAddToList,
-                onEditStatusClick = actions.onEditStatusClick,
+                details = details,
+                headerState = headerState,
+                actions = actions,
             )
         }
     }
@@ -205,14 +205,35 @@ private fun HeaderScores(
 
 @Composable
 private fun HeaderAction(
-    isInUserList: Boolean,
+    details: AnimeDetails,
+    headerState: AnimeDetailsHeaderState,
+    actions: AnimeDetailsActions,
+) {
+    if (details.isInUserList) {
+        EditStatusBadgeRow(
+            userStatus = details.userStatus,
+            pendingMutation = headerState.pendingMutation,
+            onEditStatusClick = actions.onEditStatusClick,
+        )
+    } else {
+        AddToListButton(
+            isAddingToList = headerState.isAddingToList,
+            onAddToList = actions.onAddToList,
+        )
+    }
+}
+
+@Composable
+private fun EditStatusBadgeRow(
     userStatus: String?,
-    isAddingToList: Boolean,
-    onAddToList: () -> Unit,
+    pendingMutation: PendingAnimeMutation?,
     onEditStatusClick: () -> Unit,
 ) {
-    if (isInUserList) {
-        val (containerColor, contentColor, labelRes) = getStatusColorAndLabel(userStatus)
+    val (containerColor, contentColor, labelRes) = getStatusColorAndLabel(userStatus)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small),
+    ) {
         Surface(
             onClick = onEditStatusClick,
             shape = MaterialTheme.shapes.small,
@@ -238,30 +259,42 @@ private fun HeaderAction(
                 )
             }
         }
-    } else {
-        Button(
-            onClick = onAddToList,
-            enabled = !isAddingToList,
-            shape = MaterialTheme.shapes.large,
-            modifier = Modifier.height(MaterialTheme.spacing.minTouchTarget),
-        ) {
-            if (isAddingToList) {
-                CircularProgressIndicator(
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(18.dp),
-                    strokeWidth = 2.dp,
-                )
-                Spacer(modifier = Modifier.width(MaterialTheme.spacing.small))
-                Text(stringResource(R.string.details_adding_to_list))
-            } else {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(modifier = Modifier.width(MaterialTheme.spacing.extraSmall))
-                Text(stringResource(R.string.details_add_to_list))
-            }
+        if (pendingMutation != null) {
+            SyncStatusBadge(
+                state = pendingMutation.syncState,
+                onClick = onEditStatusClick,
+            )
+        }
+    }
+}
+
+@Composable
+private fun AddToListButton(
+    isAddingToList: Boolean,
+    onAddToList: () -> Unit,
+) {
+    Button(
+        onClick = onAddToList,
+        enabled = !isAddingToList,
+        shape = MaterialTheme.shapes.large,
+        modifier = Modifier.height(MaterialTheme.spacing.minTouchTarget),
+    ) {
+        if (isAddingToList) {
+            CircularProgressIndicator(
+                color = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.size(18.dp),
+                strokeWidth = 2.dp,
+            )
+            Spacer(modifier = Modifier.width(MaterialTheme.spacing.small))
+            Text(stringResource(R.string.details_adding_to_list))
+        } else {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(modifier = Modifier.width(MaterialTheme.spacing.extraSmall))
+            Text(stringResource(R.string.details_add_to_list))
         }
     }
 }

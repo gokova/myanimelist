@@ -4,17 +4,27 @@ import com.gokova.myanimelist.core.ai.client.AiSearchClient
 import com.gokova.myanimelist.core.ai.model.AiException
 import com.gokova.myanimelist.core.ai.model.AiSearchInterpretation
 import com.gokova.myanimelist.core.datastore.AiPreferences
+import com.gokova.myanimelist.core.domain.model.ConflictResolution
 import com.gokova.myanimelist.core.domain.model.IgnoredAnime
 import com.gokova.myanimelist.core.domain.model.ImportIgnoredAnimeResult
+import com.gokova.myanimelist.core.domain.model.PendingAnimeMutation
+import com.gokova.myanimelist.core.domain.model.SyncMutationState
+import com.gokova.myanimelist.core.domain.model.UpdateUserAnimeStatusParams
 import com.gokova.myanimelist.core.domain.model.UserProfile
 import com.gokova.myanimelist.core.domain.repository.IgnoredAnimeRepository
+import com.gokova.myanimelist.core.domain.repository.PendingMutationRepository
 import com.gokova.myanimelist.core.domain.repository.ProfileRepository
 import com.gokova.myanimelist.core.domain.usecase.ExportIgnoredAnimeUseCase
 import com.gokova.myanimelist.core.domain.usecase.IgnoredAnimeBackupInteractor
 import com.gokova.myanimelist.core.domain.usecase.ImportIgnoredAnimeUseCase
 import com.gokova.myanimelist.core.domain.usecase.ObserveIgnoredAnimeCountUseCase
+import com.gokova.myanimelist.core.domain.usecase.ObservePendingMutationByIdUseCase
+import com.gokova.myanimelist.core.domain.usecase.ObservePendingMutationsUseCase
 import com.gokova.myanimelist.core.domain.usecase.ObserveUserProfileUseCase
+import com.gokova.myanimelist.core.domain.usecase.PendingMutationInteractor
 import com.gokova.myanimelist.core.domain.usecase.RefreshUserProfileUseCase
+import com.gokova.myanimelist.core.domain.usecase.ResolveAnimeConflictUseCase
+import com.gokova.myanimelist.core.domain.usecase.SyncPendingMutationsUseCase
 import com.gokova.myanimelist.feature.profile.R
 import com.gokova.myanimelist.feature.profile.domain.usecase.ManageAiApiKeyUseCase
 import kotlinx.coroutines.CompletableDeferred
@@ -48,12 +58,14 @@ class ProfileViewModelTest {
     private lateinit var fakeIgnoredRepository: FakeIgnoredAnimeRepository
     private lateinit var fakeAiPreferences: FakeAiPreferences
     private lateinit var fakeAiSearchClient: FakeAiSearchClient
+    private lateinit var fakePendingMutationRepository: FakePendingMutationRepository
     private lateinit var observeProfileUseCase: ObserveUserProfileUseCase
     private lateinit var refreshProfileUseCase: RefreshUserProfileUseCase
     private lateinit var observeIgnoredCountUseCase: ObserveIgnoredAnimeCountUseCase
     private lateinit var exportIgnoredUseCase: ExportIgnoredAnimeUseCase
     private lateinit var importIgnoredUseCase: ImportIgnoredAnimeUseCase
     private lateinit var manageAiApiKeyUseCase: ManageAiApiKeyUseCase
+    private lateinit var pendingMutationInteractor: PendingMutationInteractor
     private lateinit var viewModel: ProfileViewModel
 
     @Before
@@ -63,12 +75,24 @@ class ProfileViewModelTest {
         fakeIgnoredRepository = FakeIgnoredAnimeRepository()
         fakeAiPreferences = FakeAiPreferences()
         fakeAiSearchClient = FakeAiSearchClient()
+        fakePendingMutationRepository = FakePendingMutationRepository()
         observeProfileUseCase = ObserveUserProfileUseCase(fakeProfileRepository)
         refreshProfileUseCase = RefreshUserProfileUseCase(fakeProfileRepository)
         observeIgnoredCountUseCase = ObserveIgnoredAnimeCountUseCase(fakeIgnoredRepository)
         exportIgnoredUseCase = ExportIgnoredAnimeUseCase(fakeIgnoredRepository)
         importIgnoredUseCase = ImportIgnoredAnimeUseCase(fakeIgnoredRepository)
         manageAiApiKeyUseCase = ManageAiApiKeyUseCase(fakeAiPreferences, fakeAiSearchClient)
+        pendingMutationInteractor =
+            PendingMutationInteractor(
+                observePendingMutations =
+                    ObservePendingMutationsUseCase(fakePendingMutationRepository),
+                observePendingMutationById =
+                    ObservePendingMutationByIdUseCase(fakePendingMutationRepository),
+                resolveAnimeConflict =
+                    ResolveAnimeConflictUseCase(fakePendingMutationRepository),
+                syncPendingMutations =
+                    SyncPendingMutationsUseCase(fakePendingMutationRepository),
+            )
     }
 
     @After
@@ -87,6 +111,7 @@ class ProfileViewModelTest {
                     import = importIgnoredUseCase,
                 ),
             manageAiApiKeyUseCase = manageAiApiKeyUseCase,
+            pendingMutationInteractor = pendingMutationInteractor,
             ioDispatcher = testDispatcher,
         )
 
@@ -531,6 +556,38 @@ class ProfileViewModelTest {
             collectJob.cancel()
         }
 
+    @Test
+    fun `hasUnsyncedUpdates reflects pending mutations presence`() =
+        runTest(testDispatcher) {
+            val cached = UserProfile(id = 1L, name = "cached_user")
+            fakeProfileRepository.profileFlow.value = cached
+            fakeProfileRepository.refreshResult = Result.success(cached)
+
+            viewModel = createViewModel()
+            val collectJob = launch { viewModel.uiState.collect {} }
+            advanceUntilIdle()
+
+            val initialContent = viewModel.uiState.value as ProfileUiState.Content
+            assertFalse(initialContent.hasUnsyncedUpdates)
+
+            fakePendingMutationRepository.pendingFlow.value =
+                listOf(
+                    PendingAnimeMutation(
+                        animeId = 123L,
+                        status = "watching",
+                        numEpisodesWatched = 4,
+                        score = 7,
+                        isRewatching = false,
+                        syncState = SyncMutationState.PENDING,
+                    ),
+                )
+            advanceUntilIdle()
+
+            val updatedContent = viewModel.uiState.value as ProfileUiState.Content
+            assertTrue(updatedContent.hasUnsyncedUpdates)
+            collectJob.cancel()
+        }
+
     private class FakeProfileRepository : ProfileRepository {
         val profileFlow = MutableStateFlow<UserProfile?>(null)
         var refreshGate: CompletableDeferred<Unit>? = null
@@ -640,5 +697,44 @@ class ProfileViewModelTest {
             )
 
         override suspend fun validateApiKey(apiKey: String): Result<Unit> = validateResult
+    }
+
+    private class FakePendingMutationRepository : PendingMutationRepository {
+        val pendingFlow = MutableStateFlow<List<PendingAnimeMutation>>(emptyList())
+
+        override fun observePendingMutations(): Flow<List<PendingAnimeMutation>> = pendingFlow
+
+        override fun observePendingMutation(animeId: Long): Flow<PendingAnimeMutation?> =
+            pendingFlow.map { list -> list.find { it.animeId == animeId } }
+
+        override suspend fun getPendingMutations(): List<PendingAnimeMutation> = pendingFlow.value
+
+        override suspend fun getPendingMutation(animeId: Long): PendingAnimeMutation? =
+            pendingFlow.value.find { it.animeId == animeId }
+
+        override suspend fun saveMutationLocally(
+            animeId: Long,
+            params: UpdateUserAnimeStatusParams,
+        ): Result<Unit> = Result.success(Unit)
+
+        override suspend fun resolveConflict(
+            animeId: Long,
+            resolution: ConflictResolution,
+        ): Result<Unit> = Result.success(Unit)
+
+        override suspend fun discardMutation(animeId: Long): Result<Unit> = Result.success(Unit)
+
+        override suspend fun clearAllPendingMutations(): Result<Unit> {
+            pendingFlow.value = emptyList()
+            return Result.success(Unit)
+        }
+
+        override suspend fun getPendingCount(): Int = pendingFlow.value.size
+
+        override suspend fun syncMutation(animeId: Long): Result<Unit> = Result.success(Unit)
+
+        override suspend fun syncAllPending(): Result<Unit> = Result.success(Unit)
+
+        override suspend fun resetAuthRequiredMutations(): Result<Unit> = Result.success(Unit)
     }
 }

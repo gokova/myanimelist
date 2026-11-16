@@ -2,9 +2,13 @@ package com.gokova.myanimelist.feature.mylist.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gokova.myanimelist.core.domain.model.ConflictResolution
+import com.gokova.myanimelist.core.domain.model.SyncMutationState
 import com.gokova.myanimelist.core.domain.model.UpdateUserAnimeStatusParams
 import com.gokova.myanimelist.core.domain.usecase.DeleteAnimeFromListUseCase
+import com.gokova.myanimelist.core.domain.usecase.PendingMutationInteractor
 import com.gokova.myanimelist.core.domain.usecase.UpdateAnimeStatusUseCase
+import com.gokova.myanimelist.core.ui.component.conflict.ConflictSheetState
 import com.gokova.myanimelist.core.ui.component.editlist.EditAnimeStatusSheetState
 import com.gokova.myanimelist.feature.mylist.R
 import com.gokova.myanimelist.feature.mylist.domain.model.ListFilterCategory
@@ -30,6 +34,7 @@ import com.gokova.myanimelist.core.ui.R as CoreUiR
 
 @HiltViewModel
 @OptIn(ExperimentalCoroutinesApi::class)
+@Suppress("TooManyFunctions")
 class MyListViewModel
     @Inject
     constructor(
@@ -37,6 +42,7 @@ class MyListViewModel
         private val syncUserAnimeListUseCase: SyncUserAnimeListUseCase,
         private val updateAnimeStatusUseCase: UpdateAnimeStatusUseCase,
         private val deleteAnimeFromListUseCase: DeleteAnimeFromListUseCase,
+        private val pendingMutationInteractor: PendingMutationInteractor,
     ) : ViewModel() {
         private val selectedCategory = MutableStateFlow(ListFilterCategory.ALL)
         private val selectedSort = MutableStateFlow(SortOption.SCORE_DESC)
@@ -45,6 +51,7 @@ class MyListViewModel
         private val hasInitialSyncFailed = MutableStateFlow(false)
         private val editingSheetState = MutableStateFlow<EditAnimeStatusSheetState?>(null)
         private val savingProgressAnimeIds = MutableStateFlow<Set<Long>>(emptySet())
+        private val conflictSheetState = MutableStateFlow<ConflictSheetState?>(null)
 
         private val eventChannel = Channel<MyListUiEvent>(Channel.BUFFERED)
         val events = eventChannel.receiveAsFlow()
@@ -83,17 +90,29 @@ class MyListViewModel
                 sheet to savingIds
             }
 
+        private val pendingStateFlow =
+            combine(
+                pendingMutationInteractor.observePendingMutations(),
+                conflictSheetState,
+            ) { mutations, sheet ->
+                val pendingCount = mutations.count { it.syncState != SyncMutationState.CONFLICT }
+                val conflictCount = mutations.count { it.syncState == SyncMutationState.CONFLICT }
+                Triple(pendingCount, conflictCount, sheet)
+            }
+
         val uiState: StateFlow<MyListUiState> =
             combine(
                 listStateFlow,
                 filterSortFlow,
                 syncStateFlow,
                 editStateFlow,
+                pendingStateFlow,
             ) {
                 (allAnime, filteredAnime),
                 (category, sort),
                 (syncing, refreshing, syncFailed),
                 (sheet, savingIds),
+                (pendingCount, conflictCount, conflictSheet),
                 ->
                 val contentState =
                     resolveContentState(
@@ -114,6 +133,9 @@ class MyListViewModel
                     contentState = contentState,
                     editingSheetState = sheet,
                     savingProgressAnimeIds = savingIds,
+                    pendingCount = pendingCount,
+                    conflictCount = conflictCount,
+                    conflictSheetState = conflictSheet,
                 )
             }.stateIn(
                 scope = viewModelScope,
@@ -311,6 +333,71 @@ class MyListViewModel
                             ),
                         )
                     }
+            }
+        }
+
+        fun onConflictClick(anime: UserAnime) {
+            val conflict = anime.pendingMutation?.conflictDetails ?: return
+            conflictSheetState.value =
+                ConflictSheetState(
+                    animeId = anime.id,
+                    animeTitle = anime.displayTitle,
+                    baseline = conflict.baseline,
+                    device = conflict.device,
+                    remote = conflict.remote,
+                )
+        }
+
+        fun onDismissConflictSheet() {
+            conflictSheetState.value = null
+        }
+
+        fun onResolveConflictKeepDevice() {
+            val sheet = conflictSheetState.value ?: return
+            conflictSheetState.update { it?.copy(isResolving = true) }
+            viewModelScope.launch {
+                pendingMutationInteractor.resolveAnimeConflict(
+                    animeId = sheet.animeId,
+                    resolution = ConflictResolution.KeepDevice,
+                )
+                conflictSheetState.value = null
+            }
+        }
+
+        fun onResolveConflictUseRemote() {
+            val sheet = conflictSheetState.value ?: return
+            conflictSheetState.update { it?.copy(isResolving = true) }
+            viewModelScope.launch {
+                pendingMutationInteractor.resolveAnimeConflict(
+                    animeId = sheet.animeId,
+                    resolution = ConflictResolution.UseRemote,
+                )
+                conflictSheetState.value = null
+            }
+        }
+
+        fun onResolveConflictCustomEdit() {
+            val sheet = conflictSheetState.value ?: return
+            val anime = uiState.value.animeList.find { it.id == sheet.animeId }
+            conflictSheetState.value = null
+            if (anime != null) {
+                setEditingAnime(anime)
+            }
+        }
+
+        fun onSyncPendingNow() {
+            viewModelScope.launch {
+                pendingMutationInteractor.syncPendingMutations()
+            }
+        }
+
+        fun onReviewConflicts() {
+            val conflicted =
+                uiState.value.animeList.find {
+                    it.pendingMutation?.syncState == SyncMutationState.CONFLICT
+                }
+            if (conflicted != null) {
+                onConflictClick(conflicted)
             }
         }
 

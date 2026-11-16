@@ -8,6 +8,7 @@ import com.gokova.myanimelist.core.domain.model.ImportIgnoredAnimeResult
 import com.gokova.myanimelist.core.domain.model.UserProfile
 import com.gokova.myanimelist.core.domain.usecase.IgnoredAnimeBackupInteractor
 import com.gokova.myanimelist.core.domain.usecase.ObserveUserProfileUseCase
+import com.gokova.myanimelist.core.domain.usecase.PendingMutationInteractor
 import com.gokova.myanimelist.core.domain.usecase.RefreshUserProfileUseCase
 import com.gokova.myanimelist.core.network.di.IoDispatcher
 import com.gokova.myanimelist.feature.profile.R
@@ -39,6 +40,7 @@ class ProfileViewModel
         private val refreshUserProfileUseCase: RefreshUserProfileUseCase,
         private val backupInteractor: IgnoredAnimeBackupInteractor,
         private val manageAiApiKeyUseCase: ManageAiApiKeyUseCase,
+        pendingMutationInteractor: PendingMutationInteractor,
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
     ) : ViewModel() {
         private val eventChannel = Channel<ProfileUiEvent>(Channel.BUFFERED)
@@ -62,6 +64,7 @@ class ProfileViewModel
                 aiKeyValidationStatus,
                 showAiInfoDialog,
                 errorMessageResId,
+                pendingMutationInteractor.observePendingMutations(),
             ) { args: Array<Any?> ->
                 val profile = args[0] as? UserProfile
                 val ignoredCount = args[1] as Int
@@ -71,6 +74,7 @@ class ProfileViewModel
                 val validationStatus = args[5] as AiKeyValidationStatus
                 val aiInfo = args[6] as Boolean
                 val errorRes = args[7] as? Int
+                val pendingList = args[8] as? List<*>
 
                 when {
                     profile != null ->
@@ -82,6 +86,7 @@ class ProfileViewModel
                             aiApiKey = aiApiKey,
                             aiKeyValidationStatus = validationStatus,
                             showAiInfoDialog = aiInfo,
+                            hasUnsyncedUpdates = !pendingList.isNullOrEmpty(),
                         )
                     errorRes != null -> ProfileUiState.Error(messageResId = errorRes)
                     else -> ProfileUiState.Loading

@@ -1,5 +1,7 @@
 package com.gokova.myanimelist.feature.mylist.domain.model
 
+import com.gokova.myanimelist.core.domain.model.PendingAnimeMutation
+
 data class UserAnime(
     val id: Long,
     val originalTitle: String,
@@ -17,4 +19,5 @@ data class UserAnime(
     val watchedEpisodes: Int,
     val isRewatching: Boolean,
     val updatedAt: String,
+    val pendingMutation: PendingAnimeMutation? = null,
 )

@@ -2,6 +2,8 @@ package com.gokova.myanimelist.feature.auth.data.repository
 
 import com.gokova.myanimelist.core.datastore.AuthPreferences
 import com.gokova.myanimelist.core.domain.logging.AppLog
+import com.gokova.myanimelist.core.domain.usecase.ClearPendingMutationsUseCase
+import com.gokova.myanimelist.core.domain.usecase.ResetAuthRequiredMutationsUseCase
 import com.gokova.myanimelist.core.network.config.OAuthConfig
 import com.gokova.myanimelist.feature.auth.data.MalOAuthClient
 import com.gokova.myanimelist.feature.auth.data.pkce.PkceGenerator
@@ -20,6 +22,8 @@ class AuthRepositoryImpl
         private val pkceGenerator: PkceGenerator,
         private val oAuthClient: MalOAuthClient,
         private val oAuthConfig: OAuthConfig,
+        private val clearPendingMutationsUseCase: ClearPendingMutationsUseCase,
+        private val resetAuthRequiredMutationsUseCase: ResetAuthRequiredMutationsUseCase,
     ) : AuthRepository {
         override val isLoggedIn: Flow<Boolean> = authPreferences.isLoggedIn
 
@@ -69,6 +73,7 @@ class AuthRepositoryImpl
                             refreshToken = tokenResponse.refreshToken,
                             isNewSession = true,
                         )
+                        resetAuthRequiredMutationsUseCase()
                         Result.success(Unit)
                     },
                     onFailure = { error ->
@@ -81,6 +86,7 @@ class AuthRepositoryImpl
         }
 
         override suspend fun logout() {
+            clearPendingMutationsUseCase()
             authPreferences.clearTokens()
         }
     }

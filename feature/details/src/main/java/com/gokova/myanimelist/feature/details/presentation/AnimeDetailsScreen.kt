@@ -304,10 +304,11 @@ private fun AnimeDetailsBody(
 ) {
     val details = uiState.details ?: return
     val headerState =
-        remember(uiState.isAddingToList, uiState.isNotInterested) {
+        remember(uiState.isAddingToList, uiState.isNotInterested, uiState.pendingMutation) {
             AnimeDetailsHeaderState(
                 isAddingToList = uiState.isAddingToList,
                 isNotInterested = uiState.isNotInterested,
+                pendingMutation = uiState.pendingMutation,
             )
         }
     BoxWithConstraints(

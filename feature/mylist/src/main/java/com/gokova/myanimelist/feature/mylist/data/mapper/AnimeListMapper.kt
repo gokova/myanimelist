@@ -5,6 +5,7 @@ import com.gokova.myanimelist.core.database.entity.GenreEntity
 import com.gokova.myanimelist.core.database.entity.StudioEntity
 import com.gokova.myanimelist.core.database.entity.UserAnimeListEntity
 import com.gokova.myanimelist.core.database.model.UserAnimeListItem
+import com.gokova.myanimelist.core.domain.model.PendingAnimeMutation
 import com.gokova.myanimelist.core.network.model.AnimeListEntryDto
 import com.gokova.myanimelist.feature.mylist.domain.model.AiringStatus
 import com.gokova.myanimelist.feature.mylist.domain.model.UserAnime
@@ -54,7 +55,10 @@ object AnimeListMapper {
         )
     }
 
-    fun toDomain(item: UserAnimeListItem): UserAnime {
+    fun toDomain(
+        item: UserAnimeListItem,
+        pendingMutation: PendingAnimeMutation? = null,
+    ): UserAnime {
         val anime = item.anime
         val userStatus = item.userAnime
         val englishTitle = anime.titleEnglish?.takeIf { it.isNotBlank() }
@@ -98,6 +102,7 @@ object AnimeListMapper {
             watchedEpisodes = userStatus.numEpisodesWatched,
             isRewatching = userStatus.isRewatching,
             updatedAt = userStatus.updatedAt,
+            pendingMutation = pendingMutation,
         )
     }
 }

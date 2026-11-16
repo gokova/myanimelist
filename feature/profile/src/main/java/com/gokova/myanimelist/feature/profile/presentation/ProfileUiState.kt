@@ -25,6 +25,7 @@ sealed interface ProfileUiState {
         val aiApiKey: String? = null,
         val aiKeyValidationStatus: AiKeyValidationStatus = AiKeyValidationStatus.Idle,
         val showAiInfoDialog: Boolean = false,
+        val hasUnsyncedUpdates: Boolean = false,
     ) : ProfileUiState
 
     data class Error(

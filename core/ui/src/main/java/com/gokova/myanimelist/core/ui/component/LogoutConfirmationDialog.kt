@@ -29,11 +29,13 @@ import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
 fun LogoutConfirmationDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
+    hasUnsyncedUpdates: Boolean = false,
 ) {
     Dialog(onDismissRequest = onDismiss) {
         LogoutConfirmationDialogContent(
             onConfirm = onConfirm,
             onDismiss = onDismiss,
+            hasUnsyncedUpdates = hasUnsyncedUpdates,
         )
     }
 }
@@ -42,6 +44,7 @@ fun LogoutConfirmationDialog(
 fun LogoutConfirmationDialogContent(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
+    hasUnsyncedUpdates: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     Surface(
@@ -70,6 +73,15 @@ fun LogoutConfirmationDialogContent(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (hasUnsyncedUpdates) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.logout_dialog_unsynced_warning),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
             Spacer(modifier = Modifier.height(24.dp))
             DialogActions(
                 onConfirm = onConfirm,

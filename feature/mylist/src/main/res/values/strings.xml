@@ -39,4 +39,15 @@
     <string name="my_list_airing_status_airing">Airing</string>
     <string name="my_list_airing_status_finished">Finished</string>
     <string name="my_list_airing_status_not_yet_aired">Not Yet Aired</string>
+
+    <plurals name="my_list_pending_sync_count">
+        <item quantity="one">%d update waiting to sync</item>
+        <item quantity="other">%d updates waiting to sync</item>
+    </plurals>
+    <plurals name="my_list_conflict_count">
+        <item quantity="one">%d update needs review</item>
+        <item quantity="other">%d updates need review</item>
+    </plurals>
+    <string name="my_list_sync_pending_now">Sync Now</string>
+    <string name="my_list_review_conflicts">Review</string>
 </resources>

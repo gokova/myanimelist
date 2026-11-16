@@ -47,14 +47,29 @@ interface UserAnimeListDao {
     @Query("DELETE FROM user_anime_list")
     suspend fun clearUserAnimeList(): Int
 
+    @Query("SELECT anime_id FROM pending_user_anime_mutations")
+    suspend fun getPendingMutationAnimeIds(): List<Long>
+
+    @Query("DELETE FROM user_anime_list WHERE anime_id IN (:ids)")
+    suspend fun deleteUserAnimeByIds(ids: List<Long>): Int
+
     @Transaction
     suspend fun syncUserAnimeList(
         animes: List<AnimeEntity>,
         userAnimeList: List<UserAnimeListEntity>,
     ) {
         upsertAnimes(animes)
-        clearUserAnimeList()
-        upsertUserAnimeList(userAnimeList)
+        val pendingIds = getPendingMutationAnimeIds().toSet()
+        val incomingIds = userAnimeList.map { it.animeId }.toSet()
+        val currentIds = getAllUserAnime().map { it.userAnime.animeId }.toSet()
+        val toDelete = (currentIds - incomingIds - pendingIds).toList()
+        if (toDelete.isNotEmpty()) {
+            deleteUserAnimeByIds(toDelete)
+        }
+        val toUpsert = userAnimeList.filter { it.animeId !in pendingIds }
+        if (toUpsert.isNotEmpty()) {
+            upsertUserAnimeList(toUpsert)
+        }
     }
 
     @Query("DELETE FROM recommendations WHERE anime_id = :animeId")

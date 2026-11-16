@@ -298,7 +298,10 @@ private fun ProfileContentState(
         }
 
         if (content.showLogoutDialog) {
-            ProfileLogoutDialogOverlay(actions = actions)
+            ProfileLogoutDialogOverlay(
+                actions = actions,
+                hasUnsyncedUpdates = content.hasUnsyncedUpdates,
+            )
         }
     }
 }
@@ -395,7 +398,10 @@ private fun ProfileLandscapeContent(
 }
 
 @Composable
-private fun ProfileLogoutDialogOverlay(actions: ProfileActions) {
+private fun ProfileLogoutDialogOverlay(
+    actions: ProfileActions,
+    hasUnsyncedUpdates: Boolean = false,
+) {
     if (LocalInspectionMode.current) {
         Box(
             modifier =
@@ -408,12 +414,14 @@ private fun ProfileLogoutDialogOverlay(actions: ProfileActions) {
             LogoutConfirmationDialogContent(
                 onConfirm = actions.onConfirmLogout,
                 onDismiss = actions.onDismissLogout,
+                hasUnsyncedUpdates = hasUnsyncedUpdates,
             )
         }
     } else {
         LogoutConfirmationDialog(
             onConfirm = actions.onConfirmLogout,
             onDismiss = actions.onDismissLogout,
+            hasUnsyncedUpdates = hasUnsyncedUpdates,
         )
     }
 }

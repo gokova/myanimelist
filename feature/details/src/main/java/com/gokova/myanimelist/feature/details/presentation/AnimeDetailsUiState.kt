@@ -1,6 +1,7 @@
 package com.gokova.myanimelist.feature.details.presentation
 
 import androidx.annotation.StringRes
+import com.gokova.myanimelist.core.domain.model.PendingAnimeMutation
 import com.gokova.myanimelist.core.ui.component.editlist.EditAnimeStatusSheetState
 import com.gokova.myanimelist.feature.details.domain.model.AnimeDetails
 
@@ -14,4 +15,5 @@ data class AnimeDetailsUiState(
     val canRetry: Boolean = false,
     val hasFranchiseMap: Boolean = false,
     val editingSheetState: EditAnimeStatusSheetState? = null,
+    val pendingMutation: PendingAnimeMutation? = null,
 )
