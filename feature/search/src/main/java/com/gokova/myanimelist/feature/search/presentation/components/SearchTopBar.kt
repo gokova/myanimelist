@@ -27,8 +27,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
+import androidx.compose.material3.SearchBarState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberSearchBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -223,24 +225,24 @@ private fun SearchBarContainer(
     inputActions: SearchInputActions,
     modifier: Modifier = Modifier,
 ) {
+    val searchBarState = rememberSearchBarState()
     SearchBar(
+        state = searchBarState,
         inputField = {
             SearchInputField(
+                searchBarState = searchBarState,
                 textFieldState = textFieldState,
                 canSearch = canSearch,
                 focusRequester = focusRequester,
                 inputActions = inputActions,
             )
         },
-        expanded = false,
-        onExpandedChange = {},
         modifier = modifier.fillMaxWidth(),
-        windowInsets = WindowInsets(0, 0, 0, 0),
         colors =
             SearchBarDefaults.colors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             ),
-    ) {}
+    )
 }
 
 @Composable
@@ -271,19 +273,18 @@ private fun SyncQueryWithState(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SearchInputField(
+    searchBarState: SearchBarState,
     textFieldState: TextFieldState,
     canSearch: Boolean,
     focusRequester: FocusRequester,
     inputActions: SearchInputActions,
-    modifier: Modifier = Modifier,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
 
     SearchBarDefaults.InputField(
-        state = textFieldState,
+        searchBarState = searchBarState,
+        textFieldState = textFieldState,
         onSearch = { inputActions.onSearch() },
-        expanded = false,
-        onExpandedChange = {},
         interactionSource = interactionSource,
         placeholder = {
             Text(
@@ -312,7 +313,7 @@ private fun SearchInputField(
             )
         },
         modifier =
-            modifier
+            Modifier
                 .focusRequester(focusRequester)
                 .onFocusChanged { focusState ->
                     if (focusState.isFocused) {

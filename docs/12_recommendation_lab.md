@@ -26,13 +26,18 @@ transparent "Why this match?" score breakdowns.
   - Popularity slider: Mainstream ⟵ Balanced ⟶ Niche.
   - Time commitment filter chips: Any, ≤ 13 episodes, ≤ 26 episodes, 27+ episodes.
   - Minimum community score slider: Any, 6.5+, 7.0+, 7.5+, 8.0+.
+  - Exclude Genres & Themes filter chips: Tab-scoped selectable chips (standard genres on Genres tab,
+    top themes on Themes tab) allowing users to exclude unwanted tags in-memory during the session.
+    Excluded chips display a trailing Close icon and subtle error container tint.
   - Live candidate match counter (e.g. "Showing 142 matches").
   - "Apply" and "Reset" action buttons.
-- Recommendation cards feature an expandable "Why this match?" accordion revealing:
-  - Taste Alignment meter and Discovery meter.
-  - Top high-affinity tag matches.
-  - Exploratory/new-to-user tags (anchored by at least one familiar tag).
-  - Duration fit and popularity tier justification.
+- Recommendation cards feature an expandable "Why this match?" accordion revealing grounded evidence
+  bullet points:
+  - Matched affinity bullet indicating how many genres/themes matched user favorites with plural grammar.
+  - Exploration anchor bullet indicating new tags and the familiar anchor tag from user taste.
+  - Format and popularity fit bullet combining duration tier and popularity tier.
+- User taste calculation automatically filters out unrated "Plan to Watch" entries (only status
+  "completed", "watching", or titles with user score > 0 are used to derive taste weights).
 - The existing "Not Interested" ignore feature is retained as-is.
 - Lab settings remain active during the app session across tab switches and revert cleanly to
   "Balanced" on app restart or user logout.
@@ -65,9 +70,10 @@ transparent "Why this match?" score breakdowns.
 | Path | Responsibility |
 | --- | --- |
 | feature/recommendation/presentation/components/RecommendationLabBottomSheet.kt | Modal bottom sheet with sliders, chips, live counter, and inspection preview. |
+| feature/recommendation/presentation/components/LabExclusionSection.kt | Tab-scoped genre and theme exclusion filter chip group. |
 | feature/recommendation/presentation/components/RecommendationHeader.kt | Header with "Tune" action button and active preset indicator. |
-| feature/recommendation/presentation/components/RecommendationCard.kt | Expandable "Why this match?" accordion and meters. |
-| feature/recommendation/domain/model/RecommendationLabConfig.kt | Lab configuration, presets, duration filter, and score breakdown models. |
+| feature/recommendation/presentation/components/RecommendationCard.kt | Expandable "Why this match?" accordion and evidence bullets. |
+| feature/recommendation/domain/model/RecommendationLabConfig.kt | Lab configuration, presets, exclusions, duration filter, and breakdown models. |
 | feature/recommendation/domain/algorithm/RecommendationScorer.kt | Exploration scoring, niche weighting, hard filtering, and breakdown generation. |
 | feature/recommendation/presentation/RecommendationViewModel.kt | Local re-ranking, live count calculation, and lab UI state management. |
 | feature/recommendation/data/remote/RecommendationRemoteDataSource*.kt | Extended ranking (1,500), movie ranking (100), and seasonal fetch. |
@@ -78,6 +84,9 @@ transparent "Why this match?" score breakdowns.
 ## Constraints
 
 - Sliders and chips must re-rank in-memory from cached Room candidates with zero network requests.
+- Excluded tags silently filter out any candidate containing one or more of the excluded tags scoped to the active tab's tag type (genres or themes), with cross-tab exclusions visible and dismissible in the UI.
+- Evidence breakdown displays the total count of matched tags (`totalMatchedCount`) while capping the displayed tag sample at 3.
+- User taste profile calculation strictly ignores unrated "Plan to Watch" items in both live tuning and baseline background evaluation.
 - "Surprising" familiarity requires an anchor: candidate must have at least one high-affinity tag.
 - "Niche" popularity enforces a minimum mean score and user floor to prevent unvetted noise.
 - Lab settings are session-scoped and do not mutate persistent DataStore preferences.

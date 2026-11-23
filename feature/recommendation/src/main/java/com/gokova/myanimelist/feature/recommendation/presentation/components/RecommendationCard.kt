@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -25,7 +26,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -41,6 +41,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -106,7 +107,10 @@ fun RecommendationCard(
                 actions = actions,
             )
             if (anime.breakdown != null) {
-                RecommendationExplainabilitySection(breakdown = anime.breakdown)
+                RecommendationExplainabilitySection(
+                    breakdown = anime.breakdown,
+                    selectedType = selectedType,
+                )
             }
         }
     }
@@ -346,6 +350,7 @@ private const val MAX_DISPLAYED_GENRES = 4
 @Composable
 private fun RecommendationExplainabilitySection(
     breakdown: RecommendationScoreBreakdown,
+    selectedType: RecommendationType,
     modifier: Modifier = Modifier,
 ) {
     var isExpanded by rememberSaveable { mutableStateOf(false) }
@@ -387,7 +392,10 @@ private fun RecommendationExplainabilitySection(
         }
 
         if (isExpanded) {
-            ExplainabilityDetails(breakdown = breakdown)
+            ExplainabilityDetails(
+                breakdown = breakdown,
+                selectedType = selectedType,
+            )
         }
     }
 }
@@ -395,6 +403,7 @@ private fun RecommendationExplainabilitySection(
 @Composable
 private fun ExplainabilityDetails(
     breakdown: RecommendationScoreBreakdown,
+    selectedType: RecommendationType,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -404,89 +413,79 @@ private fun ExplainabilityDetails(
                 .padding(top = MaterialTheme.spacing.extraSmall),
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
     ) {
-        ScoreMeterRow(
-            label = stringResource(R.string.recommendation_taste_alignment),
-            score = breakdown.tasteAlignmentScore,
-        )
-        ScoreMeterRow(
-            label = stringResource(R.string.recommendation_discovery),
-            score = breakdown.discoveryScore,
-        )
-
         if (breakdown.topMatchedTags.isNotEmpty()) {
+            val count = breakdown.totalMatchedCount
             val tags = breakdown.topMatchedTags.joinToString(", ")
-            Text(
-                text = stringResource(R.string.recommendation_why_top_tags, tags),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            val pluralRes =
+                if (selectedType == RecommendationType.THEME) {
+                    R.plurals.recommendation_why_matched_themes
+                } else {
+                    R.plurals.recommendation_why_matched_genres
+                }
+            ExplainabilityBulletRow(
+                text = pluralStringResource(pluralRes, count, count, tags),
             )
         }
 
         if (breakdown.exploratoryTags.isNotEmpty()) {
-            val tags = breakdown.exploratoryTags.joinToString(", ")
-            Text(
-                text = stringResource(R.string.recommendation_why_exploratory_tags, tags),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            val expTag = breakdown.exploratoryTags.first()
+            val text =
+                if (breakdown.anchorTag != null) {
+                    stringResource(
+                        R.string.recommendation_why_exploration_anchored,
+                        expTag,
+                        breakdown.anchorTag,
+                    )
+                } else {
+                    val allExp = breakdown.exploratoryTags.joinToString(", ")
+                    stringResource(R.string.recommendation_why_exploration_standalone, allExp)
+                }
+            ExplainabilityBulletRow(text = text)
         }
 
-        breakdown.durationTier?.let {
-            Text(
-                text = stringResource(R.string.recommendation_why_duration, it.format()),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+        val durationText = breakdown.durationTier?.format()
+        val popularityText = breakdown.popularityTier?.format()
+        if (popularityText != null && durationText != null) {
+            ExplainabilityBulletRow(
+                text =
+                    stringResource(
+                        R.string.recommendation_why_fit_combined,
+                        popularityText,
+                        durationText,
+                    ),
             )
-        }
-
-        breakdown.popularityTier?.let {
-            Text(
-                text = stringResource(R.string.recommendation_why_popularity, it.format()),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+        } else if (durationText != null) {
+            ExplainabilityBulletRow(text = durationText)
+        } else if (popularityText != null) {
+            ExplainabilityBulletRow(text = popularityText)
         }
     }
 }
 
 @Composable
-private fun ScoreMeterRow(
-    label: String,
-    score: Float,
+private fun ExplainabilityBulletRow(
+    text: String,
     modifier: Modifier = Modifier,
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small),
+        verticalAlignment = Alignment.Top,
     ) {
+        Box(
+            modifier =
+                Modifier
+                    .padding(top = 6.dp)
+                    .size(6.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary),
+        )
         Text(
-            text = label,
+            text = text,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
         )
-        val percent = (score * 100).toInt().coerceIn(0, 100)
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small),
-        ) {
-            LinearProgressIndicator(
-                progress = { percent / 100f },
-                modifier =
-                    Modifier
-                        .width(80.dp)
-                        .height(6.dp)
-                        .clip(MaterialTheme.shapes.small),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant,
-            )
-            Text(
-                text = stringResource(R.string.recommendation_percent_format, percent),
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-        }
     }
 }
 
@@ -535,6 +534,7 @@ private fun RecommendationCardPreview() {
                                 exploratoryTags = listOf("Urban Fantasy"),
                                 durationTier = DurationFitTier.StandardCour(sampleEpisodes),
                                 popularityTier = PopularityTier.MAINSTREAM_FAVORITE,
+                                anchorTag = "Action",
                             ),
                     ),
                 selectedType = RecommendationType.GENRE,

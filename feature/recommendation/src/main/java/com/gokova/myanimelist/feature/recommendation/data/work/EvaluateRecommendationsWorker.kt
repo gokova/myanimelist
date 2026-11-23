@@ -17,6 +17,7 @@ import com.gokova.myanimelist.feature.recommendation.domain.model.UserTasteProfi
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.CancellationException
+import java.util.Locale
 
 @HiltWorker
 class EvaluateRecommendationsWorker
@@ -76,13 +77,19 @@ class EvaluateRecommendationsWorker
             candidateEntities: List<AnimeEntity>,
         ) {
             val userTasteItems =
-                userAnimeList.map { item ->
-                    UserTasteProfileItem(
-                        animeId = item.anime.id,
-                        genres = item.anime.genres?.map { it.name } ?: emptyList(),
-                        userScore = item.userAnime.score.takeIf { it > 0 },
-                    )
-                }
+                userAnimeList
+                    .filter { item ->
+                        val status = item.userAnime.status.lowercase(Locale.US)
+                        status == STATUS_COMPLETED ||
+                            status == STATUS_WATCHING ||
+                            item.userAnime.score > 0
+                    }.map { item ->
+                        UserTasteProfileItem(
+                            animeId = item.anime.id,
+                            genres = item.anime.genres?.map { it.name } ?: emptyList(),
+                            userScore = item.userAnime.score.takeIf { it > 0 },
+                        )
+                    }
 
             val candidateItems =
                 candidateEntities.map {
@@ -104,5 +111,10 @@ class EvaluateRecommendationsWorker
                 "EvaluateRecommendationsWorker complete: " +
                     "${recommendationEntities.size} recommendations stored"
             }
+        }
+
+        companion object {
+            private const val STATUS_COMPLETED = "completed"
+            private const val STATUS_WATCHING = "watching"
         }
     }

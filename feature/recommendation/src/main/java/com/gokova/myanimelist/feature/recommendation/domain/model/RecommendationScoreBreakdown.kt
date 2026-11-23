@@ -30,4 +30,6 @@ data class RecommendationScoreBreakdown(
     val exploratoryTags: List<String>,
     val durationTier: DurationFitTier? = null,
     val popularityTier: PopularityTier? = null,
+    val anchorTag: String? = null,
+    val totalMatchedCount: Int = topMatchedTags.size,
 )

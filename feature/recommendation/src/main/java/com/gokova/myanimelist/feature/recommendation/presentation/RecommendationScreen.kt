@@ -194,6 +194,7 @@ private fun RecommendationLabOverlay(
         RecommendationLabBottomSheet(
             config = uiState.labConfig,
             matchCount = matchCount,
+            selectedType = uiState.selectedType,
             actions =
                 remember(onEvent, uiState.labConfig) {
                     RecommendationLabActions(
