@@ -262,4 +262,102 @@ class RecommendationScorerTest {
         assertEquals(1, results.size)
         assertEquals(10L, results.first().animeId)
     }
+
+    @Test
+    fun `evaluateLab filters out candidates containing excluded tags`() {
+        val userList = listOf(UserTasteProfileItem(1L, listOf("Action"), 9))
+        val actionHorror = CandidateAnimeItem(10L, listOf("Action", "Horror"), 8.5, 50000)
+        val actionSciFi = CandidateAnimeItem(20L, listOf("Action", "Sci-Fi"), 8.0, 50000)
+        val config = RecommendationLabConfig(excludedTags = setOf("Horror"))
+
+        val results =
+            scorer.evaluateLab(
+                userList = userList,
+                candidates = listOf(actionHorror, actionSciFi),
+                config = config,
+                targetType = TagType.GENRE,
+            )
+
+        assertEquals(1, results.size)
+        assertEquals(20L, results.first().animeId)
+    }
+
+    @Test
+    fun `evaluateLab populates anchorTag in breakdown when exploratory tags are present`() {
+        val userList =
+            listOf(
+                UserTasteProfileItem(1L, listOf("Sci-Fi"), 10),
+                UserTasteProfileItem(2L, listOf("Sci-Fi"), 10),
+            )
+        val candidate = CandidateAnimeItem(10L, listOf("Sci-Fi", "Horror"), 8.0, 50000)
+        val config = RecommendationPreset.SERENDIPITY.toConfig()
+
+        val results =
+            scorer.evaluateLab(
+                userList = userList,
+                candidates = listOf(candidate),
+                config = config,
+                targetType = TagType.GENRE,
+            )
+
+        assertEquals(1, results.size)
+        val breakdown = results.first().breakdown
+        assertEquals("Sci-Fi", breakdown.anchorTag)
+        assertTrue(breakdown.exploratoryTags.contains("Horror"))
+    }
+
+    @Test
+    fun `evaluateLab only applies exclusions matching the target type`() {
+        val userList = listOf(UserTasteProfileItem(1L, listOf("Action"), 9))
+        val candidate = CandidateAnimeItem(10L, listOf("Action", "Isekai"), 8.5, 50000)
+        val config = RecommendationLabConfig(excludedTags = setOf("Isekai"))
+
+        val genreResults =
+            scorer.evaluateLab(
+                userList = userList,
+                candidates = listOf(candidate),
+                config = config,
+                targetType = TagType.GENRE,
+            )
+        assertEquals(1, genreResults.size)
+        assertEquals(10L, genreResults.first().animeId)
+
+        val themeResults =
+            scorer.evaluateLab(
+                userList = userList,
+                candidates = listOf(candidate),
+                config = config,
+                targetType = TagType.THEME,
+            )
+        assertTrue(themeResults.isEmpty())
+    }
+
+    @Test
+    fun `evaluateLab preserves totalMatchedCount when matches exceed topMatchedTags limit`() {
+        val userList =
+            listOf(
+                UserTasteProfileItem(1L, listOf("Action", "Adventure", "Fantasy", "Comedy"), 10),
+            )
+        val candidate =
+            CandidateAnimeItem(
+                10L,
+                listOf("Action", "Adventure", "Fantasy", "Comedy"),
+                8.0,
+                50000,
+            )
+        val config = RecommendationLabConfig()
+
+        val results =
+            scorer.evaluateLab(
+                userList = userList,
+                candidates = listOf(candidate),
+                config = config,
+                targetType = TagType.GENRE,
+            )
+
+        assertEquals(1, results.size)
+        val breakdown = results.first().breakdown
+        assertEquals(3, breakdown.topMatchedTags.size)
+        assertEquals(4, breakdown.totalMatchedCount)
+    }
 }

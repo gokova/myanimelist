@@ -22,11 +22,13 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -42,6 +44,7 @@ import com.gokova.myanimelist.core.ui.theme.spacing
 import com.gokova.myanimelist.feature.recommendation.R
 import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationLabConfig
 import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationPreset
+import com.gokova.myanimelist.feature.recommendation.domain.model.RecommendationType
 import com.gokova.myanimelist.feature.recommendation.domain.model.TimeCommitmentFilter
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -51,6 +54,7 @@ fun RecommendationLabBottomSheet(
     matchCount: Int,
     actions: RecommendationLabActions,
     modifier: Modifier = Modifier,
+    selectedType: RecommendationType = RecommendationType.GENRE,
 ) {
     if (LocalInspectionMode.current) {
         SimulatedLabOverlay(
@@ -58,9 +62,14 @@ fun RecommendationLabBottomSheet(
             matchCount = matchCount,
             actions = actions,
             modifier = modifier,
+            selectedType = selectedType,
         )
     } else {
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val sheetState =
+            rememberBottomSheetState(
+                initialValue = SheetValue.Hidden,
+                enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+            )
         ModalBottomSheet(
             onDismissRequest = actions.onDismissRequest,
             sheetState = sheetState,
@@ -76,6 +85,7 @@ fun RecommendationLabBottomSheet(
                     Modifier
                         .fillMaxWidth()
                         .navigationBarsPadding(),
+                selectedType = selectedType,
             )
         }
     }
@@ -88,6 +98,7 @@ private fun SimulatedLabOverlay(
     matchCount: Int,
     actions: RecommendationLabActions,
     modifier: Modifier = Modifier,
+    selectedType: RecommendationType = RecommendationType.GENRE,
 ) {
     Box(
         modifier =
@@ -107,6 +118,7 @@ private fun SimulatedLabOverlay(
                     matchCount = matchCount,
                     actions = actions,
                     modifier = Modifier.fillMaxWidth(),
+                    selectedType = selectedType,
                 )
             }
         }
@@ -119,58 +131,88 @@ private fun RecommendationLabContent(
     matchCount: Int,
     actions: RecommendationLabActions,
     modifier: Modifier = Modifier,
+    selectedType: RecommendationType = RecommendationType.GENRE,
 ) {
     Column(modifier = modifier) {
-        Column(
+        LabScrollableOptions(
+            config = config,
+            actions = actions,
+            selectedType = selectedType,
             modifier =
                 Modifier
                     .fillMaxWidth()
                     .weight(1f, fill = false)
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = MaterialTheme.spacing.large),
-            verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium),
-        ) {
-            LabHeader(
-                isDefault = config.isDefault,
-                onReset = actions.onReset,
-            )
-
-            LabPresetSelector(
-                currentPreset = config.preset,
-                onPresetSelected = { actions.onConfigChange(it.toConfig()) },
-            )
-
-            LabSliders(
-                config = config,
-                onConfigChange = actions.onConfigChange,
-            )
-
-            LabTimeCommitmentSelector(
-                currentFilter = config.timeCommitment,
-                onFilterSelected = {
-                    actions.onConfigChange(
-                        config.copy(preset = RecommendationPreset.CUSTOM, timeCommitment = it),
-                    )
-                },
-            )
-
-            LabMinScoreSelector(
-                currentScore = config.minCommunityScore,
-                onScoreSelected = {
-                    actions.onConfigChange(
-                        config.copy(preset = RecommendationPreset.CUSTOM, minCommunityScore = it),
-                    )
-                },
-            )
-
-            Spacer(modifier = Modifier.height(MaterialTheme.spacing.small))
-        }
+        )
 
         LabFooter(
             matchCount = matchCount,
             onApply = actions.onApply,
             modifier = Modifier.fillMaxWidth().padding(MaterialTheme.spacing.large),
         )
+    }
+}
+
+@Composable
+private fun LabScrollableOptions(
+    config: RecommendationLabConfig,
+    actions: RecommendationLabActions,
+    selectedType: RecommendationType,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium),
+    ) {
+        LabHeader(
+            isDefault = config.isDefault,
+            onReset = actions.onReset,
+        )
+
+        LabPresetSelector(
+            currentPreset = config.preset,
+            onPresetSelected = { actions.onConfigChange(it.toConfig(config.excludedTags)) },
+        )
+
+        LabSliders(
+            config = config,
+            onConfigChange = actions.onConfigChange,
+        )
+
+        LabExclusionSection(
+            selectedType = selectedType,
+            excludedTags = config.excludedTags,
+            onTagToggled = { tag ->
+                val updated =
+                    if (tag in config.excludedTags) {
+                        config.excludedTags - tag
+                    } else {
+                        config.excludedTags + tag
+                    }
+                actions.onConfigChange(config.copy(excludedTags = updated))
+            },
+        )
+
+        LabTimeCommitmentSelector(
+            currentFilter = config.timeCommitment,
+            onFilterSelected = {
+                actions.onConfigChange(
+                    config.copy(preset = RecommendationPreset.CUSTOM, timeCommitment = it),
+                )
+            },
+        )
+
+        LabMinScoreSelector(
+            currentScore = config.minCommunityScore,
+            onScoreSelected = {
+                actions.onConfigChange(
+                    config.copy(preset = RecommendationPreset.CUSTOM, minCommunityScore = it),
+                )
+            },
+        )
+
+        Spacer(modifier = Modifier.height(MaterialTheme.spacing.small))
     }
 }
 
@@ -296,10 +338,11 @@ private fun SingleSlider(
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        val sliderState = remember { SliderState(value = value) }
+        sliderState.value = value
         Slider(
-            value = value,
+            state = sliderState,
             onValueChange = onValueChange,
-            valueRange = 0f..1f,
             modifier = Modifier.fillMaxWidth(),
         )
         Row(

@@ -3,6 +3,7 @@ package com.gokova.myanimelist.feature.recommendation.data.repository
 import androidx.work.WorkInfo
 import com.gokova.myanimelist.core.database.dao.RecommendationDao
 import com.gokova.myanimelist.core.database.dao.UserAnimeListDao
+import com.gokova.myanimelist.core.database.model.UserAnimeListItem
 import com.gokova.myanimelist.core.domain.taxonomy.TagType
 import com.gokova.myanimelist.feature.recommendation.data.mapper.RecommendationMapper
 import com.gokova.myanimelist.feature.recommendation.data.work.RecommendationScheduler
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
+import java.util.Locale
 import javax.inject.Inject
 
 class RecommendationRepositoryImpl
@@ -49,14 +51,7 @@ class RecommendationRepositoryImpl
                 userAnimeListDao.observeAllUserAnime(),
                 savedFlow,
             ) { candidateEntities, userAnimeList, savedRecs ->
-                val userTaste =
-                    userAnimeList.map { item ->
-                        UserTasteProfileItem(
-                            animeId = item.anime.id,
-                            genres = item.anime.genres?.map { it.name } ?: emptyList(),
-                            userScore = item.userAnime.score.takeIf { it > 0 },
-                        )
-                    }
+                val userTaste = userAnimeList.toUserTasteProfile()
 
                 val userAnimeIds = userAnimeList.map { it.anime.id }.toSet()
                 val pool =
@@ -160,14 +155,7 @@ class RecommendationRepositoryImpl
         ): Int {
             if (type == RecommendationType.NEW_SEASONS) return 0
             val userAnimeList = userAnimeListDao.getAllUserAnime()
-            val userList =
-                userAnimeList.map { item ->
-                    UserTasteProfileItem(
-                        animeId = item.anime.id,
-                        genres = item.anime.genres?.map { it.name } ?: emptyList(),
-                        userScore = item.userAnime.score.takeIf { it > 0 },
-                    )
-                }
+            val userList = userAnimeList.toUserTasteProfile()
             val savedRecs =
                 if (type == RecommendationType.GENRE) {
                     recommendationDao.observeRecommendationsByGenre().first()
@@ -190,5 +178,22 @@ class RecommendationRepositoryImpl
                     if (results.isEmpty() && config.isDefault) savedRecs.size else results.size
                 }
             }
+        }
+
+        private fun List<UserAnimeListItem>.toUserTasteProfile(): List<UserTasteProfileItem> =
+            filter { item ->
+                val status = item.userAnime.status.lowercase(Locale.US)
+                status == STATUS_COMPLETED || status == STATUS_WATCHING || item.userAnime.score > 0
+            }.map { item ->
+                UserTasteProfileItem(
+                    animeId = item.anime.id,
+                    genres = item.anime.genres?.map { it.name } ?: emptyList(),
+                    userScore = item.userAnime.score.takeIf { it > 0 },
+                )
+            }
+
+        companion object {
+            private const val STATUS_COMPLETED = "completed"
+            private const val STATUS_WATCHING = "watching"
         }
     }

@@ -173,3 +173,4 @@ All architectural decisions, design tokens, and feature specifications are maint
     *   [11: AI-Assisted Search](docs/11_ai_assisted_search.md)
     *   [12: Recommendation Lab](docs/12_recommendation_lab.md)
     *   [13: Franchise Map / Roadmap](docs/13_franchise_map_feature.md)
+    *   [14: Offline Updates and Synchronization](docs/14_offline_updates_and_sync.md)

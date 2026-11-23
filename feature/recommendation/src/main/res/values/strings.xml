@@ -94,6 +94,11 @@
     <string name="recommendation_lab_min_score_title">Minimum Community Score</string>
     <string name="recommendation_lab_min_score_any">Any</string>
     <string name="recommendation_lab_min_score_format">%1$.1f+</string>
+    <string name="recommendation_lab_exclude_genres_title">Exclude Genres</string>
+    <string name="recommendation_lab_exclude_themes_title">Exclude Themes</string>
+    <string name="recommendation_lab_exclude_tag_desc">Exclude %s</string>
+    <string name="recommendation_lab_remove_exclusion_desc">Remove exclusion for %s</string>
+    <string name="recommendation_lab_other_tab_exclusions">Active exclusions in other tab</string>
     <plurals name="recommendation_lab_matches_count">
         <item quantity="one">%d anime matches</item>
         <item quantity="other">%d anime match</item>
@@ -102,6 +107,17 @@
     <!-- Card Explainability -->
     <string name="recommendation_why_match">Why this match?</string>
     <string name="recommendation_why_match_collapse">Hide explanation</string>
+    <plurals name="recommendation_why_matched_genres">
+        <item quantity="one">Matches %1$d genre from your highest-rated anime (%2$s)</item>
+        <item quantity="other">Matches %1$d genres from your highest-rated anime (%2$s)</item>
+    </plurals>
+    <plurals name="recommendation_why_matched_themes">
+        <item quantity="one">Matches %1$d theme from your highest-rated anime (%2$s)</item>
+        <item quantity="other">Matches %1$d themes from your highest-rated anime (%2$s)</item>
+    </plurals>
+    <string name="recommendation_why_exploration_anchored">Introduces \'%1$s\', anchored by your love for \'%2$s\'</string>
+    <string name="recommendation_why_exploration_standalone">Introduces fresh elements: %s</string>
+    <string name="recommendation_why_fit_combined">%1$s • %2$s</string>
     <string name="recommendation_taste_alignment">Taste alignment</string>
     <string name="recommendation_discovery">Discovery</string>
     <string name="recommendation_why_top_tags">Matches your high-rated: %s</string>

@@ -8,7 +8,12 @@ plugins {
 
 android {
     namespace = "com.gokova.myanimelist.feature.franchise"
-    compileSdk = 37
+    compileSdk {
+        version =
+            release(37) {
+                minorApiLevel = 1
+            }
+    }
 
     defaultConfig {
         minSdk = 24

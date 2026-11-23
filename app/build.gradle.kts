@@ -54,7 +54,10 @@ val releaseKeyPassword: String? =
 android {
     namespace = "com.gokova.myanimelist"
     compileSdk {
-        version = release(37)
+        version =
+            release(37) {
+                minorApiLevel = 1
+            }
     }
 
     defaultConfig {

@@ -808,4 +808,53 @@ class RecommendationViewModelTest {
 
             collectJob.cancel()
         }
+
+    @Test
+    fun `onEvent UpdateLabDraft with excludedTags updates draft config`() =
+        runTest {
+            fakeRepository.genreFlow.value = listOf(sampleAnime(1L, "Anime 1"))
+            val viewModel = createViewModel()
+            val collectJob =
+                launch(UnconfinedTestDispatcher(testScheduler)) {
+                    viewModel.uiState.collect()
+                }
+            testScheduler.advanceUntilIdle()
+
+            val configWithExclusions =
+                RecommendationLabConfig(excludedTags = setOf("Ecchi", "Horror"))
+            viewModel.onEvent(RecommendationUiEvent.UpdateLabDraft(configWithExclusions))
+            testScheduler.advanceUntilIdle()
+
+            val draftConfig = viewModel.uiState.value.labConfig
+            assertEquals(configWithExclusions, draftConfig)
+            assertEquals(setOf("Ecchi", "Horror"), draftConfig.excludedTags)
+
+            collectJob.cancel()
+        }
+
+    @Test
+    fun `onEvent ResetLabConfig clears excludedTags back to empty`() =
+        runTest {
+            fakeRepository.genreFlow.value = listOf(sampleAnime(1L, "Anime 1"))
+            val viewModel = createViewModel()
+            val collectJob =
+                launch(UnconfinedTestDispatcher(testScheduler)) {
+                    viewModel.uiState.collect()
+                }
+            testScheduler.advanceUntilIdle()
+
+            val configWithExclusions =
+                RecommendationLabConfig(excludedTags = setOf("Ecchi"))
+            viewModel.onEvent(RecommendationUiEvent.ApplyLabConfig(configWithExclusions))
+            testScheduler.advanceUntilIdle()
+            val appliedConfig = viewModel.uiState.value.labConfig
+            assertEquals(setOf("Ecchi"), appliedConfig.excludedTags)
+
+            viewModel.onEvent(RecommendationUiEvent.ResetLabConfig)
+            testScheduler.advanceUntilIdle()
+            val resetConfig = viewModel.uiState.value.labConfig
+            assertTrue(resetConfig.excludedTags.isEmpty())
+
+            collectJob.cancel()
+        }
 }

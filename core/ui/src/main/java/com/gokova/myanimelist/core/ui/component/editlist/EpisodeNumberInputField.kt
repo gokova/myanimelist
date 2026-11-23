@@ -9,8 +9,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.InputTransformation
+import androidx.compose.foundation.text.input.TextFieldBuffer
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.placeCursorAtEnd
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -18,7 +23,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
@@ -38,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import com.gokova.myanimelist.core.ui.R
 import com.gokova.myanimelist.core.ui.preview.StandardPreviews
 import com.gokova.myanimelist.core.ui.theme.MyAnimeListTheme
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Composable
 fun EpisodeNumberInputField(
@@ -48,65 +56,98 @@ fun EpisodeNumberInputField(
     enabled: Boolean = true,
 ) {
     var isFocused by remember { mutableStateOf(false) }
-    var textFieldValue by remember {
-        mutableStateOf(
-            TextFieldValue(
-                text = episodesWatched.toString(),
-                selection = TextRange(episodesWatched.toString().length),
-            ),
-        )
-    }
+    val textFieldState = rememberTextFieldState(episodesWatched.toString())
+    val inputTransformation = remember(totalEpisodes) { EpisodeInputTransformation(totalEpisodes) }
+    val latestEpisodesWatched by rememberUpdatedState(episodesWatched)
+    val latestOnEpisodesChange by rememberUpdatedState(onEpisodesChange)
 
-    LaunchedEffect(episodesWatched) {
-        if (!isFocused || textFieldValue.text.toIntOrNull() != episodesWatched) {
-            textFieldValue = syncTextFieldValue(textFieldValue, episodesWatched, isFocused)
+    SyncEpisodesWithState(
+        episodesWatched = episodesWatched,
+        isFocused = isFocused,
+        textFieldState = textFieldState,
+        onEpisodesChange = latestOnEpisodesChange,
+    )
+
+    val onReset = {
+        textFieldState.edit {
+            replace(0, length, "0")
+            placeCursorAtEnd()
+        }
+        if (latestEpisodesWatched != 0) {
+            latestOnEpisodesChange(0)
         }
     }
 
     EpisodeInputTextField(
-        state =
+        viewState =
             EpisodeInputViewState(
-                value = textFieldValue,
+                state = textFieldState,
                 isFocused = isFocused,
                 enabled = enabled,
+                inputTransformation = inputTransformation,
             ),
-        onValueChange = { newValue ->
-            val (sanitized, parsed) =
-                sanitizeEpisodeInput(
-                    newValue = newValue,
-                    totalEpisodes = totalEpisodes,
-                    currentValue = textFieldValue,
-                )
-            textFieldValue = sanitized
-            if (parsed != null) {
-                onEpisodesChange(parsed)
-            }
-        },
-        onReset = {
-            textFieldValue = TextFieldValue("0", selection = TextRange(1))
-            onEpisodesChange(0)
-        },
+        onReset = onReset,
         onFocusChanged = { focused ->
+            val wasFocused = isFocused
             isFocused = focused
             if (focused) {
-                val text = textFieldValue.text
-                textFieldValue = textFieldValue.copy(selection = TextRange(0, text.length))
+                textFieldState.edit { selection = TextRange(0, length) }
+            } else if (wasFocused && textFieldState.text.isEmpty()) {
+                onReset()
             }
         },
         modifier = modifier,
     )
 }
 
+@Composable
+private fun SyncEpisodesWithState(
+    episodesWatched: Int,
+    isFocused: Boolean,
+    textFieldState: TextFieldState,
+    onEpisodesChange: (Int) -> Unit,
+) {
+    LaunchedEffect(episodesWatched) {
+        val currentText = textFieldState.text.toString()
+        if (!isFocused || currentText.toIntOrNull() != episodesWatched) {
+            val newText = episodesWatched.toString()
+            if (currentText != newText) {
+                textFieldState.edit {
+                    replace(0, length, newText)
+                    if (isFocused) {
+                        selection = TextRange(0, newText.length)
+                    } else {
+                        placeCursorAtEnd()
+                    }
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(textFieldState) {
+        snapshotFlow { textFieldState.text.toString() }
+            .distinctUntilChanged()
+            .collect { text ->
+                if (text.isNotEmpty()) {
+                    val parsed = text.toIntOrNull()
+                    if (parsed != null && parsed != episodesWatched) {
+                        onEpisodesChange(parsed)
+                    }
+                }
+            }
+    }
+}
+
 private data class EpisodeInputViewState(
-    val value: TextFieldValue,
+    val state: TextFieldState,
     val isFocused: Boolean,
     val enabled: Boolean,
+    val inputTransformation: InputTransformation,
 )
 
 @Composable
 private fun EpisodeInputTextField(
-    state: EpisodeInputViewState,
-    onValueChange: (TextFieldValue) -> Unit,
+    viewState: EpisodeInputViewState,
     onReset: () -> Unit,
     onFocusChanged: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
@@ -116,15 +157,15 @@ private fun EpisodeInputTextField(
         stringResource(R.string.edit_list_status_episodes_input_content_description)
 
     BasicTextField(
-        value = state.value,
-        onValueChange = { if (state.enabled) onValueChange(it) },
-        enabled = state.enabled,
-        singleLine = true,
+        state = viewState.state,
+        enabled = viewState.enabled,
+        lineLimits = TextFieldLineLimits.SingleLine,
+        inputTransformation = viewState.inputTransformation,
         textStyle =
             MaterialTheme.typography.titleMedium.copy(
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
-                color = getEpisodeInputTextColor(state.enabled),
+                color = getEpisodeInputTextColor(viewState.enabled),
             ),
         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
         keyboardOptions =
@@ -132,53 +173,59 @@ private fun EpisodeInputTextField(
                 keyboardType = KeyboardType.Number,
                 imeAction = ImeAction.Done,
             ),
-        keyboardActions =
-            KeyboardActions(
-                onDone = {
-                    if (state.value.text.isEmpty()) onReset()
-                    focusManager.clearFocus()
-                },
-            ),
+        onKeyboardAction = {
+            if (viewState.state.text.isEmpty()) onReset()
+            focusManager.clearFocus()
+        },
         modifier =
             modifier
                 .width(64.dp)
                 .heightIn(min = 48.dp)
                 .semantics { contentDescription = inputDescription }
                 .onFocusChanged { focusState ->
-                    val wasFocused = state.isFocused
                     onFocusChanged(focusState.isFocused)
-                    if (wasFocused && !focusState.isFocused && state.value.text.isEmpty()) {
-                        onReset()
-                    }
                 },
-        decorationBox = { innerTextField ->
+        decorator = { innerTextField ->
             EpisodeInputDecoration(
-                isFocused = state.isFocused,
-                enabled = state.enabled,
+                isFocused = viewState.isFocused,
+                enabled = viewState.enabled,
                 innerTextField = innerTextField,
             )
         },
     )
 }
 
-private fun syncTextFieldValue(
-    current: TextFieldValue,
-    episodesWatched: Int,
-    isFocused: Boolean,
-): TextFieldValue {
-    val newText = episodesWatched.toString()
-    val selection = if (isFocused) TextRange(0, newText.length) else TextRange(newText.length)
-    return current.copy(text = newText, selection = selection)
+internal class EpisodeInputTransformation(
+    private val totalEpisodes: Int?,
+) : InputTransformation {
+    override val keyboardOptions: KeyboardOptions =
+        KeyboardOptions(
+            keyboardType = KeyboardType.Number,
+            imeAction = ImeAction.Done,
+        )
+
+    override fun TextFieldBuffer.transformInput() {
+        val newText = asCharSequence().toString()
+        if (newText.isEmpty()) return
+        val (sanitized, _) = sanitizeEpisodeInput(newText, totalEpisodes)
+        if (sanitized != newText) {
+            if (sanitized.isEmpty() && newText.isNotEmpty()) {
+                revertAllChanges()
+            } else {
+                replace(0, length, sanitized)
+            }
+        }
+    }
 }
 
 internal fun sanitizeEpisodeInput(
-    newValue: TextFieldValue,
+    text: String,
     totalEpisodes: Int?,
-    currentValue: TextFieldValue = TextFieldValue(),
-): Pair<TextFieldValue, Int?> {
-    val digitsOnly = newValue.text.filter { it.isDigit() }
+    currentText: String = "",
+): Pair<String, Int?> {
+    val digitsOnly = text.filter { it.isDigit() }
     if (digitsOnly.isEmpty()) {
-        return newValue.copy(text = "") to null
+        return "" to null
     }
     val trimmed = digitsOnly.trimStart('0')
     val parsed = if (trimmed.isEmpty()) 0 else trimmed.toIntOrNull()
@@ -186,21 +233,32 @@ internal fun sanitizeEpisodeInput(
 
     return if (parsed != null) {
         val clamped = if (isKnownTotal && parsed > totalEpisodes) totalEpisodes else parsed
-        val clampedText = clamped.toString()
-        val selection =
-            if (clampedText != newValue.text) {
-                TextRange(clampedText.length)
-            } else {
-                newValue.selection
-            }
-        newValue.copy(text = clampedText, selection = selection) to clamped
+        clamped.toString() to clamped
     } else if (isKnownTotal) {
-        val clampedText = totalEpisodes.toString()
-        newValue.copy(text = clampedText, selection = TextRange(clampedText.length)) to
-            totalEpisodes
+        totalEpisodes.toString() to totalEpisodes
     } else {
-        currentValue to null
+        currentText to null
     }
+}
+
+internal fun sanitizeEpisodeInput(
+    newValue: TextFieldValue,
+    totalEpisodes: Int?,
+    currentValue: TextFieldValue = TextFieldValue(),
+): Pair<TextFieldValue, Int?> {
+    val (sanitizedText, parsed) =
+        sanitizeEpisodeInput(
+            newValue.text,
+            totalEpisodes,
+            currentValue.text,
+        )
+    val selection =
+        if (sanitizedText != newValue.text) {
+            TextRange(sanitizedText.length)
+        } else {
+            newValue.selection
+        }
+    return newValue.copy(text = sanitizedText, selection = selection) to parsed
 }
 
 @Composable

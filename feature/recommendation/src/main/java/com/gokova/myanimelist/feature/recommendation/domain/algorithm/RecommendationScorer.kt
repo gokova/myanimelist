@@ -71,7 +71,7 @@ class RecommendationScorer {
         targetType: TagType,
         maxResults: Int = DEFAULT_MAX_LAB_RESULTS,
     ): List<ScoredLabCandidateResult> {
-        val filtered = filterLabCandidates(candidates, config)
+        val filtered = filterLabCandidates(candidates, config, targetType)
         if (userList.isEmpty() || filtered.isEmpty()) return emptyList()
 
         val poolSize = candidates.size.toDouble()
@@ -87,6 +87,7 @@ class RecommendationScorer {
     private fun filterLabCandidates(
         candidates: List<CandidateAnimeItem>,
         config: RecommendationLabConfig,
+        targetType: TagType,
     ): List<CandidateAnimeItem> =
         candidates.filter { candidate ->
             val timeOk = config.timeCommitment.matches(candidate.numEpisodes)
@@ -96,7 +97,11 @@ class RecommendationScorer {
             val nicheUserOk =
                 config.popularity <= POPULARITY_MEDIAN ||
                     (candidate.numListUsers ?: 0) >= MIN_NICHE_LIST_USERS
-            timeOk && scoreOk && nicheUserOk
+            val targetTags = candidate.genres.filter { classifyTag(it) == targetType }
+            val exclusionOk =
+                config.excludedTags.isEmpty() ||
+                    targetTags.none { it in config.excludedTags }
+            timeOk && scoreOk && nicheUserOk && exclusionOk
         }
 
     private fun scoreAndRankLab(
@@ -106,64 +111,81 @@ class RecommendationScorer {
         targetType: TagType,
         maxResults: Int,
     ): List<ScoredLabCandidateResult> {
-        val userTags = userWeights.keys
         val avgWeight = if (userWeights.isNotEmpty()) userWeights.values.average() else 0.0
         val strongAnchorTags = userWeights.filterValues { it >= avgWeight * 0.5 }.keys
         val scoredItems = mutableListOf<Pair<CandidateAnimeItem, Double>>()
         val breakdowns = mutableMapOf<Long, RecommendationScoreBreakdown>()
 
         for (candidate in filtered) {
-            val candidateTags = candidate.genres.filter { classifyTag(it) == targetType }
-            val matchedTags = candidateTags.filter { it in userTags }
-            val hasStrongAnchor = matchedTags.any { it in strongAnchorTags }
-            val isEligible =
-                matchedTags.isNotEmpty() &&
-                    (config.familiarity <= POPULARITY_MEDIAN || hasStrongAnchor)
-            if (!isEligible) continue
-
-            val exploratoryTags = candidateTags.filter { it !in userTags }
-            val affinity = sumCandidateAffinity(candidate.genres, targetType, userWeights)
-            val explorationBonus =
-                calculateExplorationBonus(
-                    exploratoryTags = exploratoryTags,
-                    candidateTags = candidateTags,
-                    matchedTags = matchedTags,
-                    userWeights = userWeights,
-                    strongAnchorTags = strongAnchorTags,
-                )
-
-            val explorationWeighted =
-                affinity * TASTE_FAMILIARITY_WEIGHT +
-                    explorationBonus * TASTE_EXPLORATION_WEIGHT
-            val tasteScore =
-                (1.0 - config.familiarity) * affinity +
-                    config.familiarity * explorationWeighted
-
-            val popMultiplier =
-                calculateLabPopularityMultiplier(
-                    meanScore = candidate.meanScore,
-                    numListUsers = candidate.numListUsers,
-                    popularityPref = config.popularity,
-                )
-
-            val finalScore = tasteScore * popMultiplier
-            scoredItems.add(candidate to finalScore)
-
-            val details =
-                ScoredCandidateDetails(
-                    candidate = candidate,
-                    affinity = affinity,
-                    explorationBonus = explorationBonus,
-                    matchedTags =
-                        matchedTags.sortedByDescending {
-                            userWeights[it] ?: DEFAULT_ZERO_SCORE
-                        },
-                    exploratoryTags = exploratoryTags,
-                )
-            breakdowns[candidate.animeId] = buildBreakdown(details, config)
+            val result =
+                scoreCandidateLab(candidate, userWeights, strongAnchorTags, config, targetType)
+            if (result != null) {
+                scoredItems.add(candidate to result.first)
+                breakdowns[candidate.animeId] = result.second
+            }
         }
 
         return formatRankedResults(scoredItems, breakdowns, maxResults)
+    }
+
+    private fun scoreCandidateLab(
+        candidate: CandidateAnimeItem,
+        userWeights: Map<String, Double>,
+        strongAnchorTags: Set<String>,
+        config: RecommendationLabConfig,
+        targetType: TagType,
+    ): Pair<Double, RecommendationScoreBreakdown>? {
+        val userTags = userWeights.keys
+        val candidateTags = candidate.genres.filter { classifyTag(it) == targetType }
+        val matchedTags = candidateTags.filter { it in userTags }
+        val hasStrongAnchor = matchedTags.any { it in strongAnchorTags }
+        val isEligible =
+            matchedTags.isNotEmpty() &&
+                (config.familiarity <= POPULARITY_MEDIAN || hasStrongAnchor)
+        if (!isEligible) return null
+
+        val exploratoryTags = candidateTags.filter { it !in userTags }
+        val anchorTag =
+            if (exploratoryTags.isNotEmpty()) {
+                matchedTags
+                    .filter { it in strongAnchorTags }
+                    .maxByOrNull { userWeights[it] ?: DEFAULT_ZERO_SCORE }
+            } else {
+                null
+            }
+        val affinity = sumCandidateAffinity(candidate.genres, targetType, userWeights)
+        val explorationBonus =
+            calculateExplorationBonus(
+                exploratoryTags = exploratoryTags,
+                candidateTags = candidateTags,
+                matchedTags = matchedTags,
+                userWeights = userWeights,
+                strongAnchorTags = strongAnchorTags,
+            )
+
+        val explorationWeighted =
+            affinity * TASTE_FAMILIARITY_WEIGHT + explorationBonus * TASTE_EXPLORATION_WEIGHT
+        val tasteScore =
+            (1.0 - config.familiarity) * affinity + config.familiarity * explorationWeighted
+        val popMultiplier =
+            calculateLabPopularityMultiplier(
+                meanScore = candidate.meanScore,
+                numListUsers = candidate.numListUsers,
+                popularityPref = config.popularity,
+            )
+
+        val finalScore = tasteScore * popMultiplier
+        val details =
+            ScoredCandidateDetails(
+                candidate = candidate,
+                affinity = affinity,
+                explorationBonus = explorationBonus,
+                matchedTags =
+                    matchedTags.sortedByDescending { userWeights[it] ?: DEFAULT_ZERO_SCORE },
+                exploratoryTags = exploratoryTags,
+                anchorTag = anchorTag,
+            )
+        return finalScore to buildBreakdown(details, config)
     }
 
     private fun formatRankedResults(
@@ -252,6 +274,8 @@ class RecommendationScorer {
             exploratoryTags = details.exploratoryTags.take(EXPLORATORY_TAGS_LIMIT),
             durationTier = durationTier,
             popularityTier = popularityTier,
+            anchorTag = details.anchorTag,
+            totalMatchedCount = details.matchedTags.size,
         )
     }
 
@@ -284,6 +308,8 @@ class RecommendationScorer {
             exploratoryTags = emptyList(),
             durationTier = null,
             popularityTier = null,
+            anchorTag = null,
+            totalMatchedCount = 0,
         )
 
     private data class ScoredCandidateDetails(
@@ -292,6 +318,7 @@ class RecommendationScorer {
         val explorationBonus: Double,
         val matchedTags: List<String>,
         val exploratoryTags: List<String>,
+        val anchorTag: String? = null,
     )
 
     private fun calculateIdf(

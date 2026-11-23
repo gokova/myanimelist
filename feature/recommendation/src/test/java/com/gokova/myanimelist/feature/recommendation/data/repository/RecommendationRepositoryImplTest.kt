@@ -291,6 +291,67 @@ class RecommendationRepositoryImplTest {
         }
 
     @Test
+    fun `observeRecommendations with excludedTags in lab config filters out matching candidates`() =
+        runTest {
+            val actionGenre = listOf(GenreEntity(1, "Action"))
+            val horrorGenre = listOf(GenreEntity(2, "Horror"))
+            fakeUserAnimeListDao.userAnimeFlow.value = listOf(createUserItem(999L, actionGenre))
+            val anime1 = createRecommendationItem(1L, "Action Show", 12, actionGenre)
+            val anime2 = createRecommendationItem(2L, "Horror Show", 12, horrorGenre)
+            fakeRecommendationDao.genreFlow.value = listOf(anime1, anime2)
+
+            val result =
+                repository
+                    .observeRecommendations(
+                        RecommendationType.GENRE,
+                        RecommendationLabConfig(excludedTags = setOf("Horror")),
+                    ).first()
+
+            assertEquals(1, result.size)
+            assertEquals(1L, result[0].animeId)
+        }
+
+    @Test
+    fun `observeRecommendations ignores unrated plan_to_watch anime from taste profile`() =
+        runTest {
+            val userItem =
+                UserAnimeListItem(
+                    userAnime =
+                        UserAnimeListEntity(
+                            animeId = 999L,
+                            status = "plan_to_watch",
+                            score = 0,
+                            numEpisodesWatched = 0,
+                            updatedAt = "2026-09-19",
+                            isRewatching = false,
+                        ),
+                    anime =
+                        AnimeEntity(
+                            id = 999L,
+                            title = "Wishlist Anime",
+                            titleEnglish = null,
+                            mainPictureMedium = null,
+                            mainPictureLarge = null,
+                            mediaType = "tv",
+                            airingStatus = "finished_airing",
+                            numEpisodes = 12,
+                            startSeasonYear = 2026,
+                            startSeasonSeason = "winter",
+                            meanScore = 8.0,
+                            genres = listOf(GenreEntity(1, "Action")),
+                            numListUsers = 100000,
+                        ),
+                )
+            fakeUserAnimeListDao.userAnimeFlow.value = listOf(userItem)
+            val recItem = createRecommendationItem(1L, "Saved Rec", 12)
+            fakeRecommendationDao.genreFlow.value = listOf(recItem)
+
+            val result = repository.observeRecommendations(RecommendationType.GENRE).first()
+            assertEquals(1, result.size)
+            assertEquals(1L, result[0].animeId)
+        }
+
+    @Test
     fun `observeEngineState returns EmptyInsufficientData when user has less than 5 anime`() =
         runTest {
             fakeUserAnimeListDao.userAnimeFlow.value = (1L..3L).map { createUserItem(it) }

@@ -6,6 +6,7 @@ data class RecommendationLabConfig(
     val popularity: Float = DEFAULT_POPULARITY,
     val timeCommitment: TimeCommitmentFilter = TimeCommitmentFilter.ANY,
     val minCommunityScore: Double? = DEFAULT_MIN_COMMUNITY_SCORE,
+    val excludedTags: Set<String> = emptySet(),
 ) {
     val isDefault: Boolean
         get() =
@@ -13,7 +14,8 @@ data class RecommendationLabConfig(
                 familiarity == DEFAULT_FAMILIARITY &&
                 popularity == DEFAULT_POPULARITY &&
                 timeCommitment == TimeCommitmentFilter.ANY &&
-                minCommunityScore == DEFAULT_MIN_COMMUNITY_SCORE
+                minCommunityScore == DEFAULT_MIN_COMMUNITY_SCORE &&
+                excludedTags.isEmpty()
 
     companion object {
         const val DEFAULT_FAMILIARITY = 0.2f
